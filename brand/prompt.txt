@@ -1,0 +1,37 @@
+Use your built-in image generation tool to create three logo images for a product called ROSETTA, and save them as PNG files in the current directory with exactly these names:
+
+1. rosetta-mark.png: the symbol alone, square 1:1, centred, with a generous empty margin (the symbol fills about 65 percent of the canvas), on a plain solid white background.
+2. rosetta-icon.png: the simplest form of the same symbol, centred inside a rounded square filled with solid #8A7A2E (olive), square 1:1. The rounded square fills the canvas edge to edge apart from a thin white margin; outside it the background is plain white. The symbol inside keeps its dark brown outline and stays large and simple.
+3. rosetta-wordmark.png: landscape 3:1 (for example 1536x512). The mark on the left, and on the right the word ROSETTA in a clean, bold, geometric sans-serif, all capitals, colour #3A2414, vertically centred with the mark. Plain solid white background. The word must be spelled exactly R-O-S-E-T-T-A, seven letters, nothing else.
+
+What the product does: Sinhala, Tamil and English translation for every provincial system, with one glossary.
+Why the name: the Rosetta Stone carried the same text in three scripts. The mark evokes that idea of one stone, three bands, one shared meaning.
+
+THE SYMBOL (describe exactly this):
+- An ORIGINAL upright stone tablet, slightly taller than wide, with softly rounded corners and a gently irregular, friendly rounded silhouette (a cartoon stone slab, not a realistic photo of the Rosetta Stone and not a copy of it).
+- Stone colour: a warm mid grey (around #9A948C) with one darker grey cel-shade (around #7C766E) as a single flat band along the right edge and bottom, no gradients.
+- A small warm cream #FDF3E1 highlight shape on the upper left of the tablet.
+- The face of the tablet carries THREE horizontal bands, stacked top, middle, bottom, each separated by a thin carved dark brown line.
+- Inside each band: a single row of abstract carved marks made only of round dots and short straight strokes, in dark brown #3A2414. Make each band slightly different in rhythm so the three read as three different "scripts": top band short vertical ticks and dots, middle band small round dots in pairs, bottom band short horizontal dashes and dots. Keep the marks few, chunky and evenly spaced so they survive at 32 px.
+- The marks must NOT be real letters, numerals or glyphs of any script: no Sinhala, no Tamil, no Latin, no Greek, no Egyptian hieroglyphs, no Demotic. They are purely abstract dots and strokes.
+- Bold, even dark brown #3A2414 outline around the whole tablet.
+
+STYLE AND MOOD:
+- Friendly flat 2D cartoon, same family as a cheerful vector app-logo set: bold dark brown outlines (#3A2414), cel shading with at most one shade per colour, clean chunky shapes, no gradients, no texture, no noise, no drop shadow, no 3D, no glow.
+- Flat vector style, bold clean shapes, at most one soft shade, readable at 32 px.
+
+PALETTE (use these hex values):
+- Outline and wordmark: dark brown #3A2414
+- Highlight and light accents: warm cream #FDF3E1
+- Icon rounded-square colour: olive #8A7A2E
+- Stone: warm grey #9A948C with one shade #7C766E (only because the subject needs it)
+- Background: plain solid white #FFFFFF on all three images.
+
+RULES:
+- Original only: the mark may evoke the idea of the Rosetta Stone but must not copy any existing logo, artefact image, symbol, character design or glyph.
+- No text in the mark or the icon: no letters, numbers or writing of any kind. Only the wordmark carries letters, and it spells ROSETTA exactly.
+- Small sizes first: simple, bold, high-contrast shapes that stay readable at 32 px.
+- Plain white background, no scenery, no frame, no border, no mockup, no extra elements.
+- The mark in the icon and in the wordmark is the same tablet as in rosetta-mark.png.
+
+After saving, list the files with their sizes.
