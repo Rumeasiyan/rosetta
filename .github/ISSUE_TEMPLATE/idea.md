@@ -4,10 +4,10 @@ about: Something to build, write or try
 labels: idea
 ---
 
-**What**
+### What
 
-**Why it helps**
+### Why it helps
 
-**How I would do it**
+### How I would do it
 
-**Done when**
+### Done when

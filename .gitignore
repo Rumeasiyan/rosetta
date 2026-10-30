@@ -6,3 +6,11 @@
 *.pem
 /bin/
 /tmp/
+.DS_Store
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+*.ipynb_checkpoints

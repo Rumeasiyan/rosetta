@@ -1,0 +1,50 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: "**/*.md"
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "check"
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check"
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: gofmt
+        run: |
+          files=$(find . -name '*.go' -not -path './vendor/*')
+          if [ -z "$files" ]; then echo "no Go files"; exit 0; fi
+          out=$(gofmt -l $files); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+
+  file-names:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: lower-case, hyphenated names
+        run: |
+          bad=$(git ls-files | grep -vE '^(README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|LICENSE|Makefile|Dockerfile)' \
+            | grep -vE '(^|/)\.' | grep -vE '\.go$' | grep -vE '^docs/(STANDARDS|GETTING-STARTED|RESEARCH)\.md$' \
+            | grep -E '[A-Z ]|_' || true)
+          if [ -n "$bad" ]; then echo "Rename to lower-case-with-hyphens:"; echo "$bad"; exit 1; fi

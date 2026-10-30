@@ -2,6 +2,8 @@
 
 Thank you for helping. This guide explains how work happens here. Read it once before you start, and come back to it when unsure.
 
+**Read [docs/STANDARDS.md](docs/STANDARDS.md)** for how we name, write, format and check everything: issues, branches, commits, pull requests, files, lint.
+
 New to GitHub? Start with [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md): it walks through forking, branches and pull requests step by step.
 
 ## 1. Nobody assigns work: you take the lead
@@ -21,7 +23,7 @@ If you have a doubt about a piece of work, **ask in that issue**, not in private
 
 1. **Fork** this repository to your own account (once).
 2. **Create a branch** for each issue, named after it: `12-tamil-glossary-format`.
-3. **Commit little and often.** Each commit does one thing and says what, in plain words: "Add Tamil glossary sample", not "update" or "fix".
+3. **Commit little and often.** Each commit does one thing and says what: `data: add Tamil glossary sample`, not "update" or "fix".
 4. **Open a pull request** to `main` of this repository. Fill in the template: what, why, which issue (`Closes #12`), how you checked it. Open it early as a **draft** if you want feedback.
 5. **Review.** At least one other contributor reviews. Answer every comment: change what is asked, or explain why not.
 6. **Merge** after approval (squash merge). The issue closes with it.

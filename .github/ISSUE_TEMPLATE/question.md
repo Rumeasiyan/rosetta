@@ -4,6 +4,6 @@ about: A doubt that fits no existing issue
 labels: question
 ---
 
-**My question**
+### My question
 
-**What I already tried or read**
+### What I already tried or read

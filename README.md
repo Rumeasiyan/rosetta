@@ -11,6 +11,7 @@ The translation service of the Eastern Province: Sinhala, Tamil and English tran
 Anyone can help: research, testing, documents and code. **Work is not assigned: pick an issue or open one, and take it to the end.** Questions go in the issue they are about. Contributions are tracked through this repository (issues, pull requests, commits and reviews).
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): how work happens here
+- [docs/STANDARDS.md](docs/STANDARDS.md): good practice for issues, branches, commits, pull requests, file names, formatting and lint
 - [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md): first time on GitHub, step by step
 - [docs/RESEARCH.md](docs/RESEARCH.md): what we are researching first
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md)
