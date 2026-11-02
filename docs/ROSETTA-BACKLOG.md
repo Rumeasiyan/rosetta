@@ -88,6 +88,7 @@ Notes:
 **Still to run for R2.** Every R2 story is built with its tests passing, database tests included, and every box stays unticked until its walk has run. To finish, with `postgres` and `pgbouncer` up and the service and stand-in running from source as AGENTS.md says, walk each story, on desktop and at 360 pixels wide, in three languages, and tick it as it passes:
 
 - **E-GAT-01:** Walk: open a direction on a recorded test score at `/gate` (E-GAT-02 brings the real evaluation), read it from `GET /api/v1/gate` with a key, close it, change the stand-in's source version and see it start closed; read the history and the entries back.
+- **E-CAL-03:** Walk: set a system's limits on its screen, send requests past them with a key, read `over limit` and `Retry-After`; see no denial reach PENSIEVE's stand-in for those; change the two settings and register a new system to see them start from there.
 <!-- r2-still -->
 
 ## R3 Grammar

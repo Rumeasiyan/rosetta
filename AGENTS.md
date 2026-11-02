@@ -27,6 +27,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/mask` | Masking and restoring card and phone numbers: pure, with a map to the original offsets. |
 | `internal/apisign` | The signature on calls from another machine: PARADOX's profile plus a nonce. |
 | `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
+| `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 
 ## Commands

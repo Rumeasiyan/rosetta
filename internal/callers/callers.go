@@ -6,9 +6,11 @@ package callers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 	"unicode/utf8"
 
+	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -88,13 +90,14 @@ func fit(s string, n int) string {
 	return string([]rune(s)[:n])
 }
 
-// Register keeps s as a calling system, its status and owner as TVA gives them now.
-func Register(ctx context.Context, tx pgx.Tx, s tva.System, by int64) (Caller, error) {
+// Register keeps s as a calling system, its status and owner as TVA gives them now,
+// with the limits a new system starts with.
+func Register(ctx context.Context, tx pgx.Tx, s tva.System, l Limits, by int64) (Caller, error) {
 	subject, post := s.Owner()
-	row := tx.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_post_ref, owner_subject, tva_status, tva_checked_at, registered_by, flag)
-		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, now(), $6, $7)
+	row := tx.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_post_ref, owner_subject, tva_status, tva_checked_at, registered_by, flag, requests_per_minute, requests_at_once)
+		VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, now(), $6, $7, $8, $9)
 		ON CONFLICT (tva_reference) DO NOTHING RETURNING `+columns,
-		s.Reference, fit(s.Name(), 200), post, subject, s.Status, by, FlagFor(s))
+		s.Reference, fit(s.Name(), 200), post, subject, s.Status, by, FlagFor(s), l.PerMinute, l.AtOnce)
 	c, err := scan(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, ErrAlready
@@ -141,4 +144,69 @@ func OwnedBy(ctx context.Context, q Querier, subject string) ([]Caller, error) {
 		return nil, nil
 	}
 	return list(ctx, q, `SELECT `+columns+` FROM caller WHERE owner_subject = $1 ORDER BY name, id`, subject)
+}
+
+// Limits is a system's limits (R-CAL-07).
+type Limits struct {
+	PerMinute, AtOnce int
+}
+
+// ParseLimits checks what the form sent, against the same ranges as the settings that
+// give a new system its limits.
+func ParseLimits(perMinute, atOnce string) (Limits, error) {
+	m, err := settings.CallerPerMinute.Parse(perMinute)
+	if err != nil {
+		return Limits{}, err
+	}
+	o, err := settings.CallerAtOnce.Parse(atOnce)
+	if err != nil {
+		return Limits{}, err
+	}
+	return Limits{PerMinute: m, AtOnce: o}, nil
+}
+
+// SetLimits changes a system's limits, with its history row. They are read on every
+// request, so they are in force at once. It reports whether anything changed.
+func SetLimits(ctx context.Context, tx pgx.Tx, s Caller, l Limits, by int64) (Limits, bool, error) {
+	var old Limits
+	err := tx.QueryRow(ctx, `SELECT requests_per_minute, requests_at_once FROM caller WHERE id = $1 FOR UPDATE`, s.ID).Scan(&old.PerMinute, &old.AtOnce)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return old, false, ErrNoSuchSystem
+	}
+	if err != nil || old == l {
+		return old, false, err
+	}
+	if _, err = tx.Exec(ctx, `UPDATE caller SET requests_per_minute = $2, requests_at_once = $3 WHERE id = $1`, s.ID, l.PerMinute, l.AtOnce); err != nil {
+		return old, false, err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO change_history (subject, subject_ref, old_value, new_value, changed_by) VALUES ('caller limit', $1, $2, $3, $4)`,
+		s.Reference, old.text(), l.text(), by)
+	return old, err == nil, err
+}
+
+func (l Limits) text() string { return fmt.Sprintf("%d a minute, %d at once", l.PerMinute, l.AtOnce) }
+
+// LimitChange is one change to a system's limits.
+type LimitChange struct {
+	Old, New  string
+	ChangedAt time.Time
+	By        string
+}
+
+// limitHistory is the most changes a system's screen shows.
+const limitHistory = 20
+
+// LimitHistory is the latest changes to one system's limits.
+func LimitHistory(ctx context.Context, q Querier, reference string) ([]LimitChange, error) {
+	rows, err := q.Query(ctx, `SELECT COALESCE(h.old_value, ''), COALESCE(h.new_value, ''), h.changed_at, p.name
+		FROM change_history h JOIN person p ON p.id = h.changed_by
+		WHERE h.subject = 'caller limit' AND h.subject_ref = $1 ORDER BY h.id DESC LIMIT $2`, reference, limitHistory)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (LimitChange, error) {
+		var x LimitChange
+		err := r.Scan(&x.Old, &x.New, &x.ChangedAt, &x.By)
+		return x, err
+	})
 }

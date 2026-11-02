@@ -191,4 +191,11 @@ var messages = map[string]text{
 	"gateOpened":      {"The direction is open. It is in force within 60 seconds.", "දිශාව විවෘතයි. එය තත්පර 60ක් ඇතුළත බලාත්මක වේ.", "திசை திறந்துள்ளது. இது 60 வினாடிகளுக்குள் நடைமுறைக்கு வரும்."},
 	"gateClosed":      {"The direction is closed. It is in force within 60 seconds.", "දිශාව වසා ඇත. එය තත්පර 60ක් ඇතුළත බලාත්මක වේ.", "திசை மூடப்பட்டது. இது 60 வினாடிகளுக்குள் நடைமுறைக்கு வரும்."},
 	"gateBad":         {"An opening needs a test set, a score and a date not ahead of today. Nothing was changed.", "විවෘත කිරීමට පරීක්ෂණ කට්ටලයක්, ලකුණු සහ අදට පසු නොවන දිනයක් අවශ්‍යයි. කිසිවක් වෙනස් කළේ නැත.", "திறப்பதற்கு சோதனைத் தொகுப்பும் மதிப்பெண்ணும் இன்றைக்குப் பிந்தாத திகதியும் தேவை. எதுவும் மாற்றப்படவில்லை."},
+
+	"limits":                 {"Limits", "සීමා", "வரம்புகள்"},
+	"limitsSaved":            {"Saved. The new limits are in force now.", "සුරකින ලදී. නව සීමා දැන් බලාත්මකයි.", "சேமிக்கப்பட்டது. புதிய வரம்புகள் இப்போது நடைமுறையில் உள்ளன."},
+	"limitsBad":              {"Those limits are not values this system may take. Nothing was changed.", "එම සීමා මෙම පද්ධතියට ගත හැකි අගයන් නොවේ. කිසිවක් වෙනස් කළේ නැත.", "அந்த வரம்புகள் இந்த முறைமைக்குப் பொருந்தும் மதிப்புகள் அல்ல. எதுவும் மாற்றப்படவில்லை."},
+	"settingCallerPerMinute": {"Requests a minute", "මිනිත්තුවකට ඉල්ලීම්", "நிமிடத்துக்குக் கோரிக்கைகள்"},
+	"settingCallerAtOnce":    {"Requests at once", "එකවර ඉල්ලීම්", "ஒரே நேரத்தில் கோரிக்கைகள்"},
+	"unitRequests":           {"requests", "ඉල්ලීම්", "கோரிக்கைகள்"},
 }

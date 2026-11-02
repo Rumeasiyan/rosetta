@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Limits per system
+
+The settings `caller_requests_per_minute` and `caller_requests_at_once` (R-CAL-07) are what a new system starts with; each system's own figures then live on its row, changed by the administrator on its screen, so a system's owner cannot raise them. They are read with the key on every request, so a change is in force at once. A minute is any 60 seconds, not a clock minute. The count is in memory, in the one process there is, so a restart starts it again. A refused request counts against neither limit, and a refused key touches none. Migration 003 adds `caller limit` to `change_history`'s subjects, an addition Annex A does not list, since R-ADM-05 keeps every such change as history.
+
 ## The gate
 
 A decision is for one source and direction, and counts only for the version it was made on, compared with what the list says now, so a new version is closed at once with nothing to do. No decision is closed. Opening again on a new evaluation ends the old decision, which stays as history. A test set's name is 1 to 100 letters, digits, spaces and `._:-`, and one PENSIEVE would refuse is refused as a bad name. `GET /api/v1/gate` answers all six directions, as a signed call carries no query; a source turned off for ROSETTA is not among those open. It reads the list as last known, stale or not, since the gate is about evaluations and not about who is up. The screen is the administrator's alone.

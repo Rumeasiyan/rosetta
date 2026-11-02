@@ -20,6 +20,7 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/apisign"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
+	"github.com/Rumeasiyan/rosetta/internal/limits"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
@@ -68,6 +69,7 @@ type Server struct {
 	deps     Deps
 	verifier apisign.Verifier
 	counts   *Counts
+	limiter  *limits.Limiter
 	routes   *http.ServeMux
 }
 
@@ -79,7 +81,7 @@ func New(deps Deps) *Server {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, counts: NewCounts(deps.Now), routes: http.NewServeMux()}
+	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -157,6 +159,14 @@ func (s *Server) withKey(next http.Handler) http.Handler {
 		if err := s.deps.Keys.Used(ctx, h); err != nil {
 			s.deps.Logger.Error("a key's use was not noted", "request_ref", ref)
 		}
+		// Over a limit is no denial (E-REC-02's note): the key was good. Limits are read
+		// with the key, so a change is in force at once.
+		release, wait, allowed := s.limiter.Acquire(h.Caller.ID, h.Caller.PerMinute, h.Caller.AtOnce)
+		if !allowed {
+			s.answer(w, ref, reasons.New(reasons.OverLimit).Until(s.deps.Now().Add(wait)))
+			return
+		}
+		defer release()
 		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, requestKey{}, &Request{Ref: ref, Caller: h.Caller, Body: body})))
 	})
 }

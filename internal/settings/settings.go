@@ -38,8 +38,10 @@ var (
 	FailureAlertPercent = Int{Name: "failure_alert_percent", Default: 20, Min: 1, Max: 100, Word: "settingFailureAlert", Unit: "unitPercent", Source: "R-ADM-03"}
 
 	SourceListSeconds = Int{Name: "source_list_seconds", Default: 60, Min: 10, Max: 600, Word: "settingSourceList", Unit: "unitSeconds", Source: "R-PRV-01"}
+	CallerPerMinute   = Int{Name: "caller_requests_per_minute", Default: 60, Min: 1, Max: 6000, Word: "settingCallerPerMinute", Unit: "unitRequests", Source: "R-CAL-07"}
+	CallerAtOnce      = Int{Name: "caller_requests_at_once", Default: 5, Min: 1, Max: 100, Word: "settingCallerAtOnce", Unit: "unitRequests", Source: "R-CAL-07"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds}
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce}
 )
 
 // Find is the setting with this name.

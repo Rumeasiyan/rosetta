@@ -372,3 +372,66 @@ func TestKeysBelongToTheirOwnerAlone(t *testing.T) {
 		t.Fatalf("%d", p.status)
 	}
 }
+
+// ---- limits -------------------------------------------------------------------
+
+func TestSystemScreenLimitsFormIsTheAdministrators(t *testing.T) {
+	for _, l := range i18n.Langs {
+		admin := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", CSRF: "form-token", Viewer: &Viewer{Name: "Test"},
+			Data: systemData{System: someSystems()[0], Admin: true, Limits: []callers.LimitChange{{Old: "60 a minute, 5 at once", New: "30 a minute, 5 at once", By: "Test Administrator"}}}})
+		for _, want := range []string{`action="/systems/7/limits"`, `value="60"`, `value="5"`, `<label for="per_minute">`, "30 a minute", "Test Administrator"} {
+			if !strings.Contains(admin, want) {
+				t.Errorf("%s: no %q", l, want)
+			}
+		}
+		owner := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", Viewer: &Viewer{Name: "Test"}, Data: systemData{System: someSystems()[0]}})
+		if strings.Contains(owner, `/limits"`) || !strings.Contains(owner, "<strong>60</strong>") {
+			t.Errorf("%s: %s", l, owner)
+		}
+	}
+}
+
+func TestLimitsStartFromTheSettingsAndChangeOnlyByTheAdministrator(t *testing.T) {
+	w := newWorld(t)
+	w.app.deps.TVA = tva.Dir("../../dev/tva")
+	admin, who := w.signedInAdmin()
+	w.freshSystems()
+	t.Cleanup(w.freshSystems)
+	w.clearSettings()
+	t.Cleanup(w.clearSettings)
+	w.exec(`DELETE FROM audit_outbox`)
+	token := admin.csrf()
+	ctx := context.Background()
+	admin.post("/settings/caller_requests_per_minute", url.Values{"csrf": {token}, "value": {"40"}})
+	w.app.settings.Every = 0 // as if RefreshEvery had passed
+	admin.post("/systems/register", url.Values{"csrf": {token}, "reference": {"TEST-0001"}})
+	var id int64
+	var perMinute, atOnce int
+	if err := w.pool.QueryRow(ctx, `SELECT id, requests_per_minute, requests_at_once FROM caller WHERE tva_reference = 'TEST-0001'`).Scan(&id, &perMinute, &atOnce); err != nil {
+		t.Fatal(err)
+	}
+	if perMinute != 40 || atOnce != 5 {
+		t.Fatal(perMinute, atOnce)
+	}
+	w.exec(`DELETE FROM audit_outbox`)
+	path := sysPath(id) + "/limits"
+	if p := admin.post(path, url.Values{"csrf": {token}, "per_minute": {"30"}, "at_once": {"2"}}); !strings.Contains(p.body, "in force now") || !strings.Contains(p.body, "30 a minute, 2 at once") {
+		t.Fatalf("%d %s", p.status, p.body)
+	}
+	if p := admin.post(path, url.Values{"csrf": {token}, "per_minute": {"0"}, "at_once": {"2"}}); !strings.Contains(p.body, "not values") {
+		t.Fatal(p.body)
+	}
+	got := w.outbox()
+	if len(got) != 1 || got[0].Action != "setting change" || got[0].ObjectType != "calling system" || got[0].ObjectRef != "TEST-0001" || got[0].Actor != who || got[0].Details["per_minute"] != "30" {
+		t.Fatalf("%+v", got)
+	}
+	// A system's owner reads them and does not change them.
+	var owned int64
+	mine := subject("owner")
+	w.pool.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_subject, tva_status, tva_checked_at) VALUES ('OWN-3', 'Invented', $1, 'live', now()) RETURNING id`, mine).Scan(&owned)
+	owner := w.browser()
+	owner.signIn(mine)
+	if p := owner.post(sysPath(owned)+"/limits", url.Values{"csrf": {owner.csrf()}, "per_minute": {"6000"}, "at_once": {"100"}}); p.status != 403 {
+		t.Fatal(p.status)
+	}
+}

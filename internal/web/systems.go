@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
+	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -20,6 +21,7 @@ func (a *App) mountSystems(mux *http.ServeMux) {
 	mux.Handle("GET /systems", a.signedIn(a.only(seesSystems, a.systemsPage)))
 	mux.Handle("POST /systems/register", a.signedIn(a.only(isAdmin, a.post(a.registerSystem))))
 	mux.Handle("GET /systems/{id}", a.signedIn(a.forSystem(a.systemPage)))
+	mux.Handle("POST /systems/{id}/limits", a.signedIn(a.only(isAdmin, a.post(a.forSystem(a.setLimits)))))
 	mux.Handle("POST /systems/{id}/keys", a.signedIn(a.post(a.forSystem(a.issueKey))))
 	mux.Handle("POST /systems/{id}/keys/{key}/off", a.signedIn(a.post(a.forSystem(a.turnOffKey))))
 }
@@ -101,6 +103,7 @@ type systemData struct {
 	System callers.Caller
 	Keys   []callers.Key
 	Admin  bool
+	Limits []callers.LimitChange
 }
 
 func (a *App) systemPage(w http.ResponseWriter, r *http.Request, s callers.Caller) {
@@ -109,12 +112,49 @@ func (a *App) systemPage(w http.ResponseWriter, r *http.Request, s callers.Calle
 		a.fail(w, r, err)
 		return
 	}
+	changes, err := callers.LimitHistory(r.Context(), a.deps.Pool, s.Reference)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
 	p := a.page(r, "systems", "systems")
-	p.Data = systemData{System: s, Keys: keys, Admin: isAdmin(fromCtx(r))}
+	p.Data = systemData{System: s, Keys: keys, Admin: isAdmin(fromCtx(r)), Limits: changes}
 	a.Render(w, r, http.StatusOK, "system", p)
 }
 
 func systemPath(s callers.Caller) string { return "/systems/" + strconv.FormatInt(s.ID, 10) }
+
+// setLimits changes a system's limits, with history and an audit entry in one
+// transaction. The administrator's only: a system does not set its own (R-CAL-07).
+func (a *App) setLimits(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	l, err := callers.ParseLimits(r.PostForm.Get("per_minute"), r.PostForm.Get("at_once"))
+	if err != nil {
+		back(w, r, systemPath(s), "limitsBad", "bad")
+		return
+	}
+	changed := false
+	err = a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		old, did, err := callers.SetLimits(ctx, tx, s, l, c.sess.personID)
+		if err != nil || !did {
+			return err
+		}
+		changed = true
+		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionSettingChange, ObjectType: "calling system",
+			ObjectRef: s.Reference, Result: audit.ResultDone, Visitor: audit.Visitor(r),
+			Details: map[string]any{"old_per_minute": strconv.Itoa(old.PerMinute), "old_at_once": strconv.Itoa(old.AtOnce),
+				"per_minute": strconv.Itoa(l.PerMinute), "at_once": strconv.Itoa(l.AtOnce)}}, now)
+	})
+	switch {
+	case err != nil:
+		a.fail(w, r, err)
+	case changed:
+		back(w, r, systemPath(s), "limitsSaved", "good")
+	default:
+		back(w, r, systemPath(s), "settingUnchanged", "warn")
+	}
+}
 
 // keyShown is the one screen that holds a key, once. It is not a redirect: the key
 // goes in no address and is not kept (R-CAL-03; Render sends no-store).
@@ -231,7 +271,9 @@ func (a *App) registerSystem(w http.ResponseWriter, r *http.Request) {
 	var made callers.Caller
 	err = a.inTx(r, func(tx pgx.Tx, now time.Time) error {
 		var err error
-		if made, err = callers.Register(ctx, tx, sys, c.sess.personID); err != nil {
+		starts := a.settings.Get(ctx)
+		limits := callers.Limits{PerMinute: starts.Of(settings.CallerPerMinute), AtOnce: starts.Of(settings.CallerAtOnce)}
+		if made, err = callers.Register(ctx, tx, sys, limits, c.sess.personID); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionCreation, ObjectType: "calling system",

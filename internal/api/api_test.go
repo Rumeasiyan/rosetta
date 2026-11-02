@@ -296,3 +296,65 @@ func TestDenialEventIsWhatTheAuditTakes(t *testing.T) {
 		t.Fatalf("%+v", e)
 	}
 }
+
+// ---- limits (R-CAL-07) --------------------------------------------------------
+
+func TestOverLimitSaysWhenAndIsNoDenial(t *testing.T) {
+	b := newBench(t)
+	b.keys.add("rst_small", callers.Holder{KeyID: 7, Prefix: "rst_small", Caller: callers.Caller{ID: 7, Reference: "TEST-7", TVAStatus: "live", PerMinute: 2, AtOnce: 5}})
+	for range 2 {
+		if rec := b.send(request("/api/v1/echo", "rst_small", marker)); rec.Code != 200 {
+			t.Fatal(rec.Code)
+		}
+	}
+	b.now = t0.Add(15 * time.Second)
+	rec := b.send(request("/api/v1/echo", "rst_small", marker))
+	if rec.Code != 429 || reasonOf(t, rec) != "over limit" || rec.Header().Get("Retry-After") != "45" || !strings.Contains(rec.Body.String(), "retry_at") {
+		t.Fatalf("%d %v %s", rec.Code, rec.Header(), rec.Body)
+	}
+	if strings.Contains(rec.Body.String(), marker) || len(b.denials) != 0 {
+		t.Fatalf("%+v", b.denials)
+	}
+	if b.srv.Counts().Today()[reasons.OverLimit] != 1 {
+		t.Fatal(b.srv.Counts().Today())
+	}
+	b.now = t0.Add(time.Minute)
+	if rec := b.send(request("/api/v1/echo", "rst_small", marker)); rec.Code != 200 {
+		t.Fatalf("after the wait: %d", rec.Code)
+	}
+}
+
+func TestRequestsAtOnceAreHeldAndReleased(t *testing.T) {
+	b := newBench(t)
+	b.keys.add("rst_one", callers.Holder{KeyID: 8, Prefix: "rst_one", Caller: callers.Caller{ID: 8, Reference: "TEST-8", TVAStatus: "live", PerMinute: 100, AtOnce: 1}})
+	started, finish := make(chan struct{}), make(chan struct{})
+	b.srv.routes.HandleFunc("POST /api/v1/hold", func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-finish
+	})
+	done := make(chan int)
+	go func() { done <- b.send(request("/api/v1/hold", "rst_one", "")).Code }()
+	<-started
+	rec := b.send(request("/api/v1/echo", "rst_one", ""))
+	if rec.Code != 429 || rec.Header().Get("Retry-After") == "" {
+		t.Fatalf("%d", rec.Code)
+	}
+	close(finish)
+	if code := <-done; code != 200 {
+		t.Fatal(code)
+	}
+	if rec := b.send(request("/api/v1/echo", "rst_one", "")); rec.Code != 200 {
+		t.Fatalf("after the first ended: %d", rec.Code)
+	}
+}
+
+// Refused keys never touch a system's limits.
+func TestARefusedKeyUsesNoLimit(t *testing.T) {
+	b := newBench(t)
+	b.keys.add("rst_tiny", callers.Holder{KeyID: 6, Prefix: "rst_tiny", TurnedOff: true, Caller: callers.Caller{ID: 6, Reference: "TEST-6", TVAStatus: "live", PerMinute: 1, AtOnce: 1}})
+	for range 3 {
+		if rec := b.send(request("/api/v1/echo", "rst_tiny", "")); rec.Code != 401 {
+			t.Fatal(rec.Code)
+		}
+	}
+}

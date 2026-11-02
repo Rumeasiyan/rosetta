@@ -48,6 +48,18 @@ func TestRefusalsHoldNothingTyped(t *testing.T) {
 	}
 }
 
+func TestParseLimits(t *testing.T) {
+	if l, err := ParseLimits(" 30 ", "2"); err != nil || l != (Limits{30, 2}) {
+		t.Fatal(l, err)
+	}
+	for _, bad := range [][2]string{{"0", "2"}, {"30", "0"}, {"", "2"}, {"30", ""}, {"6001", "2"}, {"30", "101"}, {"CALLERTEXTMARKER", "2"}} {
+		_, err := ParseLimits(bad[0], bad[1])
+		if err == nil || strings.Contains(err.Error(), "CALLERTEXTMARKER") {
+			t.Errorf("%v: %v", bad, err)
+		}
+	}
+}
+
 func TestFitCountsCharacters(t *testing.T) {
 	if got := fit(strings.Repeat("த", 300), 200); len([]rune(got)) != 200 {
 		t.Fatal(len([]rune(got)))
