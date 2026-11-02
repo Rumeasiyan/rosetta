@@ -11,5 +11,5 @@ RUN go build -trimpath -ldflags="-s -w" -o /out/standin ./cmd/rosetta-standin
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/standin /standin
 USER nonroot:nonroot
-EXPOSE 53090
+EXPOSE 53190
 ENTRYPOINT ["/standin"]

@@ -4,12 +4,12 @@
 // the shared server. Every person and text it holds is invented.
 //
 //	go run ./cmd/rosetta-standin
-//	curl localhost:53090/control
-//	curl -d '{"mode":"blocked"}' localhost:53090/control/bumblebee/mode
-//	curl localhost:53090/control/pensieve/received
+//	curl localhost:53190/control
+//	curl -d '{"mode":"blocked"}' localhost:53190/control/bumblebee/mode
+//	curl localhost:53190/control/pensieve/received
 //
-// Settings: STANDIN_LISTEN (default :53090), STANDIN_PUBLIC_URL (the address a
-// browser reaches it on, default http://localhost:53090), STANDIN_CLIENT_ID and
+// Settings: STANDIN_LISTEN (default :53190), STANDIN_PUBLIC_URL (the address a
+// browser reaches it on, default http://localhost:53190), STANDIN_CLIENT_ID and
 // STANDIN_CLIENT_SECRET (the one client MJOLNIR's stand-in knows).
 package main
 
@@ -36,7 +36,7 @@ func setting(name, fallback string) string {
 }
 
 func main() {
-	listen := setting("STANDIN_LISTEN", ":53090")
+	listen := setting("STANDIN_LISTEN", ":53190")
 	if len(os.Args) > 1 && os.Args[1] == "-healthcheck" {
 		_, port, _ := strings.Cut(listen, ":")
 		c := http.Client{Timeout: 3 * time.Second}
@@ -49,7 +49,7 @@ func main() {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	s := standin.New(standin.Options{
-		PublicURL:    setting("STANDIN_PUBLIC_URL", "http://localhost:53090"),
+		PublicURL:    setting("STANDIN_PUBLIC_URL", "http://localhost:53190"),
 		ClientID:     setting("STANDIN_CLIENT_ID", "rosetta"),
 		ClientSecret: setting("STANDIN_CLIENT_SECRET", "local-stand-in-only"),
 	})
