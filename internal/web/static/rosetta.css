@@ -41,7 +41,7 @@ a { color: inherit; }
 .band-en { background: var(--brown); color: var(--paper); }
 
 .hero { background: var(--brown); color: var(--paper); padding: clamp(24px, 5vw, 56px) var(--pad); }
-.hero-title { font-size: clamp(40px, 7vw, 84px); }
+.hero-title { font-size: clamp(34px, 7vw, 84px); }
 .hero-line { margin: 10px 0 0; font-size: 17px; }
 .content { padding: 20px var(--pad) 48px; max-width: 900px; }
 .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: clamp(16px, 3vw, 28px) var(--pad); }

@@ -9,10 +9,10 @@
     <tbody>{{range .Data.Grants}}<tr>
       <td><strong>{{.Name}}</strong><br><span class="soft">{{.Email}}</span></td>
       <td>{{t $.Lang (roleWord .Role)}}</td>
-      <td>{{if .Language}}<span lang="{{.Language}}">{{langName .Language}}</span>{{else}}{{t $.Lang "noLanguage"}}{{end}}</td>
-      <td>{{if eq .PostRef "not known"}}{{t $.Lang "postNotKnown"}}{{else}}{{.PostRef}}{{end}}</td>
-      <td>{{when .StartsAt}}</td>
-      <td>{{if .EndsOn}}{{day .EndsOn}}{{else}}{{t $.Lang "noEnd"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "language"}}: </span>{{if .Language}}<span lang="{{.Language}}">{{langName .Language}}</span>{{else}}{{t $.Lang "noLanguage"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "post"}}: </span>{{if eq .PostRef "not known"}}{{t $.Lang "postNotKnown"}}{{else}}{{.PostRef}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .StartsAt}}</td>
+      <td><span class="stack-label">{{t $.Lang "until"}}: </span>{{if .EndsOn}}{{day .EndsOn}}{{else}}{{t $.Lang "noEnd"}}{{end}}</td>
       <td><form method="post" action="/people/{{.ID}}/end"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "end"}}<span class="hidden-label">: {{.Name}}, {{t $.Lang (roleWord .Role)}}</span></button></form></td>
     </tr>{{end}}</tbody>
   </table></div>{{else}}<p>{{t .Lang "nobodyHolds"}}</p>{{end}}

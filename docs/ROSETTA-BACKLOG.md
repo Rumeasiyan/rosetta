@@ -56,6 +56,14 @@ Notes:
 - **E-ENB-04:** Uses the module at `sign/v0.2.0`; the stand-in signs with a test key pair. Missed runs are PARADOX's to report (owners register): no monitor push per job.
 - **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from the look-up at sign-in (E-CAL-05). PENSIEVE refuses a blank one: send exactly `not known`, in lower case, when it is not known at the time of the action, which until E-CAL-05 is always, and `system` for automatic work. Older entries are not rewritten once a post is learned. The stand-in refuses a blank too. PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
 
+**Still to run for R1.** E-ADM-02, E-ADM-03 and E-REC-01 are built, with their code and non-database tests passing, and their boxes stay unticked: their database tests and walks have not run, because the machine was too loaded for Docker. To finish them:
+
+1. `docker compose -f dev/compose.yaml up -d postgres pgbouncer`, then `ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rosetta go test -p 1 ./...`. This is the first run of `internal/web/people_test.go`, `internal/web/settings_test.go`, `internal/audit/outbox_db_test.go`, `TestServeNeedsPensieve`, and migration 002. It also repeats E-ADM-01's tests over the sign-in code E-ADM-02 changed.
+2. Walk as AGENTS.md says, at desktop and 360 pixels wide: the first administrator from the bootstrap setting; a person with no role refused and the denial read back; a role granted and ended; each setting changed and refused, and its history; each screen in three languages.
+3. With entries waiting, set PENSIEVE's stand-in to `unavailable` through `/control`, make a change, put it back, call `audit-catch-up` with `cmd/rosetta-paradoxcall`, and read back what arrived.
+4. `dev/keys.sh && docker compose -f dev/compose.yaml up -d --build` once, for the release's one command: neither the service with its new settings nor `dev/standin.dockerfile` has been built or run in Compose.
+5. Tick each box as it passes.
+
 ## R2 Translation
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
