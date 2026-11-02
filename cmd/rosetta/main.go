@@ -14,10 +14,12 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/alerts"
 	"github.com/Rumeasiyan/rosetta/internal/api"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/bifrost"
@@ -176,8 +178,15 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	}
 	provider := bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}
 	held := &grammar.Held{}
+	// The timer runs from before the rest is made, and looks at the states once they are.
+	var watching atomic.Pointer[alerts.Watcher]
 	book := &sources.Book{
-		Tick: func(ctx context.Context) { held.SweepWith(ctx, values.Get) },
+		Tick: func(ctx context.Context) {
+			held.SweepWith(ctx, values.Get)
+			if w := watching.Load(); w != nil {
+				w.Tick(ctx)
+			}
+		},
 		Read: provider.Sources,
 		MaxAge: func(ctx context.Context) time.Duration {
 			return time.Duration(values.Get(ctx).Of(settings.SourceListSeconds)) * time.Second
@@ -195,12 +204,16 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
 	notices := &glossary.Notifier{Pool: pool, PublicURL: public, Logger: logger}
+	told := &alerts.Notifier{Pool: pool, PublicURL: public, Logger: logger}
 	if links.HedwigURL != "" {
 		notices.Sender = hedwig.Client{URL: links.HedwigURL, Key: links.HedwigKey}
+		told.Sender = hedwig.Client{URL: links.HedwigURL, Key: links.HedwigKey}
 	}
 	defer notices.Wait()
-	post := &posts.Service{Pool: pool, Looker: bifrost.Client{URL: links.BifrostURL, Key: links.BifrostKey}, Kick: outbox.Kick, Logger: logger}
-	daily := &flags.Daily{TVA: tva.Dir(links.TVADir), Settings: values.Get, Logger: logger}
+	defer told.Wait()
+	post := &posts.Service{Pool: pool, Looker: bifrost.Client{URL: links.BifrostURL, Key: links.BifrostKey}, Changed: alerts.PersonState, Logger: logger,
+		Kick: func() { outbox.Kick(); told.Kick() }}
+	daily := &flags.Daily{TVA: tva.Dir(links.TVADir), Settings: values.Get, Logger: logger, Told: alerts.Flags}
 	noSystem := api.NewCounts(time.Now)
 
 	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
@@ -208,6 +221,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
 		return sources.LoadPolicy(ctx, pool)
 	}, settings.RefreshEvery, logger)
+	watching.Store(&alerts.Watcher{Pool: pool, Snapshot: book.Snapshot, Policy: policy.Get, Settings: values.Get, Kick: told.Kick, Logger: logger})
 	cache := translate.Cache{Q: pool, Settings: values.Get}
 	fallback := &sources.Fallback{Book: book, Provider: provider, Grammars: provider, Policy: policy.Get, Logger: logger}
 	published := &glossary.Book{Q: pool}
@@ -265,8 +279,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 			if err != nil {
 				return sent, err
 			}
-			told, err := notices.Job(ctx, tx, run)
-			return sent + told, err
+			keepers, err := notices.Job(ctx, tx, run)
+			if err != nil {
+				return sent + keepers, err
+			}
+			alerted, err := told.Job(ctx, tx, run)
+			return sent + keepers + alerted, err
 		}},
 	), logger))
 

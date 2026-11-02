@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/Rumeasiyan/rosetta/internal/alerts"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
@@ -10,6 +11,31 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
+
+// statusAlerts is how many of the latest alerts the screen shows.
+const statusAlerts = 20
+
+func alertWord(kind string) string {
+	switch kind {
+	case alerts.BumblebeeDown:
+		return "alertBumblebeeDown"
+	case alerts.BumblebeeBack:
+		return "alertBumblebeeBack"
+	case alerts.SourcePaused:
+		return "alertSourcePaused"
+	case alerts.SourceResumed:
+		return "alertSourceResumed"
+	case alerts.NoSource:
+		return "alertNoSource"
+	case alerts.FailuresOver:
+		return "alertFailuresOver"
+	case alerts.CallerFlagged:
+		return "alertCallerFlagged"
+	case alerts.LanguageFlagged:
+		return "alertLanguageFlagged"
+	}
+	return "alertPersonFlagged"
+}
 
 func (a *App) mountStatus(mux *http.ServeMux) {
 	mux.Handle("GET /status", a.signedIn(a.only(seesSystems, a.statusPage)))
@@ -41,6 +67,8 @@ type statusData struct {
 	FlaggedSystems   []callers.Caller
 	FlaggedLanguages []string
 	FlaggedPeople    []people.PersonToLookUp
+	// The latest alerts, and whether each has gone (R-ADM-03).
+	Alerts []alerts.Recent
 }
 
 // Flagged says anything is.
@@ -96,6 +124,10 @@ func (a *App) statusPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if d.OutboxWaiting, d.OutboxRefused, err = audit.Waiting(ctx, a.deps.Pool); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		if d.Alerts, err = alerts.Latest(ctx, a.deps.Pool, statusAlerts); err != nil {
 			a.fail(w, r, err)
 			return
 		}

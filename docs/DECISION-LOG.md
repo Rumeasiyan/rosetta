@@ -2,6 +2,16 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Alerts
+
+`internal/alerts` looks at the published state on each pass of the source list's timer, the one timer AGENTS C6 allows, and raises one alert when a state changes, kept with the move in one transaction. So many failed requests are one alert, and with `alert_state` (migration 010, an addition Annex A does not list) a restart tells nobody twice. Alerts go through HEDWIG straight after they are raised by a goroutine, and `audit-catch-up` sends what could not go, as the keepers' notices do. A notice holds a kind, a reference and a link, never a name or a word of text, and `alert.subject` (also migration 010) holds a direction, language or opaque person reference. Each kind is a template made at E-ENB-13: the list is `alerts.Kinds`.
+
+BUMBLEBEE stopping means the list is past its age, the same test that stops anything being sent, and starting up with nothing read gets that same age before it counts. While it is down only that is news, so a down BUMBLEBEE is one alert and not one for each direction. A paused source is any state but `on`. "No source" means a direction has a source open at the gate and none of those usable, or grammar has sources and none usable; a direction never opened answers "human translation required" and alerts nobody, as that is the gate's state and not a fault, which is narrower than a plain reading of R-ADM-03's "every source for a direction". A source the administrator turned off does not count either.
+
+Beyond R-ADM-03: BUMBLEBEE answering again has its own alert, as someone told of the stopping needs to hear of the end. For the owner's review: failures for one system are `masking lost`, `no provider` and `timed out` over the last hour, tests left out, compared with `failure_alert_percent`, with no least number of requests. So one failure in a quiet hour is 100 percent and alerts; R-ADM-03 sets no floor, so none was invented.
+
+Only the live administrators and the owner of the system concerned are told; a source's own owner is not ROSETTA's to tell. An owner who never signed in has no address here and is not told. With nobody at all to tell, the alert counts as gone rather than being retried for ever, and the status screen lists the latest 20 for the administrator.
+
 ## Daily flags, posts and role ends
 
 `daily` has two parts. In its transaction it refreshes the copies from TVA's file, works out each system's one flag, the most pressing first (not live, then no owner, then idle, as Annex A has one column), and ends roles past their end date with an audit entry, as the entry on roles promised. Then, with that kept and no connection held, it looks up everyone holding a live role (`jobs.Job.Then`). So waiting on BIFROST holds none of the five connections. A run PARADOX repeats is already done and does not look up twice; a restart part-way leaves the rest to the next day's run or the person's next sign-in, which can stretch "within a day" to two in that one case. The pass stops at 8 minutes (`posts.PassLimit`), with whoever is left named by count in the log. PARADOX's job timeout must be set past that at E-ENB-14.

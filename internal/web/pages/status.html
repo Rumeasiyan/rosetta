@@ -37,6 +37,15 @@
     {{range .Data.FlaggedLanguages}}<li>{{flagLanguage $.Lang .}}: {{t $.Lang "flagsLanguage"}}</li>{{end}}
     {{range .Data.FlaggedPeople}}<li>{{.Email}}: {{t $.Lang "postFlagged"}}</li>{{end}}
   </ul>{{else}}<p>{{t .Lang "flagsNone"}}</p>{{end}}{{end}}
+  {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "alertsTitle"}}</h2>
+  {{if .Data.Alerts}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "alertWhat"}}</th><th scope="col">{{t .Lang "when"}}</th><th scope="col">{{t .Lang "alertSent"}}</th></tr></thead>
+    <tbody>{{range .Data.Alerts}}<tr>
+      <td><strong>{{t $.Lang (alertWord .Kind)}}</strong>{{if .Source}}<br><span class="soft">{{.Source}}</span>{{end}}{{if .System}}<br><span class="soft">{{.System}}</span>{{end}}{{if .Subject}}<br><span class="soft">{{.Subject}}</span>{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "when"}}: </span>{{when .RaisedAt}}</td>
+      <td><span class="stack-label">{{t $.Lang "alertSent"}}: </span>{{if .SentAt}}{{when .SentAt}}{{else}}{{t $.Lang "alertWaiting"}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "alertsNone"}}</p>{{end}}{{end}}
   {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "statusOutbox"}}</h2>
   <ul class="chips"><li>{{t .Lang "statusOutboxWaiting"}}: <strong>{{.Data.OutboxWaiting}}</strong></li><li>{{t .Lang "statusOutboxRefused"}}: <strong>{{.Data.OutboxRefused}}</strong></li></ul>{{end}}
 </div>

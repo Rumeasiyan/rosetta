@@ -1,10 +1,12 @@
 package web
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Rumeasiyan/rosetta/internal/alerts"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
@@ -29,9 +31,16 @@ func TestStatusShowsWhatRAdm02Asks(t *testing.T) {
 			t.Errorf("no %q", want)
 		}
 	}
+	// The latest alerts show, and whether each has gone.
+	if err := alerts.Raise(context.Background(), w.pool, alerts.Alert{Kind: alerts.BumblebeeDown}); err != nil {
+		t.Fatal(err)
+	}
+	if p := admin.get("/status"); !strings.Contains(p.body, "BUMBLEBEE stopped answering") || !strings.Contains(p.body, "Waiting to go") {
+		t.Fatal(p.body)
+	}
 	// An owner sees the sources and their own counts, no other system's and nothing unattributed.
 	p = owner.get("/status")
-	if p.status != 200 || !strings.Contains(p.body, "site-rest") || !strings.Contains(p.body, "Requests today: <strong>2") || strings.Contains(p.body, "No key:") || strings.Contains(p.body, "PENSIEVE") {
+	if p.status != 200 || !strings.Contains(p.body, "site-rest") || !strings.Contains(p.body, "Requests today: <strong>2") || strings.Contains(p.body, "No key:") || strings.Contains(p.body, "PENSIEVE") || strings.Contains(p.body, "BUMBLEBEE stopped") {
 		t.Fatalf("%d %s", p.status, p.body)
 	}
 	w.app.deps.Sources = fixedList{sources.Snapshot{}}
