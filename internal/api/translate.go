@@ -41,17 +41,66 @@ func parseTranslate(ref string, body []byte) (translate.Request, *reasons.Failur
 	return q, nil
 }
 
-// passageAnswer is one passage in the answer.
+// pieceAnswer says where one piece came from (R-TRN-06).
+type pieceAnswer struct {
+	Origin   string `json:"origin"`
+	Source   string `json:"source,omitempty"`
+	Version  string `json:"version,omitempty"`
+	Fallback bool   `json:"fallback_used"`
+}
+
+type sourceAnswer struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// passageAnswer is one passage in the answer: every field R-TRN-06 and R-TRN-07 ask for,
+// and the language of its text, for screen readers (R-NFR-05).
 type passageAnswer struct {
-	Text string `json:"text"`
+	Text            string            `json:"text"`
+	Language        string            `json:"language"`
+	Origins         map[string]int    `json:"origins"`
+	Pieces          []pieceAnswer     `json:"pieces"`
+	Sources         []sourceAnswer    `json:"sources"`
+	Machine         bool              `json:"machine"`
+	CheckedByPerson bool              `json:"checked_by_person"`
+	Label           map[string]string `json:"label,omitempty"`
+	Fallback        bool              `json:"fallback_used"`
+	GlossaryVersion int               `json:"glossary_version"`
 }
 
 // translateAnswer is the answer to a request (R-TRN-01, R-TRN-06).
 type translateAnswer struct {
-	RequestRef  string          `json:"request_ref"`
-	Sensitivity string          `json:"sensitivity"`
-	Mismatch    bool            `json:"sensitivity_mismatch"`
-	Passages    []passageAnswer `json:"passages"`
+	RequestRef      string          `json:"request_ref"`
+	From            string          `json:"from"`
+	To              string          `json:"to"`
+	Sensitivity     string          `json:"sensitivity"`
+	Mismatch        bool            `json:"sensitivity_mismatch"`
+	GlossaryVersion int             `json:"glossary_version"`
+	Fallback        bool            `json:"fallback_used"`
+	Passages        []passageAnswer `json:"passages"`
+}
+
+// shape turns the pipeline's answer into the one published shape (R-CAL-08).
+func shape(ref string, a translate.Answer) translateAnswer {
+	out := translateAnswer{RequestRef: ref, From: a.From, To: a.To, Sensitivity: a.Sensitivity, Mismatch: a.Mismatch,
+		GlossaryVersion: a.GlossaryVersion, Passages: make([]passageAnswer, len(a.Passages))}
+	for i, p := range a.Passages {
+		x := passageAnswer{Text: p.Text, Language: a.To, Origins: p.Origins(), Pieces: make([]pieceAnswer, len(p.Pieces)), Sources: []sourceAnswer{},
+			Machine: p.Machine(), CheckedByPerson: p.CheckedByPerson(), Fallback: p.Fallback(), GlossaryVersion: a.GlossaryVersion}
+		for j, piece := range p.Pieces {
+			x.Pieces[j] = pieceAnswer{Origin: piece.Origin, Source: piece.Source, Version: piece.Version, Fallback: piece.Fallback}
+		}
+		for _, u := range p.Sources() {
+			x.Sources = append(x.Sources, sourceAnswer{Name: u.Name, Version: u.Version})
+		}
+		if x.Machine {
+			x.Label = translate.Label()
+		}
+		out.Fallback = out.Fallback || x.Fallback
+		out.Passages[i] = x
+	}
+	return out
 }
 
 func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
@@ -67,11 +116,7 @@ func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
 			if a.Mismatch {
 				s.counts.AddMismatch(q.Caller.Reference)
 			}
-			out := translateAnswer{RequestRef: q.Ref, Sensitivity: a.Sensitivity, Mismatch: a.Mismatch, Passages: make([]passageAnswer, len(a.Passages))}
-			for i, p := range a.Passages {
-				out.Passages[i] = passageAnswer{Text: p.Text}
-			}
-			writeJSON(w, out)
+			writeJSON(w, shape(q.Ref, a))
 			return
 		}
 	}

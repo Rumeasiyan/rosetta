@@ -92,8 +92,9 @@ type Service struct {
 	Terms    Terms
 	Sources  Sources
 	Settings func(ctx context.Context) settings.Values
-	Logger   *slog.Logger
-	Now      func() time.Time // time.Now when nil
+	// Version reads the glossary's version; nil is version 0, the empty glossary.
+	Version func(ctx context.Context) (int, error)
+	Logger  *slog.Logger
 }
 
 // PieceInfo says where one piece of a passage came from.
@@ -117,6 +118,9 @@ type Answer struct {
 	// ordinary text held an identity card number (R-MSK-04).
 	Sensitivity string
 	Mismatch    bool
+	// From, To and GlossaryVersion are what the request was answered under (R-TRN-06).
+	From, To        string
+	GlossaryVersion int
 }
 
 // piece is one piece on its way through.
@@ -179,6 +183,14 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
 	defer cancel()
+	version := 0
+	if s.Version != nil {
+		var err error
+		if version, err = s.Version(ctx); err != nil {
+			s.log().Error("the glossary's version was not read", "request_ref", q.Ref)
+			return Answer{}, reasons.New(reasons.NoProvider)
+		}
+	}
 
 	// Each passage is masked before it is split, so a number written with spaces can
 	// never be broken up and sent in parts. The stand-ins and values stay here.
@@ -233,7 +245,7 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 		}
 	}
 	a := join(q, all, tails)
-	a.Sensitivity, a.Mismatch = q.Sensitivity, mismatch
+	a.Sensitivity, a.Mismatch, a.From, a.To, a.GlossaryVersion = q.Sensitivity, mismatch, q.From, q.To, version
 	return a, nil
 }
 

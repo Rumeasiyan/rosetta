@@ -203,4 +203,6 @@ var messages = map[string]text{
 	"settingPassageChars": {"Longest passage", "දිගම ඡේදය", "மிக நீண்ட பத்தி"},
 	"settingRequestChars": {"Most characters in one request", "එක් ඉල්ලීමක උපරිම අකුරු", "ஒரு கோரிக்கையில் அதிகபட்ச எழுத்துகள்"},
 	"unitPassages":        {"passages", "ඡේද", "பத்திகள்"},
+
+	"machineLabel": {"Machine translation, check before issue", "යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
 }

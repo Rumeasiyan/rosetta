@@ -186,6 +186,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Cache:    translate.None{}, // E-TRN-03
 		Sources:  &sources.Fallback{Book: book, Provider: provider, Policy: policy.Get, Logger: logger},
 		Settings: values.Get,
+		Version:  translate.GlossaryVersion(pool),
 		Logger:   logger,
 	}
 	calls := api.New(api.Deps{

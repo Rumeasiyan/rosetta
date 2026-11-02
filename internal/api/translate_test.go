@@ -152,3 +152,61 @@ func TestSensitivityInTheAnswer(t *testing.T) {
 		t.Fatal(rec.Body)
 	}
 }
+
+// R-TRN-06, R-TRN-07, R-NFR-05: every field, on what the wire carries.
+func TestEveryAnswerField(t *testing.T) {
+	b := newBench(t)
+	withPipeline(t, b)
+	b.srv.deps.Translator.(*translate.Service).Version = func(context.Context) (int, error) { return 3, nil }
+	rec := b.send(request("/api/v1/translate", "rst_here", body(t, "One. Two.", "")))
+	if rec.Code != 200 {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out["request_ref"] == "" || out["from"] != "en" || out["to"] != "ta" || out["glossary_version"] != float64(3) || out["fallback_used"] != false {
+		t.Fatalf("%v", out)
+	}
+	first := out["passages"].([]any)[0].(map[string]any)
+	for k, want := range map[string]any{"language": "ta", "machine": true, "checked_by_person": false, "fallback_used": false, "glossary_version": float64(3)} {
+		if first[k] != want {
+			t.Errorf("%s: %v", k, first[k])
+		}
+	}
+	if first["label"].(map[string]any)["en"] != "Machine translation, check before issue" || len(first["label"].(map[string]any)) != 3 {
+		t.Fatalf("%v", first["label"])
+	}
+	if first["origins"].(map[string]any)["source"] != float64(2) {
+		t.Fatalf("%v", first["origins"])
+	}
+	src := first["sources"].([]any)
+	if len(src) != 1 || src[0].(map[string]any)["name"] != "standin-translate" || src[0].(map[string]any)["version"] != "1" {
+		t.Fatalf("%v", src)
+	}
+	piece := first["pieces"].([]any)[1].(map[string]any)
+	if piece["origin"] != "source" || piece["source"] != "standin-translate" || piece["version"] != "1" {
+		t.Fatalf("%v", piece)
+	}
+	empty := out["passages"].([]any)[1].(map[string]any)
+	if _, has := empty["label"]; has || empty["machine"] != false || empty["checked_by_person"] != false || len(empty["sources"].([]any)) != 0 {
+		t.Fatalf("%v", empty)
+	}
+}
+
+// What came wholly from people carries no label and is marked as checked (R-TRN-07).
+func TestShapeOfAPassageFromPeople(t *testing.T) {
+	a := translate.Answer{From: "en", To: "si", GlossaryVersion: 2, Passages: []translate.Passage{
+		{Text: "x", Pieces: []translate.PieceInfo{{Origin: translate.OriginGlossary}, {Origin: translate.OriginMemory}}},
+		{Text: "y", Pieces: []translate.PieceInfo{{Origin: translate.OriginCache, Source: "a", Version: "1", Fallback: true}}},
+	}}
+	out := shape("r-1", a)
+	people, machine := out.Passages[0], out.Passages[1]
+	if people.Label != nil || people.Machine || !people.CheckedByPerson || people.Language != "si" || len(people.Sources) != 0 {
+		t.Fatalf("%+v", people)
+	}
+	if machine.Label == nil || !machine.Machine || machine.CheckedByPerson || !machine.Fallback || !out.Fallback {
+		t.Fatalf("%+v", machine)
+	}
+}

@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The answer's shape
+
+Each passage gives `text`, `language`, `origins` (a count for each of the four), `pieces` (each piece's origin, source and version, and whether it used fallback), `sources` (each once), `machine`, `checked_by_person`, `label` in three languages only where a machine made any of it, `fallback_used` and `glossary_version`; the answer repeats those last two and adds `request_ref`, `from`, `to`, `sensitivity` and `sensitivity_mismatch`. A piece from the cache counts as a machine's, naming the source that made it. A passage with nothing in it is neither a machine's nor a person's. Because every answer must state the glossary version, being unable to read it fails the request as "no provider". The label's Sinhala and Tamil are best effort like the other messages. E-CAL-04 publishes all this.
+
 ## Sensitivity
 
 Confidential is refused first and goes nowhere, not even the glossary's look-up, since R-MSK-01 says refused. A card number in ordinary text makes the whole request personal, as another passage may well name the same person, and the answer says so in `sensitivity` and `sensitivity_mismatch`, which R-MSK-04 does not ask for but costs a caller nothing. A phone number alone is no mismatch: R-MSK-04 names only the card. Personal text is not looked for in the cache either, so even its hash stays out of the database; the glossary and memory are still asked, as they hold people's work and keep nothing of the text. Mismatches are counted in memory by system until E-REC-02 writes `usage_record.mismatch`, so today's counts go at a restart.
