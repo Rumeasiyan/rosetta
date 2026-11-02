@@ -23,8 +23,10 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/health"
+	"github.com/Rumeasiyan/rosetta/internal/hedwig"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
@@ -32,6 +34,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
+	"github.com/jackc/pgx/v5"
 )
 
 const usage = `usage:
@@ -177,7 +180,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	defer stopReading()
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	notices := &glossary.Notifier{Pool: pool, PublicURL: public, Logger: logger}
+	if links.HedwigURL != "" {
+		notices.Sender = hedwig.Client{URL: links.HedwigURL, Key: links.HedwigKey}
+	}
+	defer notices.Wait()
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
@@ -214,7 +222,14 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03
 		jobs.Job{Name: "partitions", Run: jobs.Nothing}, // E-REC-03
 		jobs.Job{Name: "daily", Run: jobs.Nothing},      // E-CAL-05
-		jobs.Job{Name: "audit-catch-up", Run: outbox.Job},
+		jobs.Job{Name: "audit-catch-up", Run: func(ctx context.Context, tx pgx.Tx, run string) (int, error) {
+			sent, err := outbox.Job(ctx, tx, run)
+			if err != nil {
+				return sent, err
+			}
+			told, err := notices.Job(ctx, tx, run)
+			return sent + told, err
+		}},
 	), logger))
 
 	ln, err := net.Listen("tcp", cfg.Listen)

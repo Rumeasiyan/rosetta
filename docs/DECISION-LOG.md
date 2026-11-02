@@ -2,6 +2,16 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Telling keepers of a proposal
+
+The notice is a row in `alert`, written in the proposal's transaction, as the one record of what HEDWIG carries (Annex A), with `glossary_entry_id` and `glossary_import_id` added (migration 006) and two kinds, `glossary proposal` and `glossary import`, that Annex A's list of kinds does not name. After the change commits a goroutine sends what is due and the person does not wait (AGENTS C6). What does not go waits, and PARADOX's `audit-catch-up` sends it, rather than a new job on the schedules, since both are what is owed to another service. `hedwig_notice_id` holds HEDWIG's request number, as one notice goes to several people and that number finds them all. `request_key` is `rosetta-alert-<id>`, so a retry tells nobody twice. A rate limit stops the pass; any other refusal stays for the next, and logs its code. Past 90 days, Annex A's keeping, nobody is told.
+
+Who is told: the live keepers for the languages still unchecked when the notice goes, by the reference `rosetta-person-<id>`, an opaque number and never the account or an address (HEDWIG's `docs/API.md`), in the language they chose on the screens. A notice holds a number, the languages and a link, never a word of the glossary, so a term is read on the screens and not in an inbox. With nobody to tell, or the entry already settled, the notice counts as done rather than being retried for ever: the work stays on the waiting list, and a language with no keeper is E-CAL-05's flag. The template, `glossary_proposal` and `glossary_import`, is made in HEDWIG at E-ENB-13, which already asks for one template per kind.
+
+## What an officer with no role may see
+
+R-GLO-04 opens proposing to anyone signed in, so the bar offers it to everyone, `/glossary/mine` shows what they proposed with its outcome, and they can open their own entries. The list and other people's entries stay closed (R-ADM-01). So they can correct a term they cannot look up, a proposal of a term already published is refused and leads to that entry's correction with its words filled in, and `/glossary/propose?corrects=<id>` opens for any published entry. That shows a published term to anyone signed in who guesses a number, which seemed fair: published terms are meant to appear in letters to citizens. A waiting entry is not shown this way.
+
 ## How the glossary's entries move
 
 A keeper checks only their own language, and the third check publishes the entry there and then, with the next version number, taken one at a time under a lock so the number goes up by exactly one (R-GLO-05). What is published never changes: a correction is a new entry that replaces the old one when it is published, and until then the old one stays in force. One correction of an entry waits at a time (migration 005). A correction brings the old words for any language left blank, and a language reading as it did keeps its check, so only the keepers concerned are asked (R-GLO-04); a change to the type or note alone asks all three, as otherwise nobody would be left to check it. Keepers may write a language left blank, or correct their own, before or after checking it, until the entry is published.

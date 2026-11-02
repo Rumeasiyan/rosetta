@@ -19,11 +19,13 @@ import (
 func (a *App) mountGlossary(mux *http.ServeMux) {
 	mux.Handle("GET /glossary", a.signedIn(a.only(hasAnyRole, a.glossaryList)))
 	mux.Handle("GET /glossary/waiting", a.signedIn(a.only(mayKeep, a.glossaryWaiting)))
-	mux.Handle("GET /glossary/propose", a.signedIn(a.only(mayKeep, a.glossaryProposeForm)))
-	mux.Handle("POST /glossary/propose", a.signedIn(a.only(mayKeep, a.post(a.glossaryPropose))))
+	// Any signed-in officer may propose a term, and sees what became of it (R-GLO-04).
+	mux.Handle("GET /glossary/propose", a.signedIn(a.glossaryProposeForm))
+	mux.Handle("POST /glossary/propose", a.signedIn(a.post(a.glossaryPropose)))
+	mux.Handle("GET /glossary/mine", a.signedIn(a.glossaryMine))
 	mux.Handle("GET /glossary-versions", a.signedIn(a.only(hasAnyRole, a.glossaryVersions)))
 	mux.Handle("GET /glossary-versions/{number}", a.signedIn(a.only(hasAnyRole, a.glossaryVersion)))
-	mux.Handle("GET /glossary/{id}", a.signedIn(a.only(hasAnyRole, a.glossaryEntry)))
+	mux.Handle("GET /glossary/{id}", a.signedIn(a.glossaryEntry))
 	mux.Handle("GET /glossary/{id}/history", a.signedIn(a.only(hasAnyRole, a.glossaryHistory)))
 	mux.Handle("POST /glossary/{id}/check", a.signedIn(a.only(isKeeper, a.post(a.glossaryCheck))))
 	mux.Handle("POST /glossary/{id}/refuse", a.signedIn(a.only(isKeeper, a.post(a.glossaryRefuse))))
@@ -175,9 +177,13 @@ func (a *App) glossaryProposeForm(w http.ResponseWriter, r *http.Request) {
 			a.fail(w, r, err)
 			return
 		}
+		if e.Status != glossary.StatusPublished {
+			back(w, r, "/glossary/propose", "glossaryNotCurrent", "bad")
+			return
+		}
 		d.Entry = &e
 	}
-	p := a.page(r, "glossaryPropose", "glossary")
+	p := a.page(r, "glossaryPropose", "propose")
 	p.Data = d
 	a.Render(w, r, http.StatusOK, "glossary-propose", p)
 }
@@ -214,6 +220,9 @@ func (a *App) glossaryPropose(w http.ResponseWriter, r *http.Request) {
 		if id, concerned, err = glossary.Propose(ctx, tx, proposal); err != nil {
 			return err
 		}
+		if err := glossary.RaiseProposal(ctx, tx, id); err != nil {
+			return err
+		}
 		details := map[string]any{"languages": languageNames(concerned), "type": proposal.Type}
 		if proposal.Replaces != nil {
 			details["replaces"] = strconv.FormatInt(*proposal.Replaces, 10)
@@ -221,16 +230,40 @@ func (a *App) glossaryPropose(w http.ResponseWriter, r *http.Request) {
 		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionCreation, ObjectType: "glossary entry",
 			ObjectRef: strconv.FormatInt(id, 10), Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
 	})
+	var duplicate *glossary.DuplicateError
 	switch word, refused := glossaryRefusal(err); {
 	case err == nil:
+		a.tellKeepers()
 		back(w, r, "/glossary/"+strconv.FormatInt(id, 10), "glossaryProposed", "good")
 	case errors.Is(err, glossary.ErrNoSuchEntry):
 		a.notFound(w, r)
+	case errors.As(err, &duplicate):
+		// The term is there already: the way on is to correct that entry.
+		http.Redirect(w, r, "/glossary/propose?corrects="+strconv.FormatInt(duplicate.Entry, 10)+"&m="+word+"&tone=bad", http.StatusSeeOther)
 	case refused:
 		back(w, r, "/glossary/propose", word, "bad")
 	default:
 		a.fail(w, r, err)
 	}
+}
+
+// tellKeepers starts the notices on their way, once what they tell of is safely kept.
+func (a *App) tellKeepers() {
+	if a.deps.Notices != nil {
+		a.deps.Notices.Kick()
+	}
+}
+
+// glossaryMine is what this person proposed and what became of it (R-GLO-04).
+func (a *App) glossaryMine(w http.ResponseWriter, r *http.Request) {
+	list, err := glossary.Mine(r.Context(), a.deps.Pool, fromCtx(r).sess.personID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	p := a.page(r, "glossaryMine", "propose")
+	p.Data = list
+	a.Render(w, r, http.StatusOK, "glossary-mine", p)
 }
 
 // glossaryVersionsData is the list of versions.
@@ -324,6 +357,11 @@ func (a *App) glossaryEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := fromCtx(r)
+	// A term's page needs a role (R-ADM-01), but a proposer may always see their own.
+	if !hasAnyRole(c) && (e.ProposedByID == nil || *e.ProposedByID != c.sess.personID) {
+		a.deny(w, r, "Role does not allow this", "notAllowed")
+		return
+	}
 	p := a.page(r, "glossary", "glossary")
 	p.Data = glossaryEntryData{Entry: e, Yours: mayAct(c, e), MayCorrect: e.Status == glossary.StatusPublished && mayKeep(c)}
 	a.Render(w, r, http.StatusOK, "glossary-entry", p)

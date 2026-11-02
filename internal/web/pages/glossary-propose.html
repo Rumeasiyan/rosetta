@@ -15,5 +15,6 @@
     <textarea id="note" name="note" rows="3" maxlength="500">{{if $e}}{{$e.Note}}{{end}}</textarea>
     <button class="pill solid" type="submit">{{t .Lang "glossarySend"}}</button>
   </form>
+  <div class="inline row-actions"><a class="pill" href="/glossary/mine">{{t .Lang "glossaryMine"}}</a></div>
 </div>
 {{end}}

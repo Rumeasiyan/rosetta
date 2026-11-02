@@ -9,7 +9,7 @@
   {{if .Data.Entries}}{{template "glossary-table" (args .Lang .Data.Entries)}}{{else}}<p>{{t .Lang "glossaryEmpty"}}</p>{{end}}
   {{if .Data.Full}}<p class="soft">{{t .Lang "glossaryFull"}}</p>{{end}}
   <div class="inline row-actions">
-    {{if .Data.MayKeep}}<a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a><a class="pill" href="/glossary/waiting">{{t .Lang "glossaryWaiting"}}</a>{{end}}
+    <a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a>{{if .Data.MayKeep}}<a class="pill" href="/glossary/waiting">{{t .Lang "glossaryWaiting"}}</a>{{end}}
     <a class="pill" href="/glossary-versions">{{t .Lang "glossaryVersions"}}</a>
   </div>
 </div>

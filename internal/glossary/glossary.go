@@ -328,17 +328,17 @@ func correcting(ctx context.Context, tx pgx.Tx, p *Proposal) (map[i18n.Lang]Term
 // notTaken refuses a term another published entry holds in this language: a text must come
 // out one way (s1). The entry being corrected does not count, nor does this one.
 func notTaken(ctx context.Context, q Querier, l i18n.Lang, text string, self int64, replaces *int64) error {
-	var taken bool
-	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM glossary_term t JOIN glossary_entry e ON e.id = t.glossary_entry_id
-		WHERE e.status = 'published' AND t.language = $1 AND lower(t.text) = lower($2) AND e.id <> $3 AND e.id IS DISTINCT FROM $4)`,
-		string(l), text, self, replaces).Scan(&taken)
+	var other int64
+	err := q.QueryRow(ctx, `SELECT e.id FROM glossary_term t JOIN glossary_entry e ON e.id = t.glossary_entry_id
+		WHERE e.status = 'published' AND t.language = $1 AND lower(t.text) = lower($2) AND e.id <> $3 AND e.id IS DISTINCT FROM $4 LIMIT 1`,
+		string(l), text, self, replaces).Scan(&other)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
-	if taken {
-		return ErrDuplicate
-	}
-	return nil
+	return &DuplicateError{Entry: other}
 }
 
 // Checked is what a keeper's check did.

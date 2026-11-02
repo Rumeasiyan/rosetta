@@ -46,6 +46,8 @@ type Deps struct {
 	// Outbox sends audit entries after each change. Nil sends none: they wait in
 	// the outbox.
 	Outbox Kicker
+	// Notices tells keepers what waits for them. Nil sends none: they wait in the alerts.
+	Notices Kicker
 	// TVA reads the system register's published file when a system is registered
 	// (R-CAL-01). Nil refuses every registration, as a file that cannot be read does.
 	TVA tva.Reader
@@ -166,6 +168,7 @@ func nav(c *current) []NavItem {
 	if hasAnyRole(c) {
 		items = append(items, NavItem{ID: "glossary", Word: "glossary", Href: "/glossary"})
 	}
+	items = append(items, NavItem{ID: "propose", Word: "glossaryPropose", Href: "/glossary/propose"})
 	return items
 }
 

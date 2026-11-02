@@ -29,7 +29,8 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
 | `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
-| `internal/glossary` | The one shared glossary: entries, keepers' checks, publishing, versions. |
+| `internal/glossary` | The one shared glossary: entries, keepers' checks, publishing, versions, and telling keepers. |
+| `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |
 | `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (its README). |
 

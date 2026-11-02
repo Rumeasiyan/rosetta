@@ -1,0 +1,16 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "glossaryMine"}}</h1><p class="hero-line">{{t .Lang "glossaryMineNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "glossaryPropose"}}</th><th scope="col">{{t .Lang "glossaryState"}}</th><th scope="col">{{t .Lang "glossaryOutcome"}}</th></tr></thead>
+    <tbody>{{range .Data}}<tr>
+      <td><a href="/glossary/{{.ID}}">{{range $i, $x := .Terms}}{{if $x.Text}}<strong lang="{{$x.Language}}">{{$x.Text}}</strong><br>{{end}}{{end}}</a></td>
+      <td><span class="stack-label">{{t $.Lang "glossaryState"}}: </span>{{t $.Lang (statusWord .Status)}}</td>
+      <td>{{if .OutcomeNote}}<span class="stack-label">{{t $.Lang "glossaryOutcome"}}: </span>{{.OutcomeNote}}{{else if .PublishedIn}}{{t $.Lang "glossaryInVersion"}} {{.PublishedIn}}{{else if .Waiting}}{{t $.Lang "glossaryOutcomeWaiting"}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "glossaryMineEmpty"}}</p>{{end}}
+  <div class="inline row-actions"><a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a></div>
+</div>
+{{end}}
