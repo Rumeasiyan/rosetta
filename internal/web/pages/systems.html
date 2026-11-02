@@ -1,0 +1,25 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "systems"}}</h1><p class="hero-line">{{t .Lang "systemsNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data.Systems}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "system"}}</th><th scope="col">{{t .Lang "status"}}</th><th scope="col">{{t .Lang "ownerPost"}}</th><th scope="col">{{t .Lang "flag"}}</th><th scope="col">{{t .Lang "lastRequest"}}</th></tr></thead>
+    <tbody>{{range .Data.Systems}}<tr>
+      <td><a href="/systems/{{.ID}}"><strong>{{.Name}}</strong></a><br><span class="soft">{{.Reference}}</span></td>
+      <td><span class="stack-label">{{t $.Lang "status"}}: </span>{{.TVAStatus}}</td>
+      <td><span class="stack-label">{{t $.Lang "ownerPost"}}: </span>{{if .OwnerPostRef}}{{.OwnerPostRef}}{{else}}{{t $.Lang "postNotKnown"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "flag"}}: </span>{{t $.Lang (flagWord .Flag)}}</td>
+      <td><span class="stack-label">{{t $.Lang "lastRequest"}}: </span>{{if .LastRequestAt}}{{when .LastRequestAt}}{{else}}{{t $.Lang "never"}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noSystems"}}</p>{{end}}
+
+  {{if .Data.Register}}<h2 class="fat section">{{t .Lang "registerTitle"}}</h2>
+  <form class="fields" method="post" action="/systems/register">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="reference">{{t .Lang "tvaReference"}}</label>
+    <input id="reference" name="reference" autocomplete="off" required>
+    <button class="pill solid" type="submit">{{t .Lang "register"}}</button>
+  </form>{{end}}
+</div>
+{{end}}

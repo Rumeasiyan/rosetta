@@ -23,6 +23,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
+	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
 )
 
@@ -136,9 +137,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if links.PensieveURL == "" || links.PensieveKey == "" {
 		return errors.New("ROSETTA_PENSIEVE_URL and ROSETTA_PENSIEVE_KEY are not set (audit entries; see .env.example)")
 	}
+	if links.TVADir == "" {
+		return errors.New("ROSETTA_TVA_DIR is not set (the system register's file; see .env.example)")
+	}
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Logger: logger})
 	if err != nil {
 		return err
 	}

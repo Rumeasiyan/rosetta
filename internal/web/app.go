@@ -16,6 +16,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
+	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -39,6 +40,9 @@ type Deps struct {
 	// Outbox sends audit entries after each change. Nil sends none: they wait in
 	// the outbox.
 	Outbox Kicker
+	// TVA reads the system register's published file when a system is registered
+	// (R-CAL-01). Nil refuses every registration, as a file that cannot be read does.
+	TVA    tva.Reader
 	Logger *slog.Logger
 }
 
@@ -87,6 +91,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	mux.Handle("GET /{$}", a.signedIn(a.home))
 	a.mountPeople(mux)
 	a.mountSettings(mux)
+	a.mountSystems(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -133,13 +138,14 @@ func (c *current) viewer() *Viewer {
 
 // nav is the top bar: only the screens this person's roles open.
 func nav(c *current) []NavItem {
-	if !isAdmin(c) {
-		return nil
+	var items []NavItem
+	if isAdmin(c) {
+		items = append(items, NavItem{ID: "people", Word: "people", Href: "/people"}, NavItem{ID: "settings", Word: "settings", Href: "/settings"})
 	}
-	return []NavItem{
-		{ID: "people", Word: "people", Href: "/people"},
-		{ID: "settings", Word: "settings", Href: "/settings"},
+	if seesSystems(c) {
+		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"})
 	}
+	return items
 }
 
 type currentKey struct{}

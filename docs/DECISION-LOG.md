@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Registering a system
+
+Only the administrator registers (s2). TVA's file is read when the form is sent and before the transaction opens, so a slow read holds no connection of the five. The name kept is the English one, else whichever TVA has, at most 200 characters. The owner's post is kept as TVA's reference: the title has three languages and Annex A one column. The copies refresh in E-CAL-05's daily pass, so until then an owner who changes in TVA changes here only by that pass. A system that does not exist looks refused to anyone but the administrator, so an owner learns nothing about other systems. Registering is PENSIEVE's `creation` action, since P-ING-02 has no word nearer.
+
 ## How the audit outbox sends
 
 B 13 says straight after each change and from the outbox. After a change commits, a goroutine (never a timer, AGENTS C6) sends what is due, one at a time, with a 15 second limit, and the person's request does not wait for it. What cannot go waits for `audit-catch-up`, which PARADOX calls. A sent entry's row is deleted. A failed attempt backs off from one minute to one hour, or honours `Retry-After`; `not_kept` counts as failed. Any other refusal is a fault in the code that wrote the entry, since the same again gets the same answer (INTAKE.md): the row stays, marked in `refused_at` and `refusal` (migration 002, additions Annex A does not list), is not sent again, and is logged as an error with its ID and reason only. A batch is 100 entries, split further if PENSIEVE answers 413. A row older than 30 days is deleted (Annex A: at most 30 days, and PENSIEVE would refuse it) and the count logged as an error. Telling the administrator about refused or dropped rows waits for E-ADM-06, so until then only the log shows them.

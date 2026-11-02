@@ -1,0 +1,17 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{.Data.System.Name}}</h1><p class="hero-line">{{.Data.System.Reference}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "status"}}</th><th scope="col">{{t .Lang "ownerPost"}}</th><th scope="col">{{t .Lang "flag"}}</th><th scope="col">{{t .Lang "lastRequest"}}</th></tr></thead>
+    <tbody><tr>
+      <td><span class="stack-label">{{t .Lang "status"}}: </span>{{.Data.System.TVAStatus}}</td>
+      <td><span class="stack-label">{{t .Lang "ownerPost"}}: </span>{{if .Data.System.OwnerPostRef}}{{.Data.System.OwnerPostRef}}{{else}}{{t .Lang "postNotKnown"}}{{end}}</td>
+      <td><span class="stack-label">{{t .Lang "flag"}}: </span>{{t .Lang (flagWord .Data.System.Flag)}}</td>
+      <td><span class="stack-label">{{t .Lang "lastRequest"}}: </span>{{if .Data.System.LastRequestAt}}{{when .Data.System.LastRequestAt}}{{else}}{{t .Lang "never"}}{{end}}</td>
+    </tr></tbody>
+  </table></div>
+  <p class="row-actions"><a class="pill" href="/systems">{{t .Lang "backToSystems"}}</a></p>
+</div>
+{{end}}

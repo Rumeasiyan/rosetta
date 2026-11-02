@@ -93,6 +93,11 @@ Notes:
 - **E-TRN-01:** Solo because later stories all hook into its piece pipeline. Line breaks and edge spacing kept byte for byte around the pieces. The sentence splitter is rule-based for three scripts, with a table test; a too-long sentence breaks at word boundaries.
 - **E-TRN-03:** `UNLOGGED` table; lookup by hash of normalised text, language pair and source. Expired rows are removed by E-REC-03.
 
+**Still to run for R2.** Every R2 story is built, with its code and non-database tests passing, and every box stays unticked: no database test and no walk has run, because the coordinator asked that Docker, a database and a Document Server stay off on this overloaded machine. To finish them, first run what "Still to run for R1" lists, then `docker compose -f dev/compose.yaml up -d postgres pgbouncer` and `ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rosetta go test -p 1 ./...`, then walk each story, on desktop and at 360 pixels wide, in three languages, and tick it as it passes:
+
+- **E-CAL-01:** first run of `internal/web/systems_test.go`. Walk: as the administrator register `TEST-0001` (live), `TEST-0002` (may join), `TEST-0003` (flagged, no owner); see `TEST-0005`, `TEST-0006` and `TEST-0007` refused; as `dev-owner` see only that subject's systems; as an officer with no role be denied, and read the entries back from PENSIEVE's stand-in.
+<!-- r2-still -->
+
 ## R3 Grammar
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |

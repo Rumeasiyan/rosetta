@@ -109,6 +109,7 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
 		"ROSETTA_PENSIEVE_URL":         "http://localhost:53090/pensieve",
 		"ROSETTA_PENSIEVE_KEY":         "pv_standin",
+		"ROSETTA_TVA_DIR":              "../../dev/tva",
 	})
 	ready := make(chan string, 1)
 	var logs bytes.Buffer

@@ -234,3 +234,5 @@ func (w *world) exec(sql string, args ...any) {
 		w.t.Fatal(err)
 	}
 }
+
+func itoa(n int64) string { return fmt.Sprint(n) }
