@@ -139,3 +139,15 @@ func TestGateOpensOnAnEvaluationAndKeepsHistory(t *testing.T) {
 		t.Fatal(p.status)
 	}
 }
+
+// A closed decision has no test set, score, date or end yet: at phone width a label with
+// nothing after it would stand alone.
+func TestGateHistoryShowsNoEmptyLabels(t *testing.T) {
+	out := render(t, "gate", Page{Lang: i18n.EN, Path: "/gate", Title: "gate", Viewer: &Viewer{Name: "Test"},
+		Data: gateData{Today: "2030-06-01", History: []sources.GateRow{{Source: "src-a", From: "en", To: "ta", SourceVersion: "1", State: "closed", By: "Test Administrator"}}}})
+	for _, word := range []string{"gateTestSet", "gateScore", "gateEvaluatedOn", "until"} {
+		if strings.Contains(out, `<span class="stack-label">`+i18n.T(i18n.EN, word)+`: </span>`) {
+			t.Errorf("%s stands alone", word)
+		}
+	}
+}

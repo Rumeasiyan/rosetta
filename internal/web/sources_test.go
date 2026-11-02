@@ -71,6 +71,12 @@ func TestSourcesScreenFormsAreTheAdministrators(t *testing.T) {
 		if !strings.Contains(hist, "translate en-ta") || !strings.Contains(hist, "Test Administrator") {
 			t.Errorf("%s: %s", l, hist)
 		}
+		// A switch reads in the reader's language, not as the stored true and false.
+		sw := render(t, "sources-history", Page{Lang: l, Path: "/sources/history", Title: "sourcesHistory", Viewer: &Viewer{Name: "Test"},
+			Data: []sources.HistoryRow{{Subject: "source switch", Ref: "src-a", Old: "true", New: "false", By: "Test Administrator"}}})
+		if strings.Contains(sw, ">true<") || strings.Contains(sw, ">false<") || !strings.Contains(sw, i18n.T(l, "stateOn")) || !strings.Contains(sw, i18n.T(l, "stateOff")) {
+			t.Errorf("%s: a switch's history: %s", l, sw)
+		}
 	}
 }
 

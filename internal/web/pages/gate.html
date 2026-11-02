@@ -23,12 +23,12 @@
     <tbody>{{range .Data.History}}<tr>
       <td><strong>{{.Source}}</strong> {{.SourceVersion}}<br><span class="soft">{{.From}} - {{.To}}</span></td>
       <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{if eq .State "open"}}{{t $.Lang "gateIsOpen"}}{{else}}{{t $.Lang "gateIsClosed"}}{{end}}</td>
-      <td><span class="stack-label">{{t $.Lang "gateTestSet"}}: </span>{{.TestSet}}</td>
-      <td><span class="stack-label">{{t $.Lang "gateScore"}}: </span>{{if .Score}}{{.Score}}{{end}}</td>
-      <td><span class="stack-label">{{t $.Lang "gateEvaluatedOn"}}: </span>{{if .EvaluatedOn}}{{day .EvaluatedOn}}{{end}}</td>
+      <td>{{if .TestSet}}<span class="stack-label">{{t $.Lang "gateTestSet"}}: </span>{{.TestSet}}{{end}}</td>
+      <td>{{if .Score}}<span class="stack-label">{{t $.Lang "gateScore"}}: </span>{{.Score}}{{end}}</td>
+      <td>{{if .EvaluatedOn}}<span class="stack-label">{{t $.Lang "gateEvaluatedOn"}}: </span>{{day .EvaluatedOn}}{{end}}</td>
       <td>{{.By}}</td>
       <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .Since}}</td>
-      <td><span class="stack-label">{{t $.Lang "until"}}: </span>{{if .Until}}{{when .Until}}{{end}}</td>
+      <td>{{if .Until}}<span class="stack-label">{{t $.Lang "until"}}: </span>{{when .Until}}{{end}}</td>
     </tr>{{end}}</tbody>
   </table></div>{{else}}<p>{{t .Lang "noHistory"}}</p>{{end}}
 </div>

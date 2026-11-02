@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## What the R2 walk by eye changed
+
+A source switch in `/sources/history` read `true` and `false` in every language; it now reads on and off in the reader's. The gate's history at phone width showed labels with nothing after them on a closed decision; a label now comes only with its value. A true 360 pixels comes from the browser's own emulated width, measured as `window.innerWidth`, since `frame-ancestors 'none'` refuses the page inside a frame. E-ERR-01 and E-TRN-02 stay unticked for a native reader, as R-ERR-02 calls their words approved.
+
 ## The cache
 
 It holds pieces as they went to the source, stand-ins and all, so no card or phone number is ever in the table, and the same sentence with another number answers from one row. A machine's answer stays under the gate: only a source the piece could go to now answers from the cache, on the version it runs now, so a source turned off, closed or on a new version gives no cached answer either (R-GAT-02 exempts only the glossary and memory). A resting source does, as nothing goes to it. So, with BUMBLEBEE down and the list stale, cached pieces still answer as the last known list and the gate allow; R-NFR-09 names only the glossary and memory, and this goes a little further, which seemed right for callers. A piece is kept as soon as the source answers and its stand-ins come back whole, so a request that later fails need not pay again when sent again (R-TRN-05). A piece split again is kept whole when one source made all of it. Failing to read or write the cache costs a source call and logs fixed words, never the answer. `cache_days` is the setting; E-REC-03 removes expired rows.
