@@ -15,7 +15,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DavidAnson/markdownlint-cli2-action@v16
         with:
-          globs: "**/*.md"
+          globs: |
+            **/*.md
+            !design-lab/**
 
   python:
     runs-on: ubuntu-latest
@@ -44,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: lower-case, hyphenated names
         run: |
-          bad=$(git ls-files | grep -vE '^(README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE|VERSION)' \
+          bad=$(git ls-files | grep -v '^design-lab/' | grep -vE '^(README|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE|VERSION)' \
             | grep -vE '(^|/)\.' | grep -vE '\.go$' | grep -vE '^docs/(STANDARDS|GETTING-STARTED|RESEARCH|ROSETTA-PRD|ROSETTA-BACKLOG|DECISION-LOG)\.md$' \
             | grep -E '[A-Z ]|_' || true)
           if [ -n "$bad" ]; then echo "Rename to lower-case-with-hyphens:"; echo "$bad"; exit 1; fi

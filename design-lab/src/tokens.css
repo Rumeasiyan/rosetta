@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/*
+  Single source of design truth. Every color/font/radius/spacing value a direction uses
+  should be a CSS custom property defined here, not a hardcoded value in a component. The
+  TweakBar reads/writes these at runtime; "Copy CSS" exports the current values back into
+  this shape so a tuning session can be pasted back in permanently.
+
+  Three groups of tokens:
+    --color-*                    per-theme palette. Every one needs a light value below.
+    --font-* / --radius / ...    shared across both themes.
+    --chrome-*                   the HARNESS's own UI, per-theme.
+
+  Keep them separate. A direction should never reference a --chrome-* token: the chrome is
+  the tool, not the design. The chrome tokens exist only so the harness itself stays
+  legible when the light theme is on.
+
+  Anything tunable here must have a matching entry in TweakBar.tsx's FIELDS list, and any
+  --color-* token must also appear in the :root[data-theme='light'] block — a token defined
+  only in :root silently keeps its dark value in light mode.
+*/
+:root {
+  color-scheme: dark;
+
+  /* ── color: the direction's palette ─────────────────────────────────────── */
+  --color-bg: #0a0a0a;
+  --color-surface: #151515;
+  --color-elevated: #1e1e1e;
+  --color-fg: #f5f5f5;
+  --color-muted: #8a8a8a;
+  --color-border: #2a2a2a;
+  --color-accent: #ff4d4d;
+  --color-accent-fg: #0a0a0a; /* text/icon colour that sits ON the accent */
+
+  /* ── type ───────────────────────────────────────────────────────────────── */
+  /*
+    Three shared faces, not one per direction. A direction differentiates itself by WHICH
+    face it leans on — display for editorial heads, mono throughout for brutalist, body for
+    soft — plus weight, tracking and leading. That is what keeps one token set able to
+    serve genuinely different aesthetics.
+  */
+  --font-display: 'Iowan Old Style', Palatino, Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-scale: 1; /* read by DeviceFrame as the preview's base font-size multiplier */
+  --weight-display: 700;
+  --weight-body: 400;
+  --tracking-display: -0.02em;
+  --tracking-body: 0em;
+  --leading-display: 1;
+  --leading-body: 1.6;
+  --measure: 62ch; /* max line length for body copy */
+
+  /* ── shape ──────────────────────────────────────────────────────────────── */
+  --radius: 8px;
+  --border-width: 1px;
+  --gap: 16px;
+  --pad: 32px; /* outer padding of a screen's content */
+
+  /* ── depth ──────────────────────────────────────────────────────────────── */
+  --shadow-strength: 0.35; /* 0 = flat; alpha of the shadow colour */
+  --shadow-y: 12px;
+  --shadow: 0 var(--shadow-y) calc(var(--shadow-y) * 2.5) rgb(0 0 0 / var(--shadow-strength));
+
+  /* ── motion ─────────────────────────────────────────────────────────────── */
+  --motion-on: 1; /* 0 or 1 — multiply a transform/duration by it to gate motion off */
+  --motion-duration: 1; /* multiplier */
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --reveal-distance: 22px;
+
+  /* ── color: the harness chrome (tab bars, sidebars, tweak panel) ─────────── */
+  --chrome-bg: #050505;
+  --chrome-bg-alt: #101010;
+  --chrome-fg: #f5f5f5;
+  --chrome-muted: #7c7c7c;
+  --chrome-border: #262626;
+  --chrome-hover: #1c1c1c;
+  --chrome-active: #303030;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg: #fbfaf8;
+  --color-surface: #ffffff;
+  --color-elevated: #ffffff;
+  --color-fg: #14110e;
+  --color-muted: #6b6660;
+  --color-border: #e3ded6;
+  --color-accent: #d92f2f;
+  --color-accent-fg: #ffffff;
+
+  --shadow-strength: 0.1;
+
+  --chrome-bg: #ffffff;
+  --chrome-bg-alt: #f3f1ed;
+  --chrome-fg: #14110e;
+  --chrome-muted: #78726b;
+  --chrome-border: #e0dcd4;
+  --chrome-hover: #eae7e1;
+  --chrome-active: #dbd7cf;
+}
+
+/*
+  A direction's motion must be gated by --motion-on, so honouring the OS-level preference is
+  a single override rather than something every direction has to remember. The TweakBar can
+  still switch motion back on from here — an explicit inline style beats this block, which
+  is the right precedence: the preference is the default, not a lock.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-on: 0;
+    --motion-duration: 0.001;
+  }
+}
+
+body {
+  background: var(--chrome-bg);
+  color: var(--chrome-fg);
+  font-family: var(--font-body);
+}

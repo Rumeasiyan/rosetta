@@ -1,0 +1,66 @@
+{
+  "name": "ui-design-lab",
+  "version": "0.7.1",
+  "private": true,
+  "description": "Compare multiple UI design directions side by side with live design-token tuning, device preview frames, and scripted AI image/video generation. A Vite + React 19 + Tailwind v4 template for AI-assisted UI/UX design sessions.",
+  "keywords": [
+    "ui-design",
+    "ux-design",
+    "design-system",
+    "design-tokens",
+    "design-directions",
+    "ai-design",
+    "vibe-coding",
+    "react",
+    "vite",
+    "tailwindcss",
+    "typescript",
+    "design-playground",
+    "ui-prototyping",
+    "template"
+  ],
+  "license": "MIT",
+  "author": "Rumeasiyan",
+  "homepage": "https://github.com/Rumeasiyan/ui-design-lab#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rumeasiyan/ui-design-lab.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Rumeasiyan/ui-design-lab/issues"
+  },
+  "type": "module",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "inspiration": "node scripts/inspiration/index.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@fontsource/abril-fatface": "^5.3.0",
+    "@fontsource/noto-serif-sinhala": "^5.3.0",
+    "@fontsource/noto-serif-tamil": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "autoprefixer": "^10.5.4",
+    "only-allow": "^1.2.2",
+    "oxlint": "^1.75.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}
