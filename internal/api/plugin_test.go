@@ -10,18 +10,18 @@ import (
 	"unicode/utf16"
 )
 
-// E-GRM-07, as far as it goes without a Document Server: the stock plug-in's own parse, field
-// by field, from sdkjs-plugins/content/languagetool/scripts/langTool.js in ONLYOFFICE's public
-// plug-ins repository (docs/plugin-findings.md). Watching it run is still to do.
+// E-GRM-07: the plug-in's own parse, field by field, from
+// sdkjs-plugins/content/languagetool/scripts/langTool.js in ONLYOFFICE's public plug-ins
+// repository, and what it was watched sending on a Document Server (docs/plugin-findings.md).
 
 // jsSlice is String.prototype.slice on a text, in UTF-16 units, as the plug-in cuts.
 func jsSlice(text string, from, to int) string {
 	return string(utf16.Decode(utf16.Encode([]rune(text))[from:to]))
 }
 
-// capturedCheck is a check as the plug-in's $.ajax sends it: a form POST, with jQuery's way of
-// writing a space, each line break doubled by the plug-in, and the language `auto` it starts
-// with. The text is invented.
+// capturedCheck is a check as the plug-in's $.ajax sends it, in the same shape as watchedCheck
+// below: a form POST, with jQuery's way of writing a space, each line break doubled by the
+// plug-in, and the language `auto` it starts with. The text is invented.
 func capturedCheck(origin string) *http.Request {
 	const body = "text=%F0%9F%98%80+We+recieve+letters+at+077+123+4567.%0A%0AThey+seperate+them.&language=auto&enabledOnly=false"
 	r := httptest.NewRequest(http.MethodPost, "https://rosetta.epc.test"+checkPath, strings.NewReader(body))
@@ -163,5 +163,64 @@ func TestWhatThePluginParsesIsAllThere(t *testing.T) {
 	wantCORS(t, "refusal", rec)
 	if rec.Code != 401 || rec.Body.Len() == 0 || strings.Contains(rec.Body.String(), "{") {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}
+
+// watchedCheck is the body Chrome's network record held on the first Check in dev/plugin-test,
+// byte for byte, with the headers ROSETTA reads. The text is invented.
+const watchedCheck = "text=We+recieve+the+letters.%0A%0A%F0%9F%98%80+They+seperate+them+by+date%2C+and+we+recieve+more.%0A%0ACall+077+123+4567+to+recieve+a+copy.&language=auto&enabledOnly=false"
+
+func TestTheCheckAsWatchedOnTheWire(t *testing.T) {
+	b := newBench(t)
+	withChecks(t, b)
+	withOrigins(t, b)
+	send := func(body string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "https://rosetta.epc.test"+checkPath, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		r.Header.Set("Accept", "*/*")
+		r.Header.Set("Accept-Language", "en-GB")
+		r.Header.Set("Origin", listedOrigin)
+		r.Header.Set("Referer", listedOrigin+"/")
+		r.Header.Set("Sec-Fetch-Mode", "cors")
+		r.Header.Set("Sec-Fetch-Site", "same-site")
+		r.Header.Set(accountHeader, "officer-1")
+		return b.send(r)
+	}
+	rec := send(watchedCheck)
+	wantCORS(t, "check", rec)
+	if rec.Code != 200 {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	var out struct {
+		Matches []struct {
+			Offset int `json:"offset"`
+			Length int `json:"length"`
+		} `json:"matches"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	const sent = "We recieve the letters.\n\n😀 They seperate them by date, and we recieve more.\n\nCall 077 123 4567 to recieve a copy."
+	want := []string{"recieve", "seperate", "recieve", "recieve"}
+	if len(out.Matches) != len(want) {
+		t.Fatalf("matches: %s", rec.Body)
+	}
+	for i, m := range out.Matches {
+		if got := jsSlice(sent, m.Offset, m.Offset+m.Length); got != want[i] {
+			t.Errorf("%d marks %q", i, got)
+		}
+	}
+
+	// After an answer the panel shows English and sends its long code; choosing a language
+	// sends that one's. Each was seen, and only the first is answered.
+	if rec := send(strings.Replace(watchedCheck, "language=auto", "language=en-GB", 1)); rec.Code != 200 {
+		t.Errorf("en-GB: %d %s", rec.Code, rec.Body)
+	}
+	for _, code := range []string{"si-LK", "ta-LK"} {
+		rec := send(strings.Replace(watchedCheck, "language=auto", "language="+code, 1))
+		wantCORS(t, code, rec)
+		if rec.Code != 422 || rec.Body.Len() == 0 || strings.Contains(rec.Body.String(), "{") {
+			t.Errorf("%s: %d %s", code, rec.Code, rec.Body)
+		}
 	}
 }

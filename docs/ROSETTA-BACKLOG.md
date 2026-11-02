@@ -96,7 +96,7 @@ Notes:
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
 | 23 | [x] | Solo | E-GRM-02 | Check and languages endpoints in the plug-in's form; split and join | R-GRM-01, R-GRM-02, R-GRM-03; B 2 | Must | 19 |
-| 24 | [ ] | Wave 6 | E-GRM-03 | Browser calls: signed-in officer, listed addresses, counted to the system | R-CAL-06, R-NFR-10; B 2, B 9 | Must | 23 |
+| 24 | [x] | Wave 6 | E-GRM-03 | Browser calls: signed-in officer, listed addresses, counted to the system | R-CAL-06, R-NFR-10; B 2, B 9 | Must | 23 |
 | 25 | [x] | Wave 6 | E-GRM-04 | Positions true to the caller's text after masking and splitting | R-GRM-03, R-MSK-02 | Must | 23 |
 | 26 | [x] | Wave 6 | E-GRM-05 | No grammar text kept; suggestions held in memory | R-GRM-05, R-NFR-11, R-NFR-12 | Must | 23 |
 | 27 | [x] | Wave 6 | E-GRM-06 | Grammar sources by benchmark score, with fallback | R-GRM-06, R-PRV-03 | Must | 23 |
@@ -111,9 +111,9 @@ Notes:
 
 **Still to run for R3.** Every R3 story is built, and its tests have passed with the database, none skipped. A walk in Chrome passed against the service and the stand-ins from source, with a small stand-in for Caddy setting `X-Cerberus-Account`, and an XMLHttpRequest from a page on a second origin calling as the plug-in calls: languages and a check with positions true in the browser's own units, masking at the source, the held answer, refusals readable in the reader's language, an address not listed hidden from the page, a preflight with no session, fallback by score, every source failing, the new screens at 1280 and 360 pixels in three languages, and no marker in the log, any table, or at PENSIEVE's stand-in. A key from outside with no public key was refused against the running service. E-GRM-02, E-GRM-04, E-GRM-05 and E-GRM-06 are ticked on that. What follows has not run:
 
-- **E-GRM-07, the plug-in itself:** the stock plug-in on a local Document Server, checking an invented English letter through ROSETTA, signed in, as E-GRM-01 left to it: watch the network panel, and confirm the suggestions land in the right places in the editor. `internal/api/plugin_test.go` asserts every field the plug-in's source reads, from a request written out by hand from that source, not captured off the wire. Nobody has seen it run.
-- **E-GRM-03, the refusal from CERBERUS:** with real Caddy and CERBERUS's stand-in refusing, confirm what E-GRM-01 found and that the editor stays usable. ROSETTA's own refusals are tested and walked; CERBERUS's come from Caddy and have not been seen. This needs the Document Server too, so it runs with E-GRM-07.
-- **The plug-in's credentials:** its source as fetched still sends none (`docs/plugin-findings.md`), so as shipped no cookie reaches CERBERUS, nobody is signed in and every browser check is refused. The owner's decision on this is still open, and E-GRM-07 cannot pass without it.
+- **E-GRM-07, the plug-in itself:** walked on a local Document Server through real Caddy and CERBERUS's stand-in (`docs/plugin-findings.md`, `dev/plugin-test/`). With its addresses edited alone, as the note's stock plug-in, it is refused, as expected. With credentials on as well, it signs in, loads the languages, places every suggestion rightly, and corrects the document. The story stays open: what passes is not the stock plug-in, and the edit is the owner's to decide. If the owner takes the edit, this note changes to name it and the story is done, with the real CERBERUS left to E-ENB-10.
+- **E-GRM-03, the refusal from CERBERUS:** seen with real Caddy and CERBERUS's stand-in, the plug-in's credentials on. The panel shows the words of a refusal that carries CORS headers, shows nothing when one does not, and the editor stays usable throughout (`docs/plugin-findings.md`). Done; the real CERBERUS is E-ENB-10.
+- **The plug-in's credentials:** watched: as shipped no cookie reaches CERBERUS, nobody is signed in and every browser check is refused. The edit that changes this is written out in `docs/plugin-findings.md`, ready for the owner. The decision is still open, and E-GRM-07 cannot pass without it.
 - **Best effort words:** every Sinhala and Tamil message R3 adds wants a native reader before Go live, the refusals above all.
 
 <!-- r3-still -->
