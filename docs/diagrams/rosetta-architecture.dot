@@ -11,14 +11,14 @@ digraph rosetta_architecture {
 
   subgraph cluster_people {
     label=<<B>People and calling systems</B>>; style="dashed,rounded"; color="#1d4ed8"; fontcolor="#1d4ed8";
-    browsers [label=<<B>Browsers</B><BR/><FONT POINT-SIZE="9">administrator, glossary keepers,<BR/>memory reviewers, system owners</FONT>>];
+    browsers [label=<<B>Browsers</B><BR/><FONT POINT-SIZE="9">administrator, glossary keepers,<BR/>memory reviewers, system owners,<BR/>officers proposing a term</FONT>>];
     editor   [label=<<B>Officers' letter editor</B><BR/><FONT POINT-SIZE="9">ONLYOFFICE LanguageTool plug-in,<BR/>in the officer's browser</FONT>>];
     scospro  [label=<<B>SCOS Pro server</B><BR/><FONT POINT-SIZE="9">first caller, on another machine;<BR/>translation and approved text</FONT>>];
   }
 
   subgraph cluster_edge {
     label=<<B>Edge</B>>; labelloc=b; style="dashed,rounded"; color="#b45309"; fontcolor="#b45309";
-    cloudflare [label=<<B>Cloudflare</B><BR/><FONT POINT-SIZE="9">DNS and TLS for rosetta.epc.lk; tunnel edge<BR/>Access on the screens; /api/ passed through</FONT>>];
+    cloudflare [label=<<B>Cloudflare</B><BR/><FONT POINT-SIZE="9">DNS and TLS for rosetta.epc.lk; tunnel edge</FONT>>];
   }
 
   subgraph cluster_server {
@@ -31,7 +31,7 @@ digraph rosetta_architecture {
     caddy       [label=<<B>Caddy</B><BR/><FONT POINT-SIZE="9">rosetta.epc.lk, always on<BR/>answers /__up itself</FONT>>];
     kuma        [label=<<B>Uptime Kuma</B><BR/><FONT POINT-SIZE="9">monitoring</FONT>>];
     docker      [label=<<B>Docker host</B><BR/><FONT POINT-SIZE="9">deploy.sh</FONT>>];
-    cerberus    [label=<<B>CERBERUS</B><BR/><FONT POINT-SIZE="9">access policy, once it runs</FONT>>];
+    cerberus    [label=<<B>CERBERUS</B><BR/><FONT POINT-SIZE="9">access policy</FONT>>];
     mjolnir     [label=<<B>MJOLNIR</B><BR/><FONT POINT-SIZE="9">sign-in</FONT>>];
     rosetta     [label=<<B>ROSETTA</B><BR/><FONT POINT-SIZE="9">Go, port 8080, never sleeps<BR/>max 250 MB, 1 CPU, read-only root<BR/>grammar results in memory only</FONT>>, color="#047857", penwidth=2];
     pensieve    [label=<<B>PENSIEVE</B><BR/><FONT POINT-SIZE="9">audit record</FONT>>];
@@ -73,7 +73,7 @@ digraph rosetta_architecture {
   caddy -> rosetta           [label="6"];
   systems -> rosetta         [label="7", style=dashed];
   rosetta -> mjolnir         [label="8"];
-  caddy -> cerberus          [label="9", style=dashed];
+  caddy -> cerberus          [label="9"];
   rosetta -> pgbouncer       [label="10"];
   pgbouncer -> postgres      [label="10"];
   rosetta -> seaweed         [label="11", style=dashed];
