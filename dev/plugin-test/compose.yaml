@@ -1,0 +1,34 @@
+# The plug-in walk (E-GRM-07): Caddy and one Document Server. Local only; passwords none,
+# JWT off. See README.md. Bring it straight down: docker compose ... down -v.
+name: rosetta-plugin-test
+
+services:
+  caddy:
+    image: caddy:2.11.7
+    volumes:
+      - ./caddyfile:/etc/caddy/Caddyfile:ro
+      - ./page:/srv/page:ro
+    tmpfs:
+      - /data
+      - /config
+    mem_limit: 128m
+    ports:
+      - "127.0.0.1:53443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  documentserver:
+    image: onlyoffice/documentserver:8.2
+    profiles: [editor]
+    environment:
+      JWT_ENABLED: "false"
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+    volumes:
+      # walk-out/plugin is the plug-in as fetched and edited by plugin.sh, never committed.
+      - ./walk-out/plugin:/var/www/onlyoffice/documentserver/sdkjs-plugins/{7CDB02C9-A0BF-4B56-9A1A-71C860B8498F}:ro
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
