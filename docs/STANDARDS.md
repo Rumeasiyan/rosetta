@@ -84,7 +84,7 @@ How we name, write, format and check everything in this repository. Following th
 - **Checks must pass** (section 8) before review.
 - **Answer every review comment:** change it, or explain why not, then resolve the conversation.
 - **Do not merge your own pull request.** A reviewer approves; then it is squash-merged.
-- **One exception: the project's own documents.** The product requirements, its diagrams and the backlog built from them are merged by the maintainers once checks pass, as the project owner decided. Every other pull request, including all code, goes through review as above.
+- **One exception: the project's own documents.** The product requirements, its diagrams and the backlog built from them are merged by the maintainers once checks pass, as the project owner decided. The owner's own build also has one: its stories land on a release branch, and when a release is done the owner says yes and a maintainer merges that release's pull request. Every other pull request, including all volunteers' code, goes through review as above.
 - **No unrelated changes:** do not reformat files you are not working on.
 
 ## 5. Reviews
