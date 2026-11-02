@@ -6,6 +6,7 @@
   <h2 class="fat section">{{t .Lang "statusBumblebee"}}</h2>
   {{if .Data.Up}}<p class="note good" role="status">{{t .Lang "statusUp"}}</p>{{else}}<p class="note bad" role="status">{{t .Lang "statusDown"}}</p>{{end}}
   {{if .Data.ReadAt}}<p class="soft">{{t .Lang "listReadAt"}}: {{when .Data.ReadAt}}</p>{{end}}
+  {{if and .Data.Sources (not .Data.Up)}}<p class="soft">{{t .Lang "statusLastKnown"}}</p>{{end}}
   {{if .Data.Sources}}<div class="stack"><table>
     <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "restUntil"}}</th><th scope="col">{{t .Lang "processesText"}}</th></tr></thead>
     <tbody>{{range .Data.Sources}}<tr>
@@ -41,7 +42,7 @@
   {{if .Data.Alerts}}<div class="stack"><table>
     <thead><tr><th scope="col">{{t .Lang "alertWhat"}}</th><th scope="col">{{t .Lang "when"}}</th><th scope="col">{{t .Lang "alertSent"}}</th></tr></thead>
     <tbody>{{range .Data.Alerts}}<tr>
-      <td><strong>{{t $.Lang (alertWord .Kind)}}</strong>{{if .Source}}<br><span class="soft">{{.Source}}</span>{{end}}{{if .System}}<br><span class="soft">{{.System}}</span>{{end}}{{if .Subject}}<br><span class="soft">{{.Subject}}</span>{{end}}</td>
+      <td><strong>{{t $.Lang (alertWord .Kind)}}</strong>{{if .Source}}<br><span class="soft">{{.Source}}</span>{{end}}{{if .System}}<br><span class="soft">{{.System}}</span>{{end}}{{if .Subject}}<br><span class="soft">{{alertAbout $.Lang .}}</span>{{end}}</td>
       <td><span class="stack-label">{{t $.Lang "when"}}: </span>{{when .RaisedAt}}</td>
       <td><span class="stack-label">{{t $.Lang "alertSent"}}: </span>{{if .SentAt}}{{when .SentAt}}{{else}}{{t $.Lang "alertWaiting"}}{{end}}</td>
     </tr>{{end}}</tbody>

@@ -7,8 +7,10 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
+	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/people"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
+	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
@@ -35,6 +37,28 @@ func alertWord(kind string) string {
 		return "alertLanguageFlagged"
 	}
 	return "alertPersonFlagged"
+}
+
+// alertAbout is what an alert is about, in the reader's language where the words are ROSETTA's own.
+func alertAbout(l i18n.Lang, x alerts.Recent) string {
+	switch x.Kind {
+	case alerts.CallerFlagged:
+		return i18n.T(l, flagWord(x.Subject))
+	case alerts.LanguageFlagged:
+		if lang, ok := i18n.Parse(x.Subject); ok {
+			return i18n.Name(lang)
+		}
+	case alerts.NoSource:
+		if x.Subject == sources.Grammar.String() {
+			return i18n.T(l, "grammarEnglish")
+		}
+		for _, d := range sources.Directions() {
+			if d.String() == x.Subject {
+				return directionName(l, d)
+			}
+		}
+	}
+	return x.Subject
 }
 
 func (a *App) mountStatus(mux *http.ServeMux) {

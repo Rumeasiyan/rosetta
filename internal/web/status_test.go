@@ -8,6 +8,8 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/alerts"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
+	"github.com/Rumeasiyan/rosetta/internal/callers"
+	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 )
@@ -37,6 +39,16 @@ func TestStatusShowsWhatRAdm02Asks(t *testing.T) {
 	}
 	if p := admin.get("/status"); !strings.Contains(p.body, "BUMBLEBEE stopped answering") || !strings.Contains(p.body, "Waiting to go") {
 		t.Fatal(p.body)
+	}
+	// What an alert is about reads in the reader's language, where the words are ROSETTA's.
+	if got := alertAbout(i18n.TA, alerts.Recent{Kind: alerts.CallerFlagged, Subject: callers.FlagIdle}); got != i18n.T(i18n.TA, "flagIdle") {
+		t.Fatal(got)
+	}
+	if got := alertAbout(i18n.SI, alerts.Recent{Kind: alerts.LanguageFlagged, Subject: "ta"}); got != i18n.Name(i18n.TA) {
+		t.Fatal(got)
+	}
+	if got := alertAbout(i18n.EN, alerts.Recent{Kind: alerts.NoSource, Subject: sources.Translate("en", "ta").String()}); !strings.Contains(got, "English") {
+		t.Fatal(got)
 	}
 	// An owner sees the sources and their own counts, no other system's and nothing unattributed.
 	p = owner.get("/status")

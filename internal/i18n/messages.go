@@ -294,6 +294,7 @@ var messages = map[string]text{
 	"flagsTitle":                {"Flagged for you", "ඔබට සලකුණු කළ දේ", "உங்களுக்காகக் கொடியிடப்பட்டவை"},
 	"flagsNone":                 {"Nothing is flagged.", "කිසිවක් සලකුණු කර නැත.", "எதுவும் கொடியிடப்படவில்லை."},
 	"flagsLanguage":             {"No glossary keeper for this language", "මෙම භාෂාවට පාරිභාෂික භාරකරුවෙකු නැත", "இந்த மொழிக்குச் சொற்களஞ்சியக் காப்பாளர் இல்லை"},
+	"statusLastKnown":           {"Each source below is as last read, since the list cannot be read now.", "ලැයිස්තුව දැන් කියවිය නොහැකි බැවින්, පහත සෑම මූලාශ්‍රයක්ම අවසන් වරට කියවූ පරිදි වේ.", "பட்டியலை இப்போது படிக்க முடியாததால், கீழே உள்ள ஒவ்வொரு மூலமும் கடைசியாகப் படித்தபடி உள்ளது."},
 	"alertsTitle":               {"Latest alerts", "නවතම ඇඟවීම්", "அண்மைய எச்சரிக்கைகள்"},
 	"alertsNone":                {"No alert has been raised.", "කිසිදු ඇඟවීමක් මතු වී නැත.", "எந்த எச்சரிக்கையும் எழுப்பப்படவில்லை."},
 	"alertWhat":                 {"What", "කුමක්ද", "என்ன"},

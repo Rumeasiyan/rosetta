@@ -176,6 +176,7 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"memoryStateWord": memoryStateWord,
 		"opWord":          opWord,
 		"alertWord":       alertWord,
+		"alertAbout":      alertAbout,
 		"flagLanguage":    func(_ i18n.Lang, code string) string { l, _ := i18n.Parse(code); return i18n.Name(l) },
 		"sensitivities":   func() []string { return testSensitivities },
 		"sensitivityWord": sensitivityWord,
