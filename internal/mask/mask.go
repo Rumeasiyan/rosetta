@@ -381,6 +381,9 @@ func units(s string) int {
 // Units is the length of s in UTF-16 units, the units the editor counts (R-GRM-03).
 func Units(s string) int { return units(s) }
 
+// StandIns is everything of a stand-in's shape in s, in order.
+func StandIns(s string) []string { return tokenPattern.FindAllString(s, -1) }
+
 // WithoutStandIns is s with anything of a stand-in's shape taken out, whether ROSETTA's or
 // not: what of it is the writer's own words.
 func WithoutStandIns(s string) string { return tokenPattern.ReplaceAllString(s, "") }

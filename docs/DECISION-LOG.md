@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Reviewing the memory
+
+An entry belongs to the language it is served in, its `to_language`, as that is what the reviewer vouches for: an English to Tamil entry is the Tamil reviewer's. A reviewer sees and acts only on those; another's is refused as a denial, like a keeper's. The administrator finds and removes in every language (R-MEM-05) and sees what waits, but confirming and correcting are the reviewer's (R-MEM-04), so the administrator is refused them.
+
+Finding looks in both sides, in any case, through the trigram indexes (migration 007 adds `approved_text`), and only among live entries: a replaced or removed one has no words left. A page shows 100. Only what is marked for recheck can be confirmed or corrected; a wrong entry that is being served is removed, and its calling system may send a better one. A correction changes the entry in place, as a replacement row would add nothing once the old words go, and stays under the approver's post, the calling system's own record, with who corrected it in `reviewed_by` and the audit entry. It must keep each stand-in once, so the number can be restored, and may hold no number of its own (R-MSK-02). The glossary version moves to the present one. A removal takes the words away for good and keeps who and when (R-NFR-12).
+
+Audit entries: `approval` for a confirmation, `change` for a correction, `deletion` for a removal, naming the number and the languages. R-MEM-04 asks for no notice to reviewers, so none is sent: what waits is on their screen.
+
 ## Serving from the memory
 
 A piece is looked up with terms as written and values as stand-ins, by the hash of its normalised text, language pair and state `served`, with one query for each piece not already a whole term. It is asked for personal text too, as it holds people's work and keeps nothing of what is asked, and whatever the gate says. The answer's numbers are the caller's own, as what is stored holds stand-ins. An entry approved in one direction answers only that direction. A piece from the memory is not copied to the cache. Being unable to read the memory costs a source call and logs fixed words, as with the cache.

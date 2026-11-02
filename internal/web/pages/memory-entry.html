@@ -1,0 +1,30 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+{{$e := .Data.Entry}}
+{{if $e.Source}}<div class="pair">
+  <section class="pair-side band-{{$e.From}}"><span class="eyebrow">{{langName $e.FromLang}}</span><p class="fat pair-text" lang="{{$e.From}}">{{$e.Source}}</p></section>
+  <section class="pair-side band-{{$e.To}}"><span class="eyebrow">{{langName $e.ToLang}}, {{t .Lang "memoryAsApproved"}}</span><p class="fat pair-text" lang="{{$e.To}}">{{$e.Approved}}</p></section>
+</div>{{else}}<div class="hero"><h1 class="fat hero-title">{{t .Lang "memory"}}</h1></div>{{end}}
+<div class="content wide">
+  {{template "flash" .}}
+  <p><strong>{{t .Lang (memoryStateWord $e.State)}}.</strong>{{if $e.RecheckEntry}} <a href="/glossary/{{$e.RecheckEntry}}">{{t .Lang "memoryWhy"}} {{$e.RecheckVersion}}</a>.{{end}}</p>
+  {{if $e.ApproverPost}}<p class="soft">{{t .Lang "memoryApprovedBy"}}: <bdi>{{$e.ApproverPost}}</bdi>, {{$e.System}}, {{day $e.ApprovedOn}}. {{t .Lang "glossaryVersionTitle"}} {{$e.GlossaryVersion}}.{{if $e.ReviewedBy}} {{t .Lang "memoryReviewedBy"}}: {{$e.ReviewedBy}}, {{when $e.ReviewedAt}}.{{end}}</p>{{end}}
+  {{if and $e.Source .Data.MayReview}}<p class="soft">{{t .Lang "memoryLeft"}}: {{.Data.Left}}</p>
+  <div class="inline row-actions">
+    <form method="post" action="/memory/{{$e.ID}}/confirm"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="pill solid" type="submit">{{t .Lang "memoryConfirm"}}</button></form>
+  </div>
+  <details class="row-actions"><summary class="pill">{{t .Lang "memoryCorrect"}}</summary><form class="fields" method="post" action="/memory/{{$e.ID}}/correct">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="text">{{langName $e.ToLang}}</label>
+    <textarea id="text" name="text" rows="4" lang="{{$e.To}}" required>{{$e.Approved}}</textarea>
+    <p>{{t .Lang "memoryStandInNote"}}</p>
+    <button class="pill solid" type="submit">{{t .Lang "memoryCorrect"}}</button>
+  </form></details>{{end}}
+  {{if or (eq $e.State "served") (eq $e.State "recheck")}}<details class="row-actions"><summary class="pill">{{t .Lang "memoryRemove"}}</summary><form class="fields" method="post" action="/memory/{{$e.ID}}/remove">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p>{{t .Lang "memoryRemoveNote"}}</p>
+    <button class="pill solid" type="submit">{{t .Lang "memoryRemove"}}</button>
+  </form></details>{{end}}
+  <div class="inline row-actions"><a class="pill" href="/memory">{{t .Lang "memory"}}</a></div>
+</div>
+{{end}}

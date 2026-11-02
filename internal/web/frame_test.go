@@ -93,7 +93,7 @@ func TestNavFollowsTheRole(t *testing.T) {
 		t.Fatal("isAdmin")
 	}
 	// Any signed-in officer may propose a term (R-GLO-04): nothing else without a role.
-	if len(nav(admin)) < 3 || len(nav(keeper)) != 2 || nav(keeper)[0].ID != "glossary" || len(nav(&current{})) != 1 || nav(&current{})[0].ID != "propose" {
+	if len(nav(admin)) < 4 || len(nav(keeper)) != 2 || nav(keeper)[0].ID != "glossary" || len(nav(&current{})) != 1 || nav(&current{})[0].ID != "propose" {
 		t.Fatal("the bar offers screens the role does not open")
 	}
 	owner := &current{owned: []people.OwnedSystem{{Reference: "TEST-0001"}}}

@@ -44,3 +44,12 @@
     <td><span class="stack-label">{{t $lang "glossaryState"}}: </span>{{t $lang (statusWord .Status)}}</td>
   </tr>{{end}}</tbody>
 </table></div>{{end}}
+
+{{define "memory-table"}}{{$lang := .Lang}}<div class="stack"><table>
+  <thead><tr><th scope="col">{{t $lang "memorySource"}}</th><th scope="col">{{t $lang "memoryAsApproved"}}</th><th scope="col">{{t $lang "glossaryState"}}</th></tr></thead>
+  <tbody>{{range .Entries}}<tr>
+    <td lang="{{.From}}"><a href="/memory/{{.ID}}"><strong>{{.Source}}</strong></a></td>
+    <td lang="{{.To}}"><span class="stack-label">{{t $lang "memoryAsApproved"}}: </span>{{.Approved}}</td>
+    <td><span class="stack-label">{{t $lang "glossaryState"}}: </span>{{t $lang (memoryStateWord .State)}}</td>
+  </tr>{{end}}</tbody>
+</table></div>{{end}}

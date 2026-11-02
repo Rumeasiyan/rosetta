@@ -115,3 +115,7 @@ code { overflow-wrap: anywhere; }
 .order details { margin-top: 10px; }
 .fields input[type=file] { padding: 9px 16px; height: auto; }
 .row-list { padding-left: 20px; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.pair-side { padding: clamp(24px, 4vw, 44px); }
+.pair-text { font-size: clamp(22px, 3vw, 38px); margin-top: 18px; white-space: pre-line; }
+details.row-actions { margin-top: 12px; }

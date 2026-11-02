@@ -109,6 +109,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountSources(mux)
 	a.mountGate(mux)
 	a.mountGlossary(mux)
+	a.mountMemory(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -167,6 +168,9 @@ func nav(c *current) []NavItem {
 	}
 	if hasAnyRole(c) {
 		items = append(items, NavItem{ID: "glossary", Word: "glossary", Href: "/glossary"})
+	}
+	if mayReview(c) {
+		items = append(items, NavItem{ID: "memory", Word: "memory", Href: "/memory"})
 	}
 	items = append(items, NavItem{ID: "propose", Word: "glossaryPropose", Href: "/glossary/propose"})
 	return items

@@ -1,0 +1,14 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "memory"}}</h1>
+  <form class="find" method="get" action="/memory" role="search"><label class="hidden-label" for="find">{{t .Lang "memoryFind"}}</label><input id="find" name="find" value="{{.Data.Find}}" placeholder="{{t .Lang "memoryFind"}}" autocomplete="off"><button class="pill light" type="submit">{{t .Lang "glossaryFindButton"}}</button></form>
+</div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data.Searched}}<h2 class="fat section">{{t .Lang "memoryFound"}}</h2>
+  {{if .Data.Found}}{{template "memory-table" (memoryArgs .Lang .Data.Found)}}{{else}}<p>{{t .Lang "memoryNoneFound"}}</p>{{end}}{{end}}
+  <h2 class="fat section">{{t .Lang "memoryRechecks"}}</h2>
+  <p class="soft">{{t .Lang "memoryLeft"}}: {{.Data.Waiting}}</p>
+  {{if .Data.Rechecks}}{{template "memory-table" (memoryArgs .Lang .Data.Rechecks)}}{{else}}<p>{{t .Lang "memoryNoRechecks"}}</p>{{end}}
+</div>
+{{end}}
