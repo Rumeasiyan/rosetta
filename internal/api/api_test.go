@@ -20,6 +20,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
 const marker = "CALLERTEXTMARKER"
@@ -69,6 +70,7 @@ type bench struct {
 	srv     *Server
 	logs    *bytes.Buffer
 	denials []Denial
+	uses    []usage.Record
 	handler http.Handler
 	now     time.Time
 	public  ed25519.PublicKey
@@ -96,6 +98,7 @@ func newBench(t *testing.T) *bench {
 		Logger: slog.New(slog.NewJSONHandler(b.logs, nil)),
 		Now:    func() time.Time { return b.now },
 		Denied: func(_ context.Context, d Denial) error { b.denials = append(b.denials, d); return nil },
+		Usage:  func(_ context.Context, r usage.Record) error { b.uses = append(b.uses, r); return nil },
 	})
 	b.srv.routes.HandleFunc("POST /api/v1/echo", func(w http.ResponseWriter, r *http.Request) {
 		q := requestOf(r)
@@ -105,6 +108,17 @@ func newBench(t *testing.T) *bench {
 	b.srv.Mount(mux)
 	b.handler = mux
 	return b
+}
+
+// outcomes counts this reason among the records and the requests with no known system.
+func (b *bench) outcomes(r reasons.Reason) int {
+	n := b.srv.Counts().Today()[r]
+	for _, u := range b.uses {
+		if u.Outcome == string(r) {
+			n++
+		}
+	}
+	return n
 }
 
 func (b *bench) send(req *http.Request) *httptest.ResponseRecorder {
@@ -192,7 +206,7 @@ func TestRefusedKeysAreNoKeyAndDenied(t *testing.T) {
 		if len(b.denials) != 1 || b.denials[0].System != c.system || b.denials[0].Why != c.why {
 			t.Errorf("%s: %+v", name, b.denials)
 		}
-		if got := b.srv.Counts().Today()[reasons.NoKey]; got != 1 {
+		if got := b.outcomes(reasons.NoKey); got != 1 {
 			t.Errorf("%s: counted %d", name, got)
 		}
 		for _, place := range []string{b.logs.String(), rec.Body.String()} {
@@ -244,8 +258,8 @@ func TestAKeyWithNoPublicKeyIsRefusedFromOutside(t *testing.T) {
 		if rec.Code != 401 || reasonOf(t, rec) != "no key" {
 			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
 		}
-		if b.keys.used != 0 || b.srv.Counts().Today()[reasons.NoKey] != 1 {
-			t.Errorf("%s: used %d, counted %v", name, b.keys.used, b.srv.Counts().Today())
+		if b.keys.used != 0 || b.outcomes(reasons.NoKey) != 1 {
+			t.Errorf("%s: used %d, counted %v", name, b.keys.used, b.uses)
 		}
 		if len(b.denials) != 1 || b.denials[0].System != "TEST-1" || b.denials[0].Why != "A key with no public key came from outside" {
 			t.Errorf("%s: %+v", name, b.denials)
@@ -363,8 +377,8 @@ func TestOverLimitSaysWhenAndIsNoDenial(t *testing.T) {
 	if strings.Contains(rec.Body.String(), marker) || len(b.denials) != 0 {
 		t.Fatalf("%+v", b.denials)
 	}
-	if b.srv.Counts().Today()[reasons.OverLimit] != 1 {
-		t.Fatal(b.srv.Counts().Today())
+	if b.outcomes(reasons.OverLimit) != 1 {
+		t.Fatal(b.uses)
 	}
 	b.now = t0.Add(time.Minute)
 	if rec := b.send(request("/api/v1/echo", "rst_small", marker)); rec.Code != 200 {

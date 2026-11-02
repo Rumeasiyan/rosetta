@@ -44,6 +44,33 @@ type Request struct {
 	From, To    string
 	Sensitivity string
 	Passages    []string
+	// Tally, when set, is told what happened, whole or failed, for the usage record (R-REC-01).
+	Tally *Tally
+}
+
+// Tally is what a request did, with none of its text: what was treated how, and the pieces
+// answered before any failure.
+type Tally struct {
+	Sensitivity string // as treated: personal where ordinary text held a card (R-MSK-04)
+	Mismatch    bool
+	Pieces      map[string]int // by origin
+	Sources     []string
+	Fallback    bool
+}
+
+// add counts the pieces answered so far.
+func (t *Tally) add(all []*piece) {
+	t.Pieces = map[string]int{}
+	for _, p := range all {
+		if p.info.Origin == "" {
+			continue
+		}
+		t.Pieces[p.info.Origin]++
+		t.Fallback = t.Fallback || p.info.Fallback
+		if p.info.Source != "" && !slices.Contains(t.Sources, p.info.Source) {
+			t.Sources = append(t.Sources, p.info.Source)
+		}
+	}
 }
 
 // Lookup is one piece as an Answerer sees it.
@@ -219,6 +246,9 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	// never be broken up and sent in parts. The stand-ins and values stay here.
 	limit := s.Sources.MaxText()
 	var all []*piece
+	if q.Tally != nil {
+		defer func() { q.Tally.add(all) }()
+	}
 	tails := make([]string, len(q.Passages))
 	mismatch := false
 	for i, text := range q.Passages {
@@ -241,6 +271,9 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	if mismatch {
 		q.Sensitivity = sources.Personal
 		s.log().Info("ordinary text held an identity card number", "request_ref", q.Ref)
+	}
+	if q.Tally != nil {
+		q.Tally.Sensitivity, q.Tally.Mismatch = q.Sensitivity, mismatch
 	}
 	allowed, read := s.Sources.Allowed(ctx, q.From, q.To, q.Sensitivity)
 	var need []*piece

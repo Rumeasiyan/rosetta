@@ -27,6 +27,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/standin"
 	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -94,9 +95,10 @@ func newPathWorld(t *testing.T) *pathWorld {
 	published := &glossary.Book{Q: pool}
 	fallback := &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: policy, Logger: logger}
 	calls := api.New(api.Deps{
-		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
+		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy, Origins: api.PoolOrigins{Pool: pool},
 		Translator: &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
 		Memory:     &memory.Service{Pool: pool, Settings: values, Logger: logger},
+		Usage:      func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
 			return set, err

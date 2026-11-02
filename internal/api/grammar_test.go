@@ -20,6 +20,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
 // withChecks gives the bench the whole check against BUMBLEBEE's stand-in.
@@ -237,8 +238,6 @@ func TestABrowserCallFromAListedAddress(t *testing.T) {
 	b := newBench(t)
 	withChecks(t, b)
 	origins := withOrigins(t, b)
-	var uses []GrammarUse
-	b.srv.deps.Usage = func(_ context.Context, u GrammarUse) { uses = append(uses, u) }
 	rec := b.send(browserCheck(listedOrigin, "officer-1", form("We recieve "+marker+".", "auto")))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"offset":3`) {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
@@ -247,11 +246,13 @@ func TestABrowserCallFromAListedAddress(t *testing.T) {
 	if !slices.Equal(origins.used, []int64{21}) {
 		t.Fatalf("counted to %v", origins.used)
 	}
-	if len(uses) != 1 || uses[0].System != "EDITOR-1" || uses[0].CallerID != 21 || uses[0].Officer != "officer-1" || uses[0].Outcome != "answered" || uses[0].Characters == 0 || len(uses[0].Sources) != 1 {
+	uses := b.uses
+	if len(uses) != 1 || uses[0].CallerID != 21 || uses[0].Officer != "officer-1" || uses[0].Outcome != "answered" || uses[0].Operation != usage.OpGrammar ||
+		uses[0].Characters == 0 || len(uses[0].Sources) != 1 || uses[0].Pieces.Source != 1 {
 		t.Fatalf("%+v", uses)
 	}
 	if strings.Contains(fmt.Sprintf("%+v", uses), marker) {
-		t.Fatal("the hook holds text")
+		t.Fatal("the record holds text")
 	}
 	if len(b.denials) != 0 || strings.Contains(b.logs.String(), marker) || strings.Contains(b.logs.String(), "officer-1") {
 		t.Fatalf("%+v %s", b.denials, b.logs)

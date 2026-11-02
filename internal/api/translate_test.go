@@ -90,8 +90,8 @@ func TestTranslateRefusals(t *testing.T) {
 			}
 		}
 	}
-	if b.srv.Counts().Today()[reasons.Invalid] != 5 {
-		t.Fatal(b.srv.Counts().Today())
+	if b.outcomes(reasons.Invalid) != 5 {
+		t.Fatal(b.uses)
 	}
 	if len(b.denials) != 0 {
 		t.Fatal("a bad request is no denial")
@@ -141,8 +141,8 @@ func TestSensitivityInTheAnswer(t *testing.T) {
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"sensitivity":"personal"`) || !strings.Contains(rec.Body.String(), `"sensitivity_mismatch":true`) {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
-	if b.srv.Counts().Mismatches()["TEST-1"] != 1 {
-		t.Fatal(b.srv.Counts().Mismatches())
+	if last := b.uses[len(b.uses)-1]; !last.Mismatch || last.Sensitivity != "personal" || last.Outcome != "answered" {
+		t.Fatalf("%+v", last)
 	}
 	if strings.Contains(b.logs.String(), "123456789V") {
 		t.Fatal(b.logs)

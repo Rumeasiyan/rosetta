@@ -33,6 +33,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/memory` | The shared memory: approved text added, served, found, rechecked, removed. |
 | `internal/terms` | Finding glossary terms in a text, and the one normalise function. Pure. |
 | `internal/sheet` | One worksheet of an `.xlsx` file, read and written with the standard library. Pure. |
+| `internal/usage` | The usage record of every request, without text: kept, added up and removed. Never sent to PENSIEVE. |
 | `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |
 | `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (`how-to-run.md`). |

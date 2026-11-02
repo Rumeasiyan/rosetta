@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
 // Translator is the piece pipeline.
@@ -105,6 +107,26 @@ func shape(ref string, a translate.Answer) translateAnswer {
 	return out
 }
 
+// noteRequest keeps what a usage record holds of a request: languages and counts, never text.
+// What is not on the fixed lists is left out when the record is written (usage.Keep).
+func noteRequest(rec *usage.Record, q translate.Request) {
+	rec.From, rec.To, rec.Sensitivity, rec.Passages = q.From, q.To, q.Sensitivity, len(q.Passages)
+	for _, p := range q.Passages {
+		rec.Characters += utf8.RuneCountInString(p)
+	}
+}
+
+// noteTally keeps what a request did. Where it was refused before anything was read, the
+// sensitivity stated stays.
+func noteTally(rec *usage.Record, t *translate.Tally) {
+	if t.Sensitivity != "" {
+		rec.Sensitivity = t.Sensitivity
+	}
+	rec.Mismatch, rec.Fallback, rec.Sources = t.Mismatch, t.Fallback, t.Sources
+	rec.Pieces = usage.Pieces{Glossary: t.Pieces[translate.OriginGlossary], Memory: t.Pieces[translate.OriginMemory],
+		Cache: t.Pieces[translate.OriginCache], Source: t.Pieces[translate.OriginSource]}
+}
+
 func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
 	q := requestOf(r)
 	if s.deps.Translator == nil {
@@ -113,11 +135,13 @@ func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
 	}
 	req, fail := parseTranslate(q.Ref, q.Body)
 	if fail == nil {
+		var tally translate.Tally
+		req.Tally = &tally
+		noteRequest(q.Use, req)
 		var a translate.Answer
-		if a, fail = s.deps.Translator.Translate(r.Context(), req); fail == nil {
-			if a.Mismatch {
-				s.counts.AddMismatch(q.Caller.Reference)
-			}
+		a, fail = s.deps.Translator.Translate(r.Context(), req)
+		noteTally(q.Use, &tally)
+		if fail == nil {
 			writeJSON(w, shape(q.Ref, a))
 			return
 		}

@@ -35,11 +35,12 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 	"github.com/Rumeasiyan/rosetta/internal/web"
 	"github.com/jackc/pgx/v5"
 )
 
-const usage = `usage:
+const usageText = `usage:
   rosetta migrate        bring the schema up to date (MIGRATE_DATABASE_URL)
   rosetta serve          run ROSETTA (settings from the environment; see .env.example)
   rosetta -version       print the version
@@ -67,7 +68,7 @@ func run(args []string, stdout, stderr io.Writer, getenv func(string) string) in
 	}
 	fs := flag.NewFlagSet("rosetta", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	fs.Usage = func() { fmt.Fprint(stderr, usage) }
+	fs.Usage = func() { fmt.Fprint(stderr, usageText) }
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	healthcheck := fs.Bool("healthcheck", false, "exit 0 if the running service's database answers")
 	if err := fs.Parse(args); err != nil {
@@ -80,7 +81,7 @@ func run(args []string, stdout, stderr io.Writer, getenv func(string) string) in
 	case *healthcheck:
 		return report(stderr, runHealthcheck(getenv))
 	}
-	fmt.Fprint(stderr, usage)
+	fmt.Fprint(stderr, usageText)
 	return 2
 }
 
@@ -218,6 +219,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		}},
 		Origins: api.PoolOrigins{Pool: pool},
 		Memory:  &memory.Service{Pool: pool, Settings: values.Get, Kick: outbox.Kick, Logger: logger},
+		Usage:   func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 	})
 
 	mux := http.NewServeMux()
