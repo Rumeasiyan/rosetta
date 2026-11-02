@@ -126,7 +126,7 @@ Notes:
 | 30 | [x] | Wave 7 | E-GLO-02 | Any officer proposes a term; keepers told; proposer sees the outcome | R-GLO-04 | Must | 29 |
 | 31 | [x] | Wave 7 | E-GLO-03 | Import and export a spreadsheet file | R-GLO-07 | Should | 29 |
 | 32 | [x] | Wave 7 | E-GLO-04 | Terms kept in translation; whole terms answered from the glossary | R-GLO-03, R-TRN-04, R-GAT-02, R-NFR-05 | Must | 29 |
-| 33 | [ ] | Wave 7 | E-GLO-05 | No suggestions on a glossary term | R-GRM-04 | Must | 29 |
+| 33 | [x] | Wave 7 | E-GLO-05 | No suggestions on a glossary term | R-GRM-04 | Must | 29 |
 | 34 | [ ] | Wave 7 | E-MEM-01 | Add approved text to the memory; refuse what may not be kept | R-MEM-01, R-MEM-02, R-MEM-03; B 3 | Must | 29 |
 | 35 | [ ] | Wave 8 | E-MEM-02 | Serve from memory, marked as checked by a person | R-TRN-04, R-TRN-07, R-MEM-02, R-GAT-02 | Must | 34 |
 | 36 | [ ] | Wave 8 | E-MEM-03 | Find, recheck, correct and remove memory entries | R-MEM-04, R-MEM-05 | Must | 34 |

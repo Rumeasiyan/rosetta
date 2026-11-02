@@ -9,9 +9,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
 
 	"github.com/Rumeasiyan/rosetta/internal/api"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
@@ -22,6 +24,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -92,7 +95,10 @@ func newPathWorld(t *testing.T) *pathWorld {
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
 		Translator: &translate.Service{Glossary: published, Memory: translate.None{}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
-		Grammar:    &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger},
+		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
+			_, set, err := published.Terms(ctx, "en", "en")
+			return set, err
+		}},
 	})
 	w.mux = http.NewServeMux()
 	calls.Mount(w.mux)
@@ -261,5 +267,80 @@ func TestTermsThroughTheWholePath(t *testing.T) {
 	var n int
 	if err := w.pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_outbox WHERE details::text LIKE '%' || $1 || '%' OR details::text LIKE '%Chief Secretary%'`, marker).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("%d %v", n, err)
+	}
+}
+
+func (w *pathWorld) check(text string) (int, map[string]any) {
+	w.t.Helper()
+	r := httptest.NewRequest(http.MethodPost, "/api/v2/check", strings.NewReader(url.Values{"language": {"en-GB"}, "text": {text}}.Encode()))
+	r.Header.Set("Authorization", "Bearer "+w.key)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		w.t.Fatal(rec.Body.String())
+	}
+	return rec.Code, out
+}
+
+// matchesAt is each match's place in the text, as the plug-in reads it.
+func matchesAt(out map[string]any) [][2]int {
+	var at [][2]int
+	for _, m := range out["matches"].([]any) {
+		x := m.(map[string]any)
+		at = append(at, [2]int{int(x["offset"].(float64)), int(x["length"].(float64))})
+	}
+	return at
+}
+
+// R-GRM-04 through the whole path: a term keepers published is never marked, what surrounds it still
+// is, positions stay true in the plug-in's units, and an answer held from before the term was published
+// is not served with the suggestion on it. No text is kept.
+func TestNoSuggestionOnAGlossaryTerm(t *testing.T) {
+	w := newPathWorld(t)
+	text := "𝒜 We recieve from the Recieve Office, 0771234567, and recieve more."
+	code, before := w.check(text)
+	if code != 200 {
+		t.Fatalf("%d %v", code, before)
+	}
+	if len(matchesAt(before)) != 2 {
+		t.Fatalf("%v", before)
+	}
+	w.publish(glossary.TypeInstitution, "We recieve", "අපි", "நாம்")
+	sent := strings.Count(w.received(), "/v1/requests")
+	code, after := w.check(text)
+	if code != 200 {
+		t.Fatalf("%d %v", code, after)
+	}
+	got := matchesAt(after)
+	if len(got) != 1 || got[0] != matchesAt(before)[1] {
+		t.Fatalf("held from before the term: %v, was %v", got, matchesAt(before))
+	}
+	if strings.Count(w.received(), "/v1/requests") != sent {
+		t.Fatal("the held answer was not used")
+	}
+	// Another text, new to the sources, after a character of two units and a masked number.
+	second := "𝒜 0771234567 We recieve, and recieve."
+	code, out := w.check(second)
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	got = matchesAt(out)
+	want := len(utf16.Encode([]rune("𝒜 0771234567 We recieve, and ")))
+	if len(got) != 1 || got[0][0] != want || got[0][1] != len("recieve") {
+		t.Fatalf("%v, want at %d", got, want)
+	}
+	if ctx := out["matches"].([]any)[0].(map[string]any)["context"].(map[string]any); ctx["offset"] == nil {
+		t.Fatalf("%v", ctx)
+	}
+	if strings.Contains(w.logs.String(), "recieve") {
+		t.Fatal(w.logs.String())
+	}
+	var n int
+	for _, sql := range []string{`SELECT count(*) FROM audit_outbox WHERE details::text LIKE '%recieve%'`, `SELECT count(*) FROM cache_piece WHERE source_text LIKE '%recieve%'`, `SELECT count(*) FROM memory_entry WHERE source_text LIKE '%recieve%'`} {
+		if err := w.pool.QueryRow(context.Background(), sql).Scan(&n); err != nil || n != 0 {
+			t.Fatalf("%s: %d %v", sql, n, err)
+		}
 	}
 }

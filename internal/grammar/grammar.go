@@ -24,6 +24,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 )
 
@@ -50,8 +51,10 @@ type Service struct {
 	Sources  Sources
 	Settings func(ctx context.Context) settings.Values
 	// Held spares sources an identical text (R-GRM-05); nil holds nothing.
-	Held   *Held
-	Logger *slog.Logger
+	Held *Held
+	// Glossary is the English terms now, for dropping suggestions on them (R-GRM-04); nil is none.
+	Glossary func(ctx context.Context) (*terms.Set, error)
+	Logger   *slog.Logger
 }
 
 // Request is one check.
@@ -119,18 +122,56 @@ func (s *Service) Check(ctx context.Context, q Request) (Answer, *reasons.Failur
 	if utf8.RuneCountInString(q.Text) > v.Of(settings.GrammarCharsMax) {
 		return Answer{}, reasons.New(reasons.TooLong)
 	}
+	// Read before anything goes out: an answer that cannot honour R-GRM-04 is not given.
+	var glossary *terms.Set
+	if s.Glossary != nil {
+		var err error
+		if glossary, err = s.Glossary(ctx); err != nil {
+			s.log().Error("the glossary was not read", "request_ref", q.Ref)
+			return Answer{}, reasons.New(reasons.NoProvider)
+		}
+	}
 	if s.Held != nil {
 		if a, ok := s.Held.Get(q.Text, keepFor(v)); ok {
-			return a, nil
+			return withoutTerms(a, q.Text, glossary), nil
 		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
 	defer cancel()
 	a, fail := s.run(ctx, q)
-	if fail == nil && s.Held != nil {
+	if fail != nil {
+		return a, fail
+	}
+	if s.Held != nil {
 		s.Held.Put(q.Text, a)
 	}
-	return a, fail
+	return withoutTerms(a, q.Text, glossary), nil
+}
+
+// withoutTerms drops each suggestion touching a glossary term, so approved names, posts and offices
+// are never marked as errors (R-GRM-04). It looks in the text as sent, with the terms in force now:
+// what is held for ten minutes holds every suggestion, as the glossary may change meanwhile. Nothing
+// is moved, so positions stay true to the text sent (R-GRM-03).
+func withoutTerms(a Answer, text string, glossary *terms.Set) Answer {
+	found := glossary.Find(text)
+	if len(found) == 0 {
+		return a
+	}
+	type span struct{ from, to int }
+	spans := make([]span, len(found))
+	for i, f := range found {
+		from := mask.Units(text[:f.Start])
+		spans[i] = span{from, from + mask.Units(text[f.Start:f.End])}
+	}
+	out := a
+	out.Suggestions = make([]Suggestion, 0, len(a.Suggestions))
+	for _, x := range a.Suggestions {
+		touches := slices.ContainsFunc(spans, func(sp span) bool { return x.Offset < sp.to && sp.from < x.Offset+x.Length })
+		if !touches {
+			out.Suggestions = append(out.Suggestions, x)
+		}
+	}
+	return out
 }
 
 func (s *Service) run(ctx context.Context, q Request) (Answer, *reasons.Failure) {

@@ -31,6 +31,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
@@ -210,7 +211,10 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
 		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
-		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger},
+		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
+			_, set, err := published.Terms(ctx, "en", "en")
+			return set, err
+		}},
 		Origins: api.PoolOrigins{Pool: pool},
 	})
 

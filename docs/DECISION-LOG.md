@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Suggestions on a glossary term
+
+A suggestion overlapping a term's place in the text as sent, by even one unit, is dropped; one that only touches it stays. Nothing is moved, so positions stay true. Only the English terms count, as checks are English. The text goes to the source as written and not with stand-ins, since a source reads a sentence better whole, and it is the suggestion that is wrong, not the source's reading. What is held for ten minutes holds every suggestion, and terms are dropped as each answer goes out, so a term published or replaced while an answer is held is honoured at once. A check that cannot read the glossary answers "no provider" before anything goes out, as R-GRM-04 could not be honoured.
+
 ## Terms in translation
 
 Terms are found in memory: `glossary.Book` holds the published terms, and reads them again when the version it reads on every request has moved, so a change is in force on the next request and each piece costs no query. A whole statement reads the version and the terms together, so they cannot disagree. The set of each direction is built on first use; a full glossary of 20,000 entries is found by first word, walking the text and not the terms. E-NFR-01 measures its memory.
