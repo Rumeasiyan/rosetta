@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.1, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.2, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -48,7 +48,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 |---|---|
 | R-CAL-01 | A system can be registered as a caller only if the provincial system register (TVA) gives its status as live or may join. TVA owns that one status; ROSETTA reads it when the system is registered and records its reference. |
 | R-CAL-02 | Each calling system's owner is the one TVA's file names; ROSETTA reads it and keeps no owner of its own. A system whose owner post is vacant, or whose holder has no linked sign-in, is flagged to the administrator (R-ADM-03), who acts for that system meanwhile. |
-| R-CAL-03 | The administrator, or the system owner for their own system, issues a key for a calling system and can turn it off at once. The key is shown once and can never be shown again. A system may hold two live keys at a time, so a key can be replaced without stopping. |
+| R-CAL-03 | ROSETTA issues its own keys to calling systems under STACK's one key rule (section 2), which sets who issues, how many are live, and how a key is shown and turned off. Each issue and turn-off is audited (R-REC-02). |
 | R-CAL-04 | A request with no key, an unknown key or a turned-off key is refused with the reason "no key" (R-ERR-01) and counted on the status screen (R-ADM-02). |
 | R-CAL-05 | A calling system that has sent no request for 90 days (default: 90 days), or whose status in the register is no longer live or may join, is flagged to the administrator. |
 | R-CAL-06 | An officer's browser may call the grammar check (R-GRM-01) directly, only while the officer is signed in, and only from addresses the administrator lists for that calling system (default: the letter editor's address). The call is counted to that system. |
