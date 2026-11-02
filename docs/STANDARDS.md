@@ -134,6 +134,7 @@ The repository has settings files, and a check runs on every pull request. Set u
 | Markdown | markdownlint | `.markdownlint.json` | `npx markdownlint-cli2 "**/*.md"` |
 | Python | Ruff (format and lint) | `pyproject.toml` | `ruff format . && ruff check .` |
 | Go | gofmt and go vet | (built in) | `gofmt -l . && go vet ./...` |
+| Go tests | go test, with the local database | `dev/compose.yaml` | see `AGENTS.md`, Commands |
 | JSON and YAML | Prettier | (defaults) | `npx prettier --check "**/*.{json,yml,yaml}"` |
 
 - **Format before you commit.** A pull request with formatting failures is not reviewed.
