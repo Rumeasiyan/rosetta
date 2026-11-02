@@ -153,7 +153,7 @@ ENTITIES = {
             ("name", "text, unique, as in BUMBLEBEE's list, for example google-translate"),
             ("version", "text; BUMBLEBEE's part for this site, returned with every answer"),
             ("state", "on, resting after a block, resting after a page change, or off"),
-            ("tried_again_at", "time (UTC); empty unless resting; skipped until then (R-PRV-01)"),
+            ("rest_until", "time (UTC); empty unless resting; skipped until then (R-PRV-01)"),
             ("on_for_rosetta", "yes/no; the administrator can turn a source off (R-PRV-02)"),
             ("switched_at", "time (UTC)"),
             ("seen_at", "time (UTC); last refresh of the list, never older than 60 seconds"),
