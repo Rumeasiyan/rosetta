@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## How fallback decides
+
+Only `failure.reason` counts, and only it is read: the explanation is never kept, so an error cannot carry text. A reason it does not know, an answer in no documented shape and a refused key on BUMBLEBEE's side are all `unavailable`, as CALLERS.md has it. `busy`, `blocked` and `changed` hold the source in memory until their `retry_at`, for every request, as R-PRV-05 says every "try again after" is respected; a busy source this request is waiting on is held from the others too. A busy wait must leave 2 seconds for the call, and no call starts with under 2 seconds of the request left, so a late fallback cannot run past R-ERR-03: that is this build's figure. The one-call wait of 60 seconds is the one CALLERS.md gives and is a constant, as the source list does not publish it. Fallback used means a source earlier in the order was resting or failed, not merely a busy source tried again.
+
 ## Limits per system
 
 The settings `caller_requests_per_minute` and `caller_requests_at_once` (R-CAL-07) are what a new system starts with; each system's own figures then live on its row, changed by the administrator on its screen, so a system's owner cannot raise them. They are read with the key on every request, so a change is in force at once. A minute is any 60 seconds, not a clock minute. The count is in memory, in the one process there is, so a restart starts it again. A refused request counts against neither limit, and a refused key touches none. Migration 003 adds `caller limit` to `change_history`'s subjects, an addition Annex A does not list, since R-ADM-05 keeps every such change as history.

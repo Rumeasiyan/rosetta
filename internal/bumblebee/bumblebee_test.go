@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -127,5 +128,100 @@ func TestSourcesFaults(t *testing.T) {
 	defer cancel()
 	if _, err := c.Sources(ctx); err == nil {
 		t.Fatal("a silent stand-in answered")
+	}
+}
+
+func piece(text string) bumblebee.Request {
+	return bumblebee.Request{RequestID: "r-1", Source: "standin-translate", From: "en", To: "ta", Text: text}
+}
+
+func TestTranslateAgainstTheStandIn(t *testing.T) {
+	_, c := stand(t)
+	a, err := c.Translate(context.Background(), piece("An invented letter."))
+	if err != nil || a.Text != "[ta] An invented letter." || a.Source != "standin-translate" || a.Version != "1" {
+		t.Fatalf("%+v %v", a, err)
+	}
+}
+
+// Every failure in CALLERS.md reads as itself; those that say when, say when.
+func TestEachReasonFromTheStandIn(t *testing.T) {
+	ts, c := stand(t)
+	for reason, retries := range map[string]bool{"busy": true, "blocked": true, "changed": true, "timeout": false, "too-long": false, "unsupported": false, "source-off": false, "unavailable": false} {
+		setMode(t, ts, reason, nil)
+		_, err := c.Translate(context.Background(), piece("An invented letter."))
+		var f *bumblebee.Failure
+		if !errors.As(err, &f) || f.Reason != reason || (f.RetryAt != nil) != retries {
+			t.Errorf("%s: %v", reason, err)
+		}
+	}
+}
+
+// The reason decides, never the status: a failure under a 200 is a failure, and a
+// reason it does not know is "unavailable". Nothing of the explanation is kept.
+func TestReadsTheReasonAloneAndKeepsNoText(t *testing.T) {
+	var answer string
+	var status int
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+		w.Write([]byte(answer))
+	}))
+	defer ts.Close()
+	c := bumblebee.Client{URL: ts.URL, Key: "k"}
+	for _, x := range []struct {
+		status       int
+		answer, want string
+	}{
+		{200, `{"failure":{"reason":"blocked","explanation":"CALLERTEXTMARKER","retry_at":"2030-01-01T04:30:00Z"}}`, "blocked"},
+		{503, `{"text":"CALLERTEXTMARKER","failure":{"reason":"timeout","explanation":"CALLERTEXTMARKER"}}`, "timeout"},
+		{200, `{"failure":{"reason":"from-a-later-version","explanation":"CALLERTEXTMARKER"}}`, "unavailable"},
+		{200, `CALLERTEXTMARKER`, "unavailable"},
+		{200, `{"source":"CALLERTEXTMARKER"}`, "unavailable"},
+		{401, `{"error":"unknown_key"}`, "unavailable"},
+	} {
+		status, answer = x.status, x.answer
+		_, err := c.Translate(context.Background(), piece("x"))
+		var f *bumblebee.Failure
+		if !errors.As(err, &f) || f.Reason != x.want || strings.Contains(err.Error(), "CALLERTEXTMARKER") {
+			t.Errorf("%s: %v", x.answer, err)
+		}
+	}
+	status, answer = 503, `{"text":"under another status"}`
+	if a, err := c.Translate(context.Background(), piece("x")); err != nil || a.Text != "under another status" {
+		t.Fatal(a, err)
+	}
+}
+
+func TestSilenceIsTheTimeRunningOutOrUnavailable(t *testing.T) {
+	ts, c := stand(t)
+	setMode(t, ts, "silent", nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := c.Translate(ctx, piece("x")); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal(err)
+	}
+	down := bumblebee.Client{URL: "http://127.0.0.1:1", Key: "k"}
+	var f *bumblebee.Failure
+	if _, err := down.Translate(context.Background(), piece("x")); !errors.As(err, &f) || f.Reason != "unavailable" {
+		t.Fatal(err)
+	}
+}
+
+func TestTheRequestCarriesTheReferenceAndTheKey(t *testing.T) {
+	ts, c := stand(t)
+	if _, err := c.Translate(context.Background(), piece("x")); err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.Get(ts.URL + "/control/bumblebee/received")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var seen struct {
+		Received []standin.Received `json:"received"`
+	}
+	json.NewDecoder(res.Body).Decode(&seen)
+	last := seen.Received[len(seen.Received)-1]
+	if last.Auth != "Bearer" || !strings.Contains(last.Body, `"request_id":"r-1"`) || !strings.Contains(last.Body, `"operation":"translate"`) {
+		t.Fatalf("%+v", last)
 	}
 }
