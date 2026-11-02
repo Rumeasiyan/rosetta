@@ -18,7 +18,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/oidc` | Sign-in through MJOLNIR: code flow with PKCE, renew, revoke. |
 | `internal/web`, `internal/i18n` | The screens (Go templates and htmx, the Stone bands look, embedded fonts and scripts) and the one message file. |
 | `internal/people` | The person's record and roles. |
-| `internal/audit` | The outbox of entries for PENSIEVE, written in the same transaction as the work. |
+| `internal/audit` | The outbox of entries for PENSIEVE: written in the same transaction as the work, sent straight after and by the job `audit-catch-up`. |
 | `internal/settings` | The Office's settings: each PRD "(default: ...)" as stories need it, their history, and the read-on-use cache. |
 | `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
@@ -31,6 +31,8 @@ export ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rose
 go test -p 1 ./...
 docker compose -f dev/compose.yaml down
 ```
+
+To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53090/control/pensieve/received`.
 
 ## Constraints
 

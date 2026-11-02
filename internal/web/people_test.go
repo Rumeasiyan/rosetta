@@ -8,6 +8,9 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/standin"
 )
 
 // fresh clears roles and the outbox: these tests count both.
@@ -326,5 +329,39 @@ func TestLanguageIsChosenAndRemembered(t *testing.T) {
 	p := b.noFollow(mustGet(w.screens.URL + "/lang/si?next=//evil.example"))
 	if p.status != http.StatusSeeOther || p.header.Get("Location") != "/" {
 		t.Fatalf("%d %v", p.status, p.header)
+	}
+}
+
+// Whole road: a person's action to PENSIEVE's stand-in, straight after the change,
+// with no text a person typed on the way.
+func TestAChangeReachesPensieveStraightAway(t *testing.T) {
+	const marker = "CALLERTEXTMARKER"
+	w := newWorld(t)
+	admin, who := w.signedInAdmin()
+	w.exec(`DELETE FROM audit_outbox`)
+	out := &audit.Outbox{Pool: w.pool, Sender: audit.Pensieve{URL: w.standin.URL + "/pensieve", Key: standin.PensieveKey}}
+	w.app.deps.Outbox = out
+	token := admin.csrf()
+	admin.post("/people/grant", url.Values{"csrf": {token}, "email": {who + "@example.invalid"}, "role": {"glossary keeper"}, "language": {"ta"}})
+	admin.post("/people/grant", url.Values{"csrf": {token}, "email": {marker}, "role": {marker}})
+	admin.post("/settings/caller_idle_days", url.Values{"csrf": {token}, "value": {marker}})
+	out.Wait()
+	if got := w.outbox(); len(got) != 0 {
+		t.Fatalf("%+v", got)
+	}
+	found := false
+	for _, r := range w.received("pensieve") {
+		if strings.Contains(r.Body, marker) {
+			t.Fatalf("an entry holds it: %s", r.Body)
+		}
+		if strings.Contains(r.Body, `"role change"`) && strings.Contains(r.Body, `"not known"`) {
+			found = true
+		}
+		if r.Auth != "Bearer" {
+			t.Fatalf("%+v", r)
+		}
+	}
+	if !found {
+		t.Fatal("the role change did not arrive")
 	}
 }

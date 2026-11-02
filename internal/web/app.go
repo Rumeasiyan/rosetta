@@ -36,8 +36,14 @@ type Deps struct {
 	// FirstAdmin is ROSETTA_FIRST_ADMIN: the MJOLNIR account that becomes the first
 	// administrator, only while no administrator exists.
 	FirstAdmin string
-	Logger     *slog.Logger
+	// Outbox sends audit entries after each change. Nil sends none: they wait in
+	// the outbox.
+	Outbox Kicker
+	Logger *slog.Logger
 }
+
+// Kicker starts sending what the outbox holds, without waiting for it.
+type Kicker interface{ Kick() }
 
 // signinCallTimeout is the longest ROSETTA waits on MJOLNIR for one person's request.
 const signinCallTimeout = 10 * time.Second
@@ -266,9 +272,14 @@ func back(w http.ResponseWriter, r *http.Request, path, msg, tone string) {
 	http.Redirect(w, r, path+"?m="+url.QueryEscape(msg)+"&tone="+tone, http.StatusSeeOther)
 }
 
-// inTx runs work in one transaction, which also holds its audit entries.
+// inTx runs work in one transaction, which also holds its audit entries, and once
+// they are safely kept starts sending them (B 13: straight after each change).
 func (a *App) inTx(r *http.Request, work func(tx pgx.Tx, now time.Time) error) error {
-	return pgx.BeginFunc(r.Context(), a.deps.Pool, func(tx pgx.Tx) error { return work(tx, time.Now()) })
+	err := pgx.BeginFunc(r.Context(), a.deps.Pool, func(tx pgx.Tx) error { return work(tx, time.Now()) })
+	if err == nil && a.deps.Outbox != nil {
+		a.deps.Outbox.Kick()
+	}
+	return err
 }
 
 // only lets the request through when allowed says so. Anything else is a denial,

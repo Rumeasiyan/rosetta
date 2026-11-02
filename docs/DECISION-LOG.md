@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## How the audit outbox sends
+
+B 13 says straight after each change and from the outbox. After a change commits, a goroutine (never a timer, AGENTS C6) sends what is due, one at a time, with a 15 second limit, and the person's request does not wait for it. What cannot go waits for `audit-catch-up`, which PARADOX calls. A sent entry's row is deleted. A failed attempt backs off from one minute to one hour, or honours `Retry-After`; `not_kept` counts as failed. Any other refusal is a fault in the code that wrote the entry, since the same again gets the same answer (INTAKE.md): the row stays, marked in `refused_at` and `refusal` (migration 002, additions Annex A does not list), is not sent again, and is logged as an error with its ID and reason only. A batch is 100 entries, split further if PENSIEVE answers 413. A row older than 30 days is deleted (Annex A: at most 30 days, and PENSIEVE would refuse it) and the count logged as an error. Telling the administrator about refused or dropped rows waits for E-ADM-06, so until then only the log shows them.
+
 ## Which settings exist in R1
 
 E-ADM-03 registers three: `request_limit_seconds` (R-ERR-03), `caller_idle_days` (R-CAL-05) and `failure_alert_percent` (R-ADM-03), so the screen, history and refresh have something real to work on. Nothing reads them yet: their stories do, and add the rest as they need them. Defaults are the PRD's; the allowed ranges are this build's own choice. A setting at its default has no row. A change is in force on the first use after 30 seconds, read on use with no timer, and the last good values stay if a read fails. The screen shows both the saved value and the one in force. A refused value is never repeated, kept or logged.

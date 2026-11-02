@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
 	"github.com/Rumeasiyan/rosetta/internal/health"
@@ -128,7 +129,16 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if err != nil {
 		return err
 	}
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Logger: logger})
+	links, err := config.LinksFromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	if links.PensieveURL == "" || links.PensieveKey == "" {
+		return errors.New("ROSETTA_PENSIEVE_URL and ROSETTA_PENSIEVE_KEY are not set (audit entries; see .env.example)")
+	}
+	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
+	defer outbox.Wait()
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, Logger: logger})
 	if err != nil {
 		return err
 	}
@@ -137,10 +147,10 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	screens.Mount(mux)
 	mux.Handle(health.Path, health.Handler(health.DBCheck(pool), logger))
 	mux.Handle(jobs.Prefix, jobs.Handler(pool, keys, jobs.Set(
-		jobs.Job{Name: "nightly", Run: jobs.Nothing},        // E-REC-03
-		jobs.Job{Name: "partitions", Run: jobs.Nothing},     // E-REC-03
-		jobs.Job{Name: "daily", Run: jobs.Nothing},          // E-CAL-05
-		jobs.Job{Name: "audit-catch-up", Run: jobs.Nothing}, // E-REC-01
+		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03
+		jobs.Job{Name: "partitions", Run: jobs.Nothing}, // E-REC-03
+		jobs.Job{Name: "daily", Run: jobs.Nothing},      // E-CAL-05
+		jobs.Job{Name: "audit-catch-up", Run: outbox.Job},
 	), logger))
 
 	ln, err := net.Listen("tcp", cfg.Listen)

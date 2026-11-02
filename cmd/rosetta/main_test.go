@@ -54,6 +54,28 @@ func TestServeNeedsSignInSettings(t *testing.T) {
 	}
 }
 
+// Nor without somewhere to send its audit entries. This reaches the database, since
+// the settings are read in order, so it needs the local stack.
+func TestServeNeedsPensieve(t *testing.T) {
+	url := os.Getenv("ROSETTA_TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("ROSETTA_TEST_DATABASE_URL not set; start dev/compose.yaml to run database tests")
+	}
+	e := env(map[string]string{
+		"DATABASE_URL":                 url,
+		"PARADOX_PUBLIC_KEY":           "ed25519-pub:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"ROSETTA_PUBLIC_URL":           "http://localhost:53080",
+		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53090/mjolnir",
+		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
+		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
+	})
+	var logs bytes.Buffer
+	err := serve(context.Background(), e, &logs, nil)
+	if err == nil || !strings.Contains(err.Error(), "ROSETTA_PENSIEVE_URL") {
+		t.Fatalf("%v", err)
+	}
+}
+
 // With nothing listening, the health check fails rather than passes.
 func TestHealthcheckFailsWhenNothingListens(t *testing.T) {
 	var out, errs bytes.Buffer
@@ -85,6 +107,8 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53090/mjolnir",
 		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
 		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
+		"ROSETTA_PENSIEVE_URL":         "http://localhost:53090/pensieve",
+		"ROSETTA_PENSIEVE_KEY":         "pv_standin",
 	})
 	ready := make(chan string, 1)
 	var logs bytes.Buffer
