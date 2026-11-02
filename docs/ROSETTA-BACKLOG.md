@@ -77,7 +77,7 @@ Notes:
 Notes:
 
 - **E-CAL-01:** The reader refuses a file format it does not know and ignores fields it does not know (TVA's R-LKP-05). `may_join` counts, as live does. The owner is a post reference plus its holder's MJOLNIR subject, empty when vacant or unlinked; TVA's format document is not final (its E-LKP-01), so read it through one interface and build the stand-in to that document when it lands. Match on the subject, never on email.
-- **E-CAL-02:** Who issues and how many are live follow STACK's one key rule, once ALLSPARK has written it; R-CAL-03 until then. Requests on another machine also carry the signature in §5: same scheme as PARADOX's contract unless SCOS Pro's session objects. Add the public key to `caller_key` (Annex A) when this is built.
+- **E-CAL-02:** Who issues and how many are live follow STACK's one key rule, once ALLSPARK has written it; R-CAL-03 until then. Requests from another machine also carry the signature in §5. Its scheme is not agreed: PARADOX's contract is proposed, which would be SCOS Pro's first scheme of that kind, and key custody and rotation need the user's decision. Annex A changes if it adds a public key.
 - **E-PRV-01:** The refresh is an in-process timer, allowed because ROSETTA never sleeps and this is reading, not scheduled work. Keep a default size for when the list cannot be read. BUMBLEBEE counts size in code points, positions are UTF-16 (R-GRM-03): keep the two apart. `state` values as `docs/CALLERS.md` gives them.
 - **E-MSK-01:** A pure package with no store, table-tested on old and new card forms and Sri Lankan phone forms in all three scripts' text. Stand-ins must survive translation; test by the BUMBLEBEE stand-in changing them (R-MSK-03). Each stand-in keeps a map to the original offsets, which E-GRM-04 uses.
 - **E-GAT-01:** Screens for the administrator. The evaluation it rests on comes from E-GAT-02; until then the local run opens a direction with a recorded test score.
@@ -187,7 +187,7 @@ Notes:
 - **E-ENB-16:** Policy and frequency are PHOENIX's (RUNBOOK step 7); after a restore the cache is empty and refills (A.1).
 - **E-ENB-17:** `http://bumblebee:8080` on a network ROSETTA joins, whichever link layout the user settles (allspark#28, allspark#29). ROSETTA's key is shown once on BUMBLEBEE's machine and entered in the env file by the user. BUMBLEBEE's story E-ENB-20 is the other side.
 - **E-ENB-18:** With invented or volunteers' test text only. Evaluation needs E-GAT-02 run against each real source.
-- **E-ENB-19:** The system's public key and its `/api/` signature checked for real. The EP website joins later the same way, as a caller under R-CAL-08.
+- **E-ENB-19:** The `/api/` signature checked for real. The EP website joins later the same way, as a caller under R-CAL-08.
 - **E-ENB-20:** SCOS Pro's session does the install on its server; the Check click is done by an officer on an invented letter first, then real ones. Same-site, credentials and timing as found in E-GRM-01 are confirmed on the real addresses.
 
 ## Not in the PRD
