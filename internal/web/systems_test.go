@@ -378,8 +378,8 @@ func TestKeysBelongToTheirOwnerAlone(t *testing.T) {
 func TestSystemScreenLimitsFormIsTheAdministrators(t *testing.T) {
 	for _, l := range i18n.Langs {
 		admin := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", CSRF: "form-token", Viewer: &Viewer{Name: "Test"},
-			Data: systemData{System: someSystems()[0], Admin: true, Limits: []callers.LimitChange{{Old: "60 a minute, 5 at once", New: "30 a minute, 5 at once", By: "Test Administrator"}}}})
-		for _, want := range []string{`action="/systems/7/limits"`, `value="60"`, `value="5"`, `<label for="per_minute">`, "30 a minute", "Test Administrator"} {
+			Data: systemData{System: someSystems()[0], Admin: true, Limits: []callers.LimitChange{{Old: "60 / 5", New: "30 / 5", By: "Test Administrator"}}}})
+		for _, want := range []string{`action="/systems/7/limits"`, `value="60"`, `value="5"`, `<label for="per_minute">`, "30 / 5", "Test Administrator"} {
 			if !strings.Contains(admin, want) {
 				t.Errorf("%s: no %q", l, want)
 			}
@@ -415,7 +415,7 @@ func TestLimitsStartFromTheSettingsAndChangeOnlyByTheAdministrator(t *testing.T)
 	}
 	w.exec(`DELETE FROM audit_outbox`)
 	path := sysPath(id) + "/limits"
-	if p := admin.post(path, url.Values{"csrf": {token}, "per_minute": {"30"}, "at_once": {"2"}}); !strings.Contains(p.body, "in force now") || !strings.Contains(p.body, "30 a minute, 2 at once") {
+	if p := admin.post(path, url.Values{"csrf": {token}, "per_minute": {"30"}, "at_once": {"2"}}); !strings.Contains(p.body, "in force now") || !strings.Contains(p.body, "30 / 2") {
 		t.Fatalf("%d %s", p.status, p.body)
 	}
 	if p := admin.post(path, url.Values{"csrf": {token}, "per_minute": {"0"}, "at_once": {"2"}}); !strings.Contains(p.body, "not values") {

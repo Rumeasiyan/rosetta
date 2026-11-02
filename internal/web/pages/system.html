@@ -22,7 +22,8 @@
     <input id="at_once" name="at_once" type="number" inputmode="numeric" min="1" value="{{.Data.System.AtOnce}}" required>
     <button class="pill" type="submit">{{t .Lang "save"}}</button>
   </form>{{else}}<p>{{t .Lang "settingCallerPerMinute"}}: <strong>{{.Data.System.PerMinute}}</strong><br>{{t .Lang "settingCallerAtOnce"}}: <strong>{{.Data.System.AtOnce}}</strong></p>{{end}}
-  {{if .Data.Limits}}<div class="stack"><table>
+  {{if .Data.Limits}}<p class="soft">{{t .Lang "history"}}: {{t .Lang "settingCallerPerMinute"}} / {{t .Lang "settingCallerAtOnce"}}</p>
+  <div class="stack"><table>
     <thead><tr><th scope="col">{{t .Lang "oldValue"}}</th><th scope="col">{{t .Lang "newValue"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "when"}}</th></tr></thead>
     <tbody>{{range .Data.Limits}}<tr><td><span class="stack-label">{{t $.Lang "oldValue"}}: </span>{{.Old}}</td><td><span class="stack-label">{{t $.Lang "newValue"}}: </span>{{.New}}</td><td>{{.By}}</td><td>{{when .ChangedAt}}</td></tr>{{end}}</tbody>
   </table></div>{{end}}

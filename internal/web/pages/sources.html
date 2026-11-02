@@ -11,7 +11,7 @@
       <td><strong>{{.Name}}</strong></td>
       <td><span class="stack-label">{{t $.Lang "version"}}: </span>{{.Version}}</td>
       <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{t $.Lang (stateWord .State)}}</td>
-      <td><span class="stack-label">{{t $.Lang "restUntil"}}: </span>{{if .RestUntil}}{{when .RestUntil}}{{end}}</td>
+      <td>{{if .RestUntil}}<span class="stack-label">{{t $.Lang "restUntil"}}: </span>{{when .RestUntil}}{{end}}</td>
       <td><span class="stack-label">{{t $.Lang "processesText"}}: </span>{{t $.Lang "outsideWebsite"}}</td>
       <td><span class="stack-label">{{t $.Lang "forRosetta"}}: </span>{{if .OnForRosetta}}{{t $.Lang "stateOn"}}{{else}}{{t $.Lang "stateOff"}}{{end}}
         {{if $.Data.Admin}}<form method="post" action="/sources/switch/{{.Name}}"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="on" value="{{not .OnForRosetta}}"><button class="pill" type="submit">{{if .OnForRosetta}}{{t $.Lang "turnOffForRosetta"}}{{else}}{{t $.Lang "turnOnForRosetta"}}{{end}}<span class="hidden-label">: {{.Name}}</span></button></form>{{end}}</td>

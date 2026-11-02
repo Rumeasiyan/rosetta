@@ -184,7 +184,9 @@ func SetLimits(ctx context.Context, tx pgx.Tx, s Caller, l Limits, by int64) (Li
 	return old, err == nil, err
 }
 
-func (l Limits) text() string { return fmt.Sprintf("%d a minute, %d at once", l.PerMinute, l.AtOnce) }
+// text is the two figures, in the order the screen names them: history shows it in
+// any of the three languages, so it holds no words.
+func (l Limits) text() string { return fmt.Sprintf("%d / %d", l.PerMinute, l.AtOnce) }
 
 // LimitChange is one change to a system's limits.
 type LimitChange struct {
