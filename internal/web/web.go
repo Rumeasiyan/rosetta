@@ -174,6 +174,10 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"args":            tableArgs,
 		"memoryArgs":      memoryTableArgs,
 		"memoryStateWord": memoryStateWord,
+		"opWord":          opWord,
+		"whyWord":         whyWord,
+		"timeWord":        timeWord,
+		"groupWord":       groupWord,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err

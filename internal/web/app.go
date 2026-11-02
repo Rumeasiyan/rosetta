@@ -110,6 +110,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountGate(mux)
 	a.mountGlossary(mux)
 	a.mountMemory(mux)
+	a.mountUsage(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -161,7 +162,7 @@ func nav(c *current) []NavItem {
 		items = append(items, NavItem{ID: "people", Word: "people", Href: "/people"}, NavItem{ID: "settings", Word: "settings", Href: "/settings"})
 	}
 	if seesSystems(c) {
-		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"})
+		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"}, NavItem{ID: "usage", Word: "usage", Href: "/usage"})
 	}
 	if isAdmin(c) {
 		items = append(items, NavItem{ID: "gate", Word: "gate", Href: "/gate"})

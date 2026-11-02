@@ -2,6 +2,12 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The usage screens
+
+`/usage` is open to the administrator and to system owners, who see their own systems only; asking for another's is a denial. A view is grouped by one of day, system, operation, direction or source, and filtered by any of them and by two dates, last 30 days by default, in Sri Lanka's days. What the totals hold comes from them and the rest, today at least, is added up from the records by the same SQL, so a view reads the same before and after the night's work. By source, or with a source chosen, only requests that used a source show and one with two counts under each, which the screen says.
+
+Time taken shows as the bucket 95 of each 100 requests finished within, since totals keep counts by bucket (Annex A: `time_buckets`) with edges at R-NFR-02's and R-ERR-03's figures, and no true percentile can be had from them; the file holds every bucket. A screen holds 200 lines, so a page stays small (R-NFR-03); the file holds them all, on one worksheet, with a column for each reason. The file's words follow the reader's language. An export is PENSIEVE's `export` action naming the view and a number of lines, never a count of usage. Anything in the address not on the lists is "no view", so nothing typed reaches the query, a log or an entry.
+
 ## Totals and what goes each night
 
 A total is always worked out again from its records and never added to, from the last day held to the end of yesterday in Sri Lanka, so a repeated or retried run comes out the same. A day is Sri Lanka's, as on every screen. All of `nightly` is one transaction: totals, then the months of records, the totals past `daily_total_years`, expired cache, alerts and runs past 90 days, and outbox rows past 30 days. Sent outbox rows already went when sent, so that last is only what never got through, also refused ones. `usage_record_years` and `daily_total_years` are new settings (R-REC-04). A month goes whole only when all of it is past the limit (Annex A.1), so a record may stay up to a month longer than the setting. A part's name carries its month, and only parts named that way are dropped.
