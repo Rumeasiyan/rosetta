@@ -111,7 +111,7 @@ func LoadPolicy(ctx context.Context, q Querier) (Policy, error) {
 	for _, name := range off {
 		p.Off[name] = true
 	}
-	return p, nil
+	return p, loadGates(ctx, q, &p)
 }
 
 // SetOrder replaces one direction's order, with its history row. It reports the old

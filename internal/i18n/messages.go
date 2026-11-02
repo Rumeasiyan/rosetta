@@ -177,4 +177,18 @@ var messages = map[string]text{
 	"sourcesHistory":    {"History of sources", "මූලාශ්‍ර ඉතිහාසය", "மூலங்களின் வரலாறு"},
 	"backToSources":     {"Back to sources", "මූලාශ්‍ර වෙත ආපසු", "மூலங்களுக்குத் திரும்புக"},
 	"changeOf":          {"What changed", "වෙනස් වූයේ කුමක්ද", "என்ன மாறியது"},
+
+	"gate":            {"Language gate", "භාෂා ද්වාරය", "மொழி வாயில்"},
+	"gateNote":        {"A direction is used by machine only after it passes evaluation. Open it only on a recorded evaluation of the source's version; a new version starts closed.", "දිශාවක් යන්ත්‍රයෙන් භාවිතා කරන්නේ ඇගයීමෙන් සමත් වූ පසුව පමණි. මූලාශ්‍රයේ අනුවාදයේ වාර්තාගත ඇගයීමක් මත පමණක් විවෘත කරන්න; නව අනුවාදයක් වසා ආරම්භ වේ.", "ஒரு திசை மதிப்பீட்டில் தேறிய பின்பே இயந்திரத்தால் பயன்படுத்தப்படும். மூலத்தின் பதிப்பின் பதிவான மதிப்பீட்டின் அடிப்படையில் மட்டுமே திறக்கவும்; புதிய பதிப்பு மூடியே தொடங்கும்."},
+	"gateIsOpen":      {"Open", "විවෘතයි", "திறந்துள்ளது"},
+	"gateIsClosed":    {"Closed", "වසා ඇත", "மூடப்பட்டுள்ளது"},
+	"gateNewVersion":  {"its version has changed since the last evaluation", "අවසන් ඇගයීමෙන් පසු එහි අනුවාදය වෙනස් වී ඇත", "கடைசி மதிப்பீட்டுக்குப் பின் அதன் பதிப்பு மாறியுள்ளது"},
+	"gateOpen":        {"Open this direction", "මෙම දිශාව විවෘත කරන්න", "இந்தத் திசையைத் திறக்கவும்"},
+	"gateClose":       {"Close this direction", "මෙම දිශාව වසන්න", "இந்தத் திசையை மூடவும்"},
+	"gateTestSet":     {"Test set", "පරීක්ෂණ කට්ටලය", "சோதனைத் தொகுப்பு"},
+	"gateScore":       {"Score", "ලකුණු", "மதிப்பெண்"},
+	"gateEvaluatedOn": {"Evaluated on", "ඇගයූ දිනය", "மதிப்பிட்ட திகதி"},
+	"gateOpened":      {"The direction is open. It is in force within 60 seconds.", "දිශාව විවෘතයි. එය තත්පර 60ක් ඇතුළත බලාත්මක වේ.", "திசை திறந்துள்ளது. இது 60 வினாடிகளுக்குள் நடைமுறைக்கு வரும்."},
+	"gateClosed":      {"The direction is closed. It is in force within 60 seconds.", "දිශාව වසා ඇත. එය තත්පර 60ක් ඇතුළත බලාත්මක වේ.", "திசை மூடப்பட்டது. இது 60 வினாடிகளுக்குள் நடைமுறைக்கு வரும்."},
+	"gateBad":         {"An opening needs a test set, a score and a date not ahead of today. Nothing was changed.", "විවෘත කිරීමට පරීක්ෂණ කට්ටලයක්, ලකුණු සහ අදට පසු නොවන දිනයක් අවශ්‍යයි. කිසිවක් වෙනස් කළේ නැත.", "திறப்பதற்கு சோதனைத் தொகுப்பும் மதிப்பெண்ணும் இன்றைக்குப் பிந்தாத திகதியும் தேவை. எதுவும் மாற்றப்படவில்லை."},
 }

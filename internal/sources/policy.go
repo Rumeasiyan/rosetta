@@ -71,7 +71,7 @@ func (d Direction) String() string {
 	return d.Operation + " " + d.From + "-" + d.To
 }
 
-// offers says a source does this work. CALLERS.md's grammar offers have no to_language.
+// offeredBy says a source does this work. CALLERS.md's grammar offers have no to_language.
 func (d Direction) offeredBy(s bumblebee.Source) bool {
 	if d.Operation == bumblebee.OpGrammar {
 		return s.Offer(d.Operation, d.From, "")
@@ -84,6 +84,7 @@ func (d Direction) offeredBy(s bumblebee.Source) bool {
 type Policy struct {
 	Orders map[Direction][]string // the sources placed, first first
 	Off    map[string]bool        // turned off for ROSETTA
+	Gates  map[GateKey]Gate       // the decision in force for each direction and source
 }
 
 // Ranked is the sources offering this work and on for ROSETTA, in order: the

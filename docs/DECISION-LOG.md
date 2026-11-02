@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The gate
+
+A decision is for one source and direction, and counts only for the version it was made on, compared with what the list says now, so a new version is closed at once with nothing to do. No decision is closed. Opening again on a new evaluation ends the old decision, which stays as history. A test set's name is 1 to 100 letters, digits, spaces and `._:-`, and one PENSIEVE would refuse is refused as a bad name. `GET /api/v1/gate` answers all six directions, as a signed call carries no query; a source turned off for ROSETTA is not among those open. It reads the list as last known, stale or not, since the gate is about evaluations and not about who is up. The screen is the administrator's alone.
+
 ## Source order and switch
 
 With no order set, translation goes by source name, so the order never depends on how the list was written, and grammar by English benchmark score (R-GRM-06). Sources the administrator placed come first and the rest follow. A position left blank is not placed, and only the numbers' order counts. A system owner sees the source screen, since R-NFR-13 means them to choose, but changes nothing; the history is the administrator's. A source turned off keeps its place in the form. Changes are `change` entries, as P-ING-02 has no nearer word.

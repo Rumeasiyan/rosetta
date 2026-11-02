@@ -75,6 +75,17 @@ func Day(d *time.Time) string {
 	return d.Format(time.DateOnly)
 }
 
+// anyDay shows a date whether a screen holds it directly or as an optional one.
+func anyDay(d any) string {
+	switch v := d.(type) {
+	case time.Time:
+		return Day(&v)
+	case *time.Time:
+		return Day(v)
+	}
+	return ""
+}
+
 // RoleWord is the message key for a stored role name.
 func RoleWord(role string) string {
 	switch role {
@@ -117,7 +128,7 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"langName":   i18n.Name,
 		"staticPath": func(name string) string { return StaticPrefix + name },
 		"when":       When,
-		"day":        Day,
+		"day":        anyDay,
 		"roleWord":   RoleWord,
 		"flagWord":   flagWord,
 		"stateWord":  stateWord,

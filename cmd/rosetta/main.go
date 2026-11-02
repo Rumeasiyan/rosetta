@@ -174,7 +174,15 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		return err
 	}
 
-	calls := api.New(api.Deps{Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger})
+	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
+	// use like the settings, with the last good values kept if a read fails.
+	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
+		return sources.LoadPolicy(ctx, pool)
+	}, settings.RefreshEvery, logger)
+	calls := api.New(api.Deps{
+		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
+		Snapshot: book.Snapshot, Policy: policy.Get,
+	})
 
 	mux := http.NewServeMux()
 	screens.Mount(mux)

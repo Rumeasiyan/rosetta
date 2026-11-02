@@ -1,0 +1,35 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "gate"}}</h1><p class="hero-line">{{t .Lang "gateNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data.Rows}}{{range .Data.Rows}}<section class="order">
+    <h2 class="order-title">{{direction $.Lang .Direction}}: {{.Source.Name}} <span class="soft">({{t $.Lang "version"}} {{.Source.Version}})</span></h2>
+    {{if .Open}}<p><strong>{{t $.Lang "gateIsOpen"}}</strong>: {{.Gate.TestSet}}, {{.Gate.Score}}, {{day .Gate.EvaluatedOn}}</p>
+    <form method="post" action="/gate/{{.Source.Name}}/{{.Direction.From}}/{{.Direction.To}}/close"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "gateClose"}}<span class="hidden-label">: {{.Source.Name}}, {{direction $.Lang .Direction}}</span></button></form>
+    {{else}}<p><strong>{{t $.Lang "gateIsClosed"}}</strong>{{if .NewVersion}}: {{t $.Lang "gateNewVersion"}}{{end}}</p>
+    {{$id := printf "%s-%s-%s" .Source.Name .Direction.From .Direction.To}}<form class="fields" method="post" action="/gate/{{.Source.Name}}/{{.Direction.From}}/{{.Direction.To}}/open">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <label for="set-{{$id}}">{{t $.Lang "gateTestSet"}}</label><input id="set-{{$id}}" name="test_set" autocomplete="off" maxlength="100" required>
+      <label for="score-{{$id}}">{{t $.Lang "gateScore"}}</label><input id="score-{{$id}}" name="score" inputmode="decimal" autocomplete="off" required>
+      <label for="on-{{$id}}">{{t $.Lang "gateEvaluatedOn"}}</label><input id="on-{{$id}}" name="evaluated_on" type="date" max="{{$.Data.Today}}" required>
+      <button class="pill solid" type="submit">{{t $.Lang "gateOpen"}}<span class="hidden-label">: {{.Source.Name}}, {{direction $.Lang .Direction}}</span></button>
+    </form>{{end}}
+  </section>{{end}}{{else}}<p>{{t .Lang "noSources"}}</p>{{end}}
+
+  <h2 class="fat section">{{t .Lang "history"}}</h2>
+  {{if .Data.History}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "gateTestSet"}}</th><th scope="col">{{t .Lang "gateScore"}}</th><th scope="col">{{t .Lang "gateEvaluatedOn"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "from"}}</th><th scope="col">{{t .Lang "until"}}</th></tr></thead>
+    <tbody>{{range .Data.History}}<tr>
+      <td><strong>{{.Source}}</strong> {{.SourceVersion}}<br><span class="soft">{{.From}} - {{.To}}</span></td>
+      <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{if eq .State "open"}}{{t $.Lang "gateIsOpen"}}{{else}}{{t $.Lang "gateIsClosed"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "gateTestSet"}}: </span>{{.TestSet}}</td>
+      <td><span class="stack-label">{{t $.Lang "gateScore"}}: </span>{{if .Score}}{{.Score}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "gateEvaluatedOn"}}: </span>{{if .EvaluatedOn}}{{day .EvaluatedOn}}{{end}}</td>
+      <td>{{.By}}</td>
+      <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .Since}}</td>
+      <td><span class="stack-label">{{t $.Lang "until"}}: </span>{{if .Until}}{{when .Until}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noHistory"}}</p>{{end}}
+</div>
+{{end}}
