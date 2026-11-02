@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## How to call ROSETTA, on one page
+
+`docs/CALLERS.md`, in the form BUMBLEBEE's has. The checks list its name beside the other upper-case documents, as the backlog names it so. Its figures are ROSETTA's own; what BUMBLEBEE holds is cited and not copied. A test holds the page to the code: every reason with its status, every limit with its default and setting. The example is one `main.go` on the standard library, in the page itself so a reader copies what was run: a test takes it out of the page and runs it with `go run` through the real path against the stand-ins, with a key that signs and one that does not, and looks for a refusal when a signing key sends no signature. The signature section was written against `internal/apisign`, and the example's code signs for itself rather than calling that package. So a signature the page describes passes the real check, or the test fails.
+
+## A test from the screens
+
+`/systems/{id}/test` is open to whoever manages the system: its owner, or the administrator. It goes through `api.Server.Test`, the same pipeline, the same answer's shape and the system's own limits, so it cannot crowd out the system's real calls, and the answer shows in full with sources and fallback. Annex A says test requests are never stored, so the translator here has no `Keeper`: nothing joins the cache, though the cache and memory still answer. A check may hold its suggestions in memory like any other (R-GRM-05). It is recorded as operation `test`, with who sent it, and is not an audit entry: neither R-REC-02 nor P-ING-02 lists it. Tests are left out of the failure alert. Invented text is asked for in words on the screen, as nothing can check it. A form holds one passage, as that is all a test needs; the answer is the same shape as for two hundred.
+
 ## The status screen
 
 `/status` is open to the administrator and to system owners, as the source screen is. BUMBLEBEE counts as up while the source list is fresh (R-PRV-01), the same test that decides whether anything is sent, so the screen cannot say up while requests fail for that reason. Today's counts come from the records, by Sri Lanka's day, so they survive a restart; an owner sees only their own systems' and BUMBLEBEE's state, which is nobody's in particular. Refusals are what a caller or a setting decided; failures are `masking lost`, `no provider` and `timed out`, what ROSETTA or a source could not do (`reasons.IsFailure`). Requests with no known system stay in the memory count and show to the administrator only, marked as counted since the last start.
