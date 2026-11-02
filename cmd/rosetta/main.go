@@ -21,6 +21,8 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/db"
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
+	"github.com/Rumeasiyan/rosetta/internal/oidc"
+	"github.com/Rumeasiyan/rosetta/internal/web"
 )
 
 const usage = `usage:
@@ -118,7 +120,21 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		return err
 	}
 
+	signin, err := oidc.FromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	public, err := oidc.PublicURL(getenv)
+	if err != nil {
+		return err
+	}
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, Logger: logger})
+	if err != nil {
+		return err
+	}
+
 	mux := http.NewServeMux()
+	screens.Mount(mux)
 	mux.Handle(health.Path, health.Handler(health.DBCheck(pool), logger))
 	mux.Handle(jobs.Prefix, jobs.Handler(pool, keys, jobs.Set(
 		jobs.Job{Name: "nightly", Run: jobs.Nothing},        // E-REC-03

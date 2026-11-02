@@ -1,0 +1,29 @@
+{{/* ROSETTA's frame, copied from design-lab/src/directions/stone. Pages define
+     "page", calling "frame" or "bare", and "main". */}}
+{{define "head"}}<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"historyCacheSize":0,"refreshOnHistoryMiss":true,"responseHandling":[{"code":"204","swap":false},{"code":"...","swap":true}]}'>
+<title>{{t .Lang .Title}} - ROSETTA</title>
+<link rel="icon" href="{{staticPath "favicon.ico"}}">
+<link rel="stylesheet" href="{{staticPath "rosetta.css"}}">
+<script src="{{staticPath "htmx.min.js"}}" defer></script>{{end}}
+
+{{define "flash"}}{{if .Flash}}<p class="note {{.FlashTone}}" role="status">{{t .Lang .Flash}}</p>{{end}}{{end}}
+
+{{define "bar"}}<header class="bar">
+  <a class="brand" href="/">ROSETTA</a>
+  <div class="bar-end">
+    {{if .Viewer}}<span class="who">{{.Viewer.Name}}</span>
+    <form method="post" action="/signout" hx-boost="false"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="pill small" type="submit">{{t .Lang "signOut"}}</button></form>{{end}}
+  </div>
+</header>{{end}}
+
+{{define "frame"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>{{template "head" .}}</head>
+<body hx-boost="true">
+<a class="skip" href="#main">{{t .Lang "skip"}}</a>
+{{template "bar" .}}
+<main id="main">{{template "main" .}}</main>
+</body>
+</html>{{end}}

@@ -1,0 +1,57 @@
+/* "Stone bands", the owner's approved look: design-lab/src/directions/stone and
+   design-lab/src/directions/parts. Fonts are ROSETTA's own (R-NFR-11). */
+@font-face { font-family: "Abril Fatface"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("fonts/abril-fatface-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Serif Sinhala"; font-weight: 900; font-style: normal; font-display: swap;
+  src: url("fonts/noto-serif-sinhala-sinhala-900-normal.woff2") format("woff2");
+  unicode-range: U+0964-0965, U+0D81-0DF4, U+1CF2, U+200C-200D, U+25CC, U+111E1-111F4; }
+@font-face { font-family: "Noto Serif Tamil"; font-weight: 900; font-style: normal; font-display: swap;
+  src: url("fonts/noto-serif-tamil-tamil-900-normal.woff2") format("woff2");
+  unicode-range: U+0964-0965, U+0B82-0BFA, U+200C-200D, U+20B9, U+25CC; }
+
+:root {
+  --paper: #FBF7EE; --ink: #24150A; --brown: #3A2414; --soft: #5C4F3F;
+  --stone: #A79F90; --olive: #D9C25A; --good: #A9C77B; --bad: #8E2A1B;
+  --pad: clamp(16px, 4vw, 40px);
+  --fat: "Abril Fatface", "Noto Serif Sinhala", "Noto Serif Tamil", Georgia, serif;
+  --body: system-ui, -apple-system, "Noto Sans Sinhala", "Sinhala MN", "Noto Sans Tamil", "Tamil Sangam MN", "Nirmala UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--body); }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 3px var(--paper); }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 8px; top: 8px; z-index: 2; padding: 10px 16px; background: var(--paper); }
+.fat { font-family: var(--fat); font-weight: 900; line-height: 1.12; overflow-wrap: anywhere; margin: 0; }
+.eyebrow { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.soft { color: var(--soft); }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; padding: 12px var(--pad); border-bottom: 1.5px solid var(--brown); font-size: 14px; }
+.brand { font: 400 21px var(--fat); text-decoration: none; }
+.bar-end { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+
+.band { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 28px; padding: clamp(22px, 3.4vw, 40px) var(--pad); }
+.band .eyebrow { width: 90px; }
+.band-term { flex: 1 1 300px; font-size: clamp(34px, 6vw, 72px); }
+.band-line { font-size: 14px; }
+.band-si { background: var(--stone); color: var(--ink); }
+.band-ta { background: var(--olive); color: var(--ink); }
+.band-en { background: var(--brown); color: var(--paper); }
+
+.hero { background: var(--brown); color: var(--paper); padding: clamp(24px, 5vw, 56px) var(--pad); }
+.hero-title { font-size: clamp(40px, 7vw, 84px); }
+.hero-line { margin: 10px 0 0; font-size: 17px; }
+.content { padding: 20px var(--pad) 48px; max-width: 900px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: clamp(16px, 3vw, 28px) var(--pad); }
+.row-text { margin: 0 auto 0 0; }
+
+.pill { display: inline-flex; align-items: center; justify-content: center; font: inherit; font-size: 14px; min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; text-decoration: none; }
+.pill.solid { background: var(--ink); color: var(--paper); }
+
+.note { margin: 12px var(--pad); padding: 10px 16px; border: 1.5px solid var(--ink); border-radius: 16px; }
+.content .note { margin: 12px 0; }
+.note.good { background: var(--good); color: #000; }
+.note.warn { background: var(--olive); }
+.note.bad { background: var(--bad); border-color: var(--bad); color: #fff; }

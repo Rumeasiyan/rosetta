@@ -19,7 +19,7 @@ func start(t *testing.T) (*httptest.Server, *Server) {
 	t.Helper()
 	s := New(Options{ClientID: "rosetta", ClientSecret: "local-stand-in-only"})
 	ts := httptest.NewServer(s.Handler())
-	s.public = ts.URL
+	s.SetPublicURL(ts.URL)
 	t.Cleanup(func() { s.Close(); ts.Close() })
 	return ts, s
 }

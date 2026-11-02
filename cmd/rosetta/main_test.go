@@ -45,6 +45,15 @@ func TestMigrateNeedsItsURL(t *testing.T) {
 	}
 }
 
+// The service does not start without its sign-in settings.
+func TestServeNeedsSignInSettings(t *testing.T) {
+	e := env(map[string]string{"DATABASE_URL": "postgres://nobody@127.0.0.1:1/none?connect_timeout=1"})
+	var errs bytes.Buffer
+	if err := serve(context.Background(), e, &errs, nil); err == nil {
+		t.Fatal("started without sign-in settings")
+	}
+}
+
 // With nothing listening, the health check fails rather than passes.
 func TestHealthcheckFailsWhenNothingListens(t *testing.T) {
 	var out, errs bytes.Buffer
@@ -69,9 +78,13 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 	free := ln.Addr().String()
 	ln.Close()
 	e := env(map[string]string{
-		"ROSETTA_LISTEN":     free,
-		"DATABASE_URL":       url,
-		"PARADOX_PUBLIC_KEY": "ed25519-pub:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"ROSETTA_LISTEN":               free,
+		"DATABASE_URL":                 url,
+		"PARADOX_PUBLIC_KEY":           "ed25519-pub:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"ROSETTA_PUBLIC_URL":           "http://localhost:53080",
+		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53090/mjolnir",
+		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
+		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
 	})
 	ready := make(chan string, 1)
 	var logs bytes.Buffer

@@ -1,0 +1,8 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "welcome"}}</h1><p class="hero-line">{{.Viewer.Name}}</p></div>
+<div class="content">
+  <p>{{t .Lang "noRole"}}</p>
+  <p class="soft">{{t .Lang "proposal"}}</p>
+</div>
+{{end}}

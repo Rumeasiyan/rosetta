@@ -15,6 +15,9 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `cmd/rosetta-standin/`, `internal/standin` | Local stand-ins for BUMBLEBEE, MJOLNIR, CERBERUS, BIFROST, PENSIEVE and HEDWIG, each under its own path prefix; `/control` sets a failure mode and reads back what came. Not in the image. |
 | `internal/db` | PgBouncer-safe pool and migrations (`migrations/NNN-*.sql`, never edited once applied). |
 | `internal/jobs` | The job address PARADOX calls: signature, run record, lock. |
+| `internal/oidc` | Sign-in through MJOLNIR: code flow with PKCE, renew, revoke. |
+| `internal/web`, `internal/i18n` | The screens (Go templates and htmx, the Stone bands look, embedded fonts and scripts) and the one message file. |
+| `internal/people` | The person's record and roles. |
 | `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 

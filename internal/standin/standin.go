@@ -91,6 +91,10 @@ func New(o Options) *Server {
 	return s
 }
 
+// SetPublicURL names the address a browser reaches the stand-in on, for a test
+// that learns it only after starting.
+func (s *Server) SetPublicURL(u string) { s.public = strings.TrimRight(u, "/") }
+
 // Close releases requests held by a silent stand-in.
 func (s *Server) Close() { s.stopOnce.Do(func() { close(s.stop) }) }
 
