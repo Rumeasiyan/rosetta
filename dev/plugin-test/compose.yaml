@@ -1,5 +1,5 @@
 # The plug-in walk (E-GRM-07): Caddy and one Document Server. Local only; passwords none,
-# JWT off. See README.md. Bring it straight down: docker compose ... down -v.
+# JWT off. See how-to-run.md. Bring it straight down: docker compose ... down -v.
 name: rosetta-plugin-test
 
 services:
