@@ -40,6 +40,19 @@ func DenialEvent(d Denial) audit.Event {
 		Result: audit.ResultDenied, Reason: d.Why, Visitor: d.Visitor}
 }
 
+// PoolOrigins finds browser addresses in the database.
+type PoolOrigins struct{ Pool *pgxpool.Pool }
+
+// Find is the system listing this address.
+func (o PoolOrigins) Find(ctx context.Context, origin string) (callers.Caller, error) {
+	return callers.FindOrigin(ctx, o.Pool, origin)
+}
+
+// Used notes the system was used.
+func (o PoolOrigins) Used(ctx context.Context, callerID int64) error {
+	return callers.CallerUsed(ctx, o.Pool, callerID)
+}
+
 // PoolDenials keeps denials in the outbox and starts sending them.
 func PoolDenials(pool *pgxpool.Pool, kick func()) func(context.Context, Denial) error {
 	return func(ctx context.Context, d Denial) error {

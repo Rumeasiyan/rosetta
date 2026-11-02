@@ -98,3 +98,42 @@ func issueByTestPerson(ctx context.Context, tx pgx.Tx, id int64) (string, caller
 	}
 	return callers.Issue(ctx, tx, id, person, "")
 }
+
+// The whole way from the database: a listed address, read and counted there.
+func TestABrowserCallCountedInTheDatabase(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	id := freshSystem(t, pool)
+	t.Cleanup(func() { freshSystem(t, pool) })
+	if _, err := pool.Exec(ctx, `INSERT INTO caller_origin (caller_id, origin) VALUES ($1, 'https://writedocument.epc.test')`, id); err != nil {
+		t.Fatal(err)
+	}
+	srv := api.New(api.Deps{Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}})
+	mux := http.NewServeMux()
+	srv.Mount(mux)
+	send := func(origin string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, "/api/v2/languages", nil)
+		r.Header.Set("Origin", origin)
+		r.Header.Set("X-Cerberus-Account", "officer-1")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, r)
+		return rec
+	}
+	if rec := send("https://elsewhere.epc.test"); rec.Code != 401 || rec.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("%d %v", rec.Code, rec.Header())
+	}
+	rec := send("https://writedocument.epc.test")
+	if rec.Code != 200 || rec.Header().Get("Access-Control-Allow-Origin") != "https://writedocument.epc.test" {
+		t.Fatalf("%d %v", rec.Code, rec.Header())
+	}
+	var used bool
+	if err := pool.QueryRow(ctx, `SELECT last_request_at IS NOT NULL FROM caller WHERE id = $1`, id).Scan(&used); err != nil || !used {
+		t.Fatal(used, err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE caller SET tva_status = 'retired' WHERE id = $1`, id); err != nil {
+		t.Fatal(err)
+	}
+	if rec := send("https://writedocument.epc.test"); rec.Code != 401 || rec.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("a retired system: %d %v", rec.Code, rec.Header())
+	}
+}

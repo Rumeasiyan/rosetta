@@ -64,8 +64,12 @@ type Deps struct {
 	Translator Translator
 	// Grammar answers grammar checks. Nil answers "no provider".
 	Grammar GrammarChecker
-	Logger  *slog.Logger
-	Now     func() time.Time // time.Now when nil
+	// Origins finds who lists a browser's address (R-CAL-06). Nil lists none.
+	Origins Origins
+	// Usage hears of each grammar check, for the records E-REC-02 adds. Nil keeps nothing.
+	Usage  func(ctx context.Context, u GrammarUse)
+	Logger *slog.Logger
+	Now    func() time.Time // time.Now when nil
 }
 
 // Server is the path.
@@ -105,7 +109,7 @@ func New(deps Deps) *Server {
 // the translation paths in CERBERUS never covers it.
 func (s *Server) Mount(mux *http.ServeMux) {
 	mux.Handle(Prefix, s.withKey(s.routes))
-	mux.Handle(GrammarPrefix, s.withKey(s.checks))
+	mux.Handle(GrammarPrefix, s.grammarEntry(s.checks))
 }
 
 // Counts is the refusals and failures by reason today, for the status screen (R-CAL-04,
@@ -119,6 +123,10 @@ type Request struct {
 	Ref    string // the request reference (R-TRN-06, R-REC-01)
 	Caller callers.Caller
 	Body   []byte
+	// Browser says this came from an officer's browser (R-CAL-06), whose refusals are plain
+	// text, and Officer is who is signed in there.
+	Browser bool
+	Officer string
 }
 
 func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}).(*Request) }
@@ -220,6 +228,11 @@ func bearer(r *http.Request) (string, bool) {
 // answer. The caller's request does not wait long for it.
 func (s *Server) refuseKey(w http.ResponseWriter, r *http.Request, ref, system, why string) {
 	s.answer(w, ref, reasons.New(reasons.NoKey))
+	s.keepDenial(r, ref, system, why)
+}
+
+// keepDenial keeps a refused call as an audit entry, after it has been answered.
+func (s *Server) keepDenial(r *http.Request, ref, system, why string) {
 	if s.deps.Denied == nil {
 		return
 	}
@@ -238,7 +251,12 @@ func (s *Server) answer(w http.ResponseWriter, ref string, f *reasons.Failure) {
 
 // refuse answers a request that passed the key check.
 func (s *Server) refuse(w http.ResponseWriter, r *http.Request, f *reasons.Failure) {
-	s.answer(w, requestOf(r).Ref, f)
+	q := requestOf(r)
+	if q.Browser {
+		s.answerText(w, r, q.Ref, f, plainWord(f.Reason))
+		return
+	}
+	s.answer(w, q.Ref, f)
 }
 
 // Counts holds how many of each reason today, in memory. A request with no known key

@@ -201,6 +201,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
 		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
 		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Logger: logger},
+		Origins: api.PoolOrigins{Pool: pool},
 	})
 
 	mux := http.NewServeMux()

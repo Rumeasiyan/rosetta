@@ -22,6 +22,8 @@ func (a *App) mountSystems(mux *http.ServeMux) {
 	mux.Handle("POST /systems/register", a.signedIn(a.only(isAdmin, a.post(a.registerSystem))))
 	mux.Handle("GET /systems/{id}", a.signedIn(a.forSystem(a.systemPage)))
 	mux.Handle("POST /systems/{id}/limits", a.signedIn(a.only(isAdmin, a.post(a.forSystem(a.setLimits)))))
+	mux.Handle("POST /systems/{id}/origins", a.signedIn(a.only(isAdmin, a.post(a.forSystem(a.addOrigin)))))
+	mux.Handle("POST /systems/{id}/origins/remove", a.signedIn(a.only(isAdmin, a.post(a.forSystem(a.removeOrigin)))))
 	mux.Handle("POST /systems/{id}/keys", a.signedIn(a.post(a.forSystem(a.issueKey))))
 	mux.Handle("POST /systems/{id}/keys/{key}/off", a.signedIn(a.post(a.forSystem(a.turnOffKey))))
 }
@@ -104,6 +106,8 @@ type systemData struct {
 	Keys   []callers.Key
 	Admin  bool
 	Limits []callers.LimitChange
+	// Origins are the browser addresses this system may check grammar from (R-CAL-06).
+	Origins []callers.Origin
 }
 
 func (a *App) systemPage(w http.ResponseWriter, r *http.Request, s callers.Caller) {
@@ -117,8 +121,13 @@ func (a *App) systemPage(w http.ResponseWriter, r *http.Request, s callers.Calle
 		a.fail(w, r, err)
 		return
 	}
+	origins, err := callers.Origins(r.Context(), a.deps.Pool, s.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
 	p := a.page(r, "systems", "systems")
-	p.Data = systemData{System: s, Keys: keys, Admin: isAdmin(fromCtx(r)), Limits: changes}
+	p.Data = systemData{System: s, Keys: keys, Admin: isAdmin(fromCtx(r)), Limits: changes, Origins: origins}
 	a.Render(w, r, http.StatusOK, "system", p)
 }
 
@@ -151,6 +160,69 @@ func (a *App) setLimits(w http.ResponseWriter, r *http.Request, s callers.Caller
 		a.fail(w, r, err)
 	case changed:
 		back(w, r, systemPath(s), "limitsSaved", "good")
+	default:
+		back(w, r, systemPath(s), "settingUnchanged", "warn")
+	}
+}
+
+// originEvent is the audit entry for a change to the list: the system and address are in
+// object_ref, which PENSIEVE does not scan.
+func originEvent(c *current, r *http.Request, s callers.Caller, origin, change string) audit.Event {
+	return audit.Event{Actor: c.actor(), Action: audit.ActionSettingChange, ObjectType: "browser address",
+		ObjectRef: s.Reference + " " + origin, Result: audit.ResultDone, Visitor: audit.Visitor(r),
+		Details: map[string]any{"change": change}}
+}
+
+// addOrigin lists a browser address for a system. Only the administrator lists them
+// (R-CAL-06). What was typed and refused is never repeated, kept or logged.
+func (a *App) addOrigin(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	origin, err := callers.ParseOrigin(r.PostForm.Get("origin"))
+	if err != nil {
+		back(w, r, systemPath(s), "originBad", "bad")
+		return
+	}
+	changed := false
+	err = a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		did, err := callers.AddOrigin(ctx, tx, s, origin, c.sess.personID)
+		if err != nil || !did {
+			return err
+		}
+		changed = true
+		return audit.Record(ctx, tx, originEvent(c, r, s, origin, "added"), now)
+	})
+	switch {
+	case errors.Is(err, callers.ErrOriginTaken):
+		back(w, r, systemPath(s), "originTaken", "bad")
+	case err != nil:
+		a.fail(w, r, err)
+	case changed:
+		back(w, r, systemPath(s), "originAdded", "good")
+	default:
+		back(w, r, systemPath(s), "settingUnchanged", "warn")
+	}
+}
+
+// removeOrigin takes an address off the list, in force at the next call.
+func (a *App) removeOrigin(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	origin := r.PostForm.Get("origin")
+	changed := false
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		did, err := callers.RemoveOrigin(ctx, tx, s, origin, c.sess.personID)
+		if err != nil || !did {
+			return err
+		}
+		changed = true
+		return audit.Record(ctx, tx, originEvent(c, r, s, origin, "removed"), now)
+	})
+	switch {
+	case err != nil:
+		a.fail(w, r, err)
+	case changed:
+		back(w, r, systemPath(s), "originRemoved", "good")
 	default:
 		back(w, r, systemPath(s), "settingUnchanged", "warn")
 	}
