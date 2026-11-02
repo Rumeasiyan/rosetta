@@ -197,14 +197,14 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	}, settings.RefreshEvery, logger)
 	cache := translate.Cache{Q: pool, Settings: values.Get}
 	fallback := &sources.Fallback{Book: book, Provider: provider, Grammars: provider, Policy: policy.Get, Logger: logger}
+	published := &glossary.Book{Q: pool}
 	pipeline := &translate.Service{
-		Glossary: translate.None{}, // E-GLO-04
+		Glossary: published,
 		Memory:   translate.None{}, // E-MEM-02
 		Cache:    cache,
 		Keeper:   cache,
 		Sources:  fallback,
 		Settings: values.Get,
-		Version:  translate.GlossaryVersion(pool),
 		Logger:   logger,
 	}
 	calls := api.New(api.Deps{

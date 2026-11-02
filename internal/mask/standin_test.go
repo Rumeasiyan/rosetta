@@ -73,3 +73,30 @@ func TestStandInsAgainstBumblebeesStandIn(t *testing.T) {
 		t.Fatalf("what reached the stand-in: %s", seen)
 	}
 }
+
+func TestTermsStandInBesideValues(t *testing.T) {
+	m := mask.Mask("Ring 0771234567 about the Board and 0719999999.")
+	at := strings.Index(m.Text, "Board")
+	p := m.Protect([]mask.Protection{{Start: at, End: at + len("Board"), Answer: "சபை"}})
+	if p.Text != "Ring ⟦M1⟧ about the ⟦G1⟧ and ⟦M2⟧." || p.Plain() != "Ring 0771234567 about the Board and 0719999999." {
+		t.Fatalf("%q %q", p.Text, p.Plain())
+	}
+	if len(p.Terms()) != 1 || p.Terms()[0].Answer != "சபை" || p.Terms()[0].Value != "Board" {
+		t.Fatalf("%+v", p.Terms())
+	}
+	u := p.Unprotected()
+	if u.Text != m.Text || len(u.Items) != 2 {
+		t.Fatalf("%+v", u)
+	}
+	if got, err := u.Restore("⟦M2⟧ ⟦M1⟧ Board"); err != nil || got != "0719999999 0771234567 Board" {
+		t.Fatalf("%q %v", got, err)
+	}
+	// A part numbers each family from one.
+	s := p.Slice(strings.Index(p.Text, "⟦G1⟧"), len(p.Text))
+	if s.Text != "⟦G1⟧ and ⟦M1⟧." || s.Plain() != "Board and 0719999999." {
+		t.Fatalf("%q %q", s.Text, s.Plain())
+	}
+	if none := m.Protect(nil); none.Text != m.Text {
+		t.Fatal(none.Text)
+	}
+}

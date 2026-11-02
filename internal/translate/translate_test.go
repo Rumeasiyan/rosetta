@@ -17,6 +17,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 )
 
 const marker = "CALLERTEXTMARKER"
@@ -219,9 +220,9 @@ func TestWhatIsRefused(t *testing.T) {
 func TestAClosedDirectionNeedsAPerson(t *testing.T) {
 	f := &fakeSources{allowed: []bumblebee.Source{}, read: true}
 	s, _ := newService(f)
-	s.Terms = func(context.Context, string, []string) []string { return []string{"Chief Secretary"} }
-	_, fail := s.Translate(context.Background(), request("A piece."))
-	if fail == nil || fail.Reason != reasons.HumanRequired || len(f.sent) != 0 || len(fail.Terms) != 1 || *fail.Position != 0 {
+	s.Glossary = fakeGlossary{set: terms.New([]terms.Term{{Source: "Chief Secretary", Target: "பிரதம செயலாளர்"}})}
+	_, fail := s.Translate(context.Background(), request("A piece for the Chief Secretary and the chief secretary."))
+	if fail == nil || fail.Reason != reasons.HumanRequired || len(f.sent) != 0 || len(fail.Terms) != 1 || fail.Terms[0] != "பிரதம செயலாளர்" || *fail.Position != 0 {
 		t.Fatalf("%+v %v", fail, f.sent)
 	}
 	// A list never read says nothing of the gate.
@@ -256,13 +257,12 @@ func (a fixedAnswer) Answer(_ context.Context, l Lookup) (Hit, bool, error) {
 	return Hit{Text: a.origin + ": " + l.Text, Origin: a.origin}, true, nil
 }
 
-// R-TRN-04: glossary, memory, cache, then a source, and each hook is asked in that order.
-// Served under any gate state (R-GAT-02).
+// R-TRN-04: memory, cache, then a source, and each hook is asked in that order, after whole
+// glossary terms (their own test). Served under any gate state (R-GAT-02).
 func TestTheOrderOfAnswers(t *testing.T) {
 	var asked []string
 	f := &fakeSources{allowed: []bumblebee.Source{}, read: true}
 	s, _ := newService(f)
-	s.Glossary = fixedAnswer{"", &asked, nil}
 	s.Memory = fixedAnswer{OriginMemory, &asked, nil}
 	s.Cache = fixedAnswer{OriginCache, &asked, nil}
 	a, fail := s.Translate(context.Background(), request("Call 0771234567 now."))
@@ -272,14 +272,14 @@ func TestTheOrderOfAnswers(t *testing.T) {
 	if a.Passages[0].Text != "memory: Call 0771234567 now." || a.Passages[0].Pieces[0].Origin != OriginMemory || len(f.sent) != 0 {
 		t.Fatalf("%+v", a)
 	}
-	if strings.Join(asked, ",") != ",memory" {
+	if strings.Join(asked, ",") != "memory" {
 		t.Fatal(asked)
 	}
 	// With none knowing it, the source; one that fails counts as not knowing.
 	var again []string
 	f = &fakeSources{}
 	s, logs := newService(f)
-	s.Glossary, s.Memory, s.Cache = None{}, fixedAnswer{"", &again, errors.New(marker)}, None{}
+	s.Memory, s.Cache = fixedAnswer{"", &again, errors.New(marker)}, None{}
 	a, fail = s.Translate(context.Background(), request("A piece."))
 	if fail != nil || a.Passages[0].Pieces[0].Origin != OriginSource {
 		t.Fatalf("%+v %+v", fail, a)

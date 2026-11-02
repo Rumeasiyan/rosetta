@@ -67,6 +67,8 @@ type passageAnswer struct {
 	Label           map[string]string `json:"label,omitempty"`
 	Fallback        bool              `json:"fallback_used"`
 	GlossaryVersion int               `json:"glossary_version"`
+	// TermsNotPlaced is each published term a source lost, flagged for the reader (R-GLO-03).
+	TermsNotPlaced []string `json:"terms_not_placed,omitempty"`
 }
 
 // translateAnswer is the answer to a request (R-TRN-01, R-TRN-06).
@@ -87,7 +89,7 @@ func shape(ref string, a translate.Answer) translateAnswer {
 		GlossaryVersion: a.GlossaryVersion, Passages: make([]passageAnswer, len(a.Passages))}
 	for i, p := range a.Passages {
 		x := passageAnswer{Text: p.Text, Language: a.To, Origins: p.Origins(), Pieces: make([]pieceAnswer, len(p.Pieces)), Sources: []sourceAnswer{},
-			Machine: p.Machine(), CheckedByPerson: p.CheckedByPerson(), Fallback: p.Fallback(), GlossaryVersion: a.GlossaryVersion}
+			Machine: p.Machine(), CheckedByPerson: p.CheckedByPerson(), Fallback: p.Fallback(), GlossaryVersion: a.GlossaryVersion, TermsNotPlaced: p.TermsNotPlaced}
 		for j, piece := range p.Pieces {
 			x.Pieces[j] = pieceAnswer{Origin: piece.Origin, Source: piece.Source, Version: piece.Version, Fallback: piece.Fallback}
 		}

@@ -1,8 +1,9 @@
 // Package translate is ROSETTA's piece pipeline (R-TRN-04; B 3): a list of passages in,
 // the same number out in the same order, or one failure with the passage's position and
 // reason (R-TRN-02). Each passage is masked, split into pieces, and each piece answered
-// in order from the glossary, the memory, the cache and then a source. Later stories
-// hook into this: the glossary and the memory answer nothing yet.
+// in order from the glossary, the memory, the cache and then a source. Glossary terms are
+// protected with stand-ins of the masking family before a passage is split, so a source never sees
+// them and each comes out as published (R-GLO-03).
 //
 // Caller text lives only in this request's memory. It never reaches a log, a record, an
 // error or the outbox (AGENTS C4): a failure is a reason and a position, and logs carry
@@ -13,8 +14,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
@@ -23,6 +27,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 )
 
 // Where a piece came from (R-TRN-06).
@@ -60,14 +65,14 @@ type Hit struct {
 	Version string
 }
 
-// Answerer may know a piece already: the glossary (E-GLO-04), the memory (E-MEM-02) and
-// the cache (E-TRN-03) are one each, asked in that order (R-TRN-04). An error is logged
-// as fixed words and counts as not knowing.
+// Answerer may know a piece already: the memory (E-MEM-02) and the cache (E-TRN-03) are one
+// each, asked in that order after whole glossary terms (R-TRN-04). An error is logged as fixed
+// words and counts as not knowing.
 type Answerer interface {
 	Answer(ctx context.Context, l Lookup) (Hit, bool, error)
 }
 
-// None answers nothing: what the glossary and the memory do until R4.
+// None answers nothing.
 type None struct{}
 
 // Answer knows nothing.
@@ -79,9 +84,11 @@ type Keeper interface {
 	Keep(ctx context.Context, k Keep) error
 }
 
-// Terms finds glossary terms in a text, to help the translator when a request needs a
-// person (R-GAT-03). E-GLO-04 gives the real one.
-type Terms func(ctx context.Context, from string, passages []string) []string
+// Glossary is the glossary as the pipeline needs it: the version now, and the terms of a direction.
+// An error fails the request, as every answer must state the version it used (R-TRN-06).
+type Glossary interface {
+	Terms(ctx context.Context, from, to string) (int, *terms.Set, error)
+}
 
 // Sources is where pieces go that nothing else knows.
 type Sources interface {
@@ -92,15 +99,15 @@ type Sources interface {
 
 // Service is the pipeline.
 type Service struct {
-	Glossary Answerer
+	// Glossary protects terms and answers whole ones; nil is no glossary at all.
+	Glossary Glossary
 	Memory   Answerer
 	Cache    Answerer
 	// Keeper holds what a source answered for ordinary text; nil keeps nothing.
 	Keeper   Keeper
-	Terms    Terms
 	Sources  Sources
 	Settings func(ctx context.Context) settings.Values
-	// Version reads the glossary's version; nil is version 0, the empty glossary.
+	// Version reads the version when there is no Glossary; nil is version 0.
 	Version func(ctx context.Context) (int, error)
 	Logger  *slog.Logger
 }
@@ -117,6 +124,9 @@ type PieceInfo struct {
 type Passage struct {
 	Text   string
 	Pieces []PieceInfo
+	// TermsNotPlaced is each published term a source lost, flagged for the reader: not put back,
+	// as nothing says where it went (R-GLO-03).
+	TermsNotPlaced []string
 }
 
 // Answer is every passage, in order.
@@ -134,10 +144,11 @@ type Answer struct {
 // piece is one piece on its way through.
 type piece struct {
 	passage int
-	before  string // what lies between the last piece and this one, as it was
-	masked  mask.Masked
+	before  string      // what lies between the last piece and this one, as it was
+	masked  mask.Masked // with its values and any glossary terms stood in for
 	info    PieceInfo
-	text    string // the finished piece, values restored
+	text    string   // the finished piece, values restored
+	lost    []string // published terms a source lost
 }
 
 func validLanguage(s string) bool {
@@ -192,12 +203,16 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
 	defer cancel()
 	version := 0
-	if s.Version != nil {
-		var err error
-		if version, err = s.Version(ctx); err != nil {
-			s.log().Error("the glossary's version was not read", "request_ref", q.Ref)
-			return Answer{}, reasons.New(reasons.NoProvider)
-		}
+	var glossary *terms.Set
+	var err error
+	if s.Glossary != nil {
+		version, glossary, err = s.Glossary.Terms(ctx, q.From, q.To)
+	} else if s.Version != nil {
+		version, err = s.Version(ctx)
+	}
+	if err != nil {
+		s.log().Error("the glossary was not read", "request_ref", q.Ref)
+		return Answer{}, reasons.New(reasons.NoProvider)
 	}
 
 	// Each passage is masked before it is split, so a number written with spaces can
@@ -213,6 +228,8 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 		if q.Sensitivity == sources.Ordinary && m.HasCard() {
 			mismatch = true
 		}
+		// Terms are stood in for before the split too, so a term with a full stop in it stays one.
+		m = protect(m, glossary)
 		last := 0
 		for _, sp := range Split(m.Text, limit) {
 			all = append(all, &piece{passage: i, before: m.Text[last:sp.Start], masked: m.Slice(sp.Start, sp.End)})
@@ -239,9 +256,7 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	// never read says nothing of the gate: that is no provider, below.
 	if len(need) > 0 && read && len(allowed) == 0 {
 		f := reasons.New(reasons.HumanRequired).At(need[0].passage)
-		if s.Terms != nil {
-			f.Terms = s.Terms(ctx, q.From, q.Passages)
-		}
+		f.Terms = published(all)
 		return Answer{}, f
 	}
 	// One piece twice in a request goes to a source once: what comes back is masked, so
@@ -257,18 +272,62 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	return a, nil
 }
 
-// known asks the glossary, the memory and the cache, in that order (R-TRN-04).
+// protect stands in for each glossary term in a masked text.
+func protect(m mask.Masked, glossary *terms.Set) mask.Masked {
+	found := glossary.Find(m.Text)
+	if len(found) == 0 {
+		return m
+	}
+	list := make([]mask.Protection, len(found))
+	for i, f := range found {
+		list[i] = mask.Protection{Start: f.Start, End: f.End, Answer: f.Term.Target}
+	}
+	return m.Protect(list)
+}
+
+// published is each term found in the request, once, as it stands in the language asked for, to help
+// the translator (R-GAT-03).
+func published(all []*piece) []string {
+	var out []string
+	for _, p := range all {
+		for _, it := range p.masked.Terms() {
+			if !slices.Contains(out, it.Answer) {
+				out = append(out, it.Answer)
+			}
+		}
+	}
+	return out
+}
+
+// wholeTerm says the piece holds glossary terms and no other words: it needs nobody else.
+func wholeTerm(m mask.Masked) bool {
+	return len(m.Terms()) > 0 && !strings.ContainsFunc(mask.WithoutStandIns(m.Text), unicode.IsLetter)
+}
+
+// known answers from the glossary, the memory and the cache, in that order (R-TRN-04). The memory
+// holds what people approved, terms as they wrote them, so it is asked with terms as written. The
+// cache holds pieces as they went to a source, so it is asked with terms stood in for.
 func (s *Service) known(ctx context.Context, q Request, p *piece, allowed []bumblebee.Source) *reasons.Failure {
-	l := Lookup{From: q.From, To: q.To, Sensitivity: q.Sensitivity, Text: p.masked.Text, Normal: Normalise(p.masked.Text), Plain: p.masked.Plain(), Allowed: allowed}
+	if wholeTerm(p.masked) {
+		text, _, _, err := restore(p.masked, p.masked.Text)
+		if err != nil {
+			return reasons.New(reasons.MaskingLost).At(p.passage)
+		}
+		p.text, p.info = text, PieceInfo{Origin: OriginGlossary}
+		return nil
+	}
+	plain := p.masked.Unprotected()
 	for _, a := range []struct {
 		name string
 		it   Answerer
-	}{{OriginGlossary, s.Glossary}, {OriginMemory, s.Memory}, {OriginCache, s.Cache}} {
+		text string
+	}{{OriginMemory, s.Memory, plain.Text}, {OriginCache, s.Cache, p.masked.Text}} {
 		// Personal text is never cached (R-TRN-08), and not even looked for there: its
 		// hash stays out of the database too.
 		if a.it == nil || (a.name == OriginCache && q.Sensitivity != sources.Ordinary) {
 			continue
 		}
+		l := Lookup{From: q.From, To: q.To, Sensitivity: q.Sensitivity, Text: a.text, Normal: Normalise(a.text), Plain: p.masked.Plain(), Allowed: allowed}
 		hit, ok, err := a.it.Answer(ctx, l)
 		if err != nil {
 			s.log().Error("a piece could not be looked up", "request_ref", q.Ref, "from", a.name)
@@ -277,14 +336,56 @@ func (s *Service) known(ctx context.Context, q Request, p *piece, allowed []bumb
 		if !ok {
 			continue
 		}
-		text, err := p.masked.Restore(hit.Text)
+		var text string
+		var lost []string
+		if a.name == OriginMemory {
+			text, err = plain.Restore(hit.Text)
+		} else {
+			text, lost, _, err = restore(p.masked, hit.Text)
+		}
 		if err != nil {
 			return reasons.New(reasons.MaskingLost).At(p.passage)
 		}
-		p.text, p.info = text, PieceInfo{Origin: hit.Origin, Source: hit.Source, Version: hit.Version}
+		p.text, p.lost, p.info = text, lost, PieceInfo{Origin: hit.Origin, Source: hit.Source, Version: hit.Version}
 		return nil
 	}
 	return nil
+}
+
+// A source may change a stand-in's brackets or spacing while keeping what is in it. Those it did not
+// lose: they are put back (R-GLO-03).
+var changedBrackets = regexp.MustCompile(`[⟦\[(〚【「{<]\s*[Gg]\s*(\d+)\s*[⟧\])〛】」}>]`)
+
+// restore makes a finished piece of an answer: each term as published, then each value as it was,
+// which is strict (R-MSK-03). A term the source lost is no failure but flagged for the reader, while
+// a stand-in nobody can account for fails like a masked value. exact says every term came back whole.
+func restore(m mask.Masked, answer string) (string, []string, bool, error) {
+	var lost []string
+	exact := true
+	bare := m.Unprotected()
+	for _, it := range m.Terms() {
+		if strings.Contains(answer, it.Token) {
+			continue
+		}
+		exact = false
+		number := strings.TrimSuffix(strings.TrimPrefix(it.Token, "⟦G"), "⟧")
+		found := false
+		answer = changedBrackets.ReplaceAllStringFunc(answer, func(s string) string {
+			if changedBrackets.FindStringSubmatch(s)[1] == number {
+				found = true
+				return it.Token
+			}
+			return s
+		})
+		if !found {
+			lost = append(lost, it.Answer)
+		}
+	}
+	for _, it := range m.Terms() {
+		answer = strings.ReplaceAll(answer, it.Token, it.Answer)
+	}
+	text, err := bare.Restore(answer)
+	return text, lost, exact, err
 }
 
 // sourceAnswer is what a source gave for one masked text: one result, or the parts it
@@ -325,13 +426,13 @@ func (s *Service) fromSource(ctx context.Context, q Request, p *piece, version i
 		done[p.masked.Text] = got
 	}
 	if got.spans == nil {
-		text, err := p.masked.Restore(got.result.Text)
+		text, lost, exact, err := restore(p.masked, got.result.Text)
 		if err != nil {
 			return s.lost(q)
 		}
-		p.text = text
+		p.text, p.lost = text, lost
 		p.info = PieceInfo{Origin: OriginSource, Source: got.result.Source, Version: got.result.Version, Fallback: got.result.Fallback}
-		if !seen {
+		if !seen && exact {
 			s.keep(ctx, q, p, got.result.Text, got.result, version)
 		}
 		return nil
@@ -340,13 +441,16 @@ func (s *Service) fromSource(ctx context.Context, q Request, p *piece, version i
 	last := 0
 	sameSource := true
 	for i, sp := range got.spans {
-		text, err := p.masked.Slice(sp.Start, sp.End).Restore(got.parts[i].Text)
+		text, lost, exact, err := restore(p.masked.Slice(sp.Start, sp.End), got.parts[i].Text)
 		if err != nil {
 			return s.lost(q)
 		}
-		b.WriteString(p.masked.Text[last:sp.Start])
+		p.lost = append(p.lost, lost...)
+		sameSource = sameSource && exact
+		between := p.masked.Text[last:sp.Start]
+		b.WriteString(between)
 		b.WriteString(text)
-		kept.WriteString(p.masked.Text[last:sp.Start])
+		kept.WriteString(between)
 		kept.WriteString(renumbered(p.masked, sp, got.parts[i].Text))
 		last = sp.End
 		r := got.parts[i]
@@ -424,6 +528,11 @@ func join(q Request, all []*piece, tails []string) Answer {
 		b.WriteString(p.before)
 		b.WriteString(p.text)
 		out.Passages[p.passage].Pieces = append(out.Passages[p.passage].Pieces, p.info)
+		for _, l := range p.lost {
+			if !slices.Contains(out.Passages[p.passage].TermsNotPlaced, l) {
+				out.Passages[p.passage].TermsNotPlaced = append(out.Passages[p.passage].TermsNotPlaced, l)
+			}
+		}
 	}
 	for i := range q.Passages {
 		builders[i].WriteString(tails[i])

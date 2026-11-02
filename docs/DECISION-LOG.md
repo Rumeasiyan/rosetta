@@ -2,6 +2,18 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Terms in translation
+
+Terms are found in memory: `glossary.Book` holds the published terms, and reads them again when the version it reads on every request has moved, so a change is in force on the next request and each piece costs no query. A whole statement reads the version and the terms together, so they cannot disagree. The set of each direction is built on first use; a full glossary of 20,000 entries is found by first word, walking the text and not the terms. E-NFR-01 measures its memory.
+
+A term is whole words on one line, in any case: a run of spaces counts as one, and a letter, a mark or a digit either side means it is another word. Sinhala and Tamil vowels are marks, so a case ending joined to a term makes another word, which is not matched and goes to the source as written. A stemmer for Tamil or Sinhala could come later; keepers can publish a common inflected form as its own entry meanwhile. Where terms overlap the longest wins, and anything of a stand-in's shape is skipped, so `M1` the term never matches inside `⟦M1⟧`. All text passes one function, `terms.Normalise`; a test fails if anything else calls the normaliser, which caught one in `internal/sources`. Comparing folds case on top of that, and what goes to a source or comes back stays as written.
+
+A term becomes `⟦G1⟧`, `⟦G2⟧`, numbered from one in each piece, as masking is, and before the split, so a term with a full stop in it stays whole. A piece with terms and no other letter is answered from the glossary with nothing sent: that is what R-TRN-04 calls a whole term, and it is what answers a lone system name, which a source echoing failed under R-TRN-09 before. Punctuation around it stays, and with a keep-as-written entry the answer has the published spelling, so `scos pro` comes back `SCOS Pro`. A sentence holding it that a source echoes still fails: only the term is the same in any language.
+
+A stand-in whose brackets or spacing the source changed, such as `[G1]` or `⟦ G 1 ⟧`, is put back; a bare `G1` is not looked for, as it could be anyone's word. One missing altogether cannot be placed, as nothing says where it went, so the piece stands and the passage flags the published term in `terms_not_placed`, an addition to the answer that E-CAL-04 publishes. A piece not returned whole is not cached. A `⟦G9⟧` nobody can account for fails like a lost masked value, so one check covers both families, as the backlog asks.
+
+The cache holds the stand-in, not the term, so the same sentence about another term is one row, and a corrected term needs nothing sent again. The memory holds terms as people wrote them, so it is asked with terms as written, before the cache. The glossary is read for personal text too, as the decision on sensitivity has it, and not for confidential. `glossary_terms` on "human translation required" gives each term as published in the language asked for, once. Being unable to read the glossary fails the request as "no provider", as with its version.
+
 ## The glossary's spreadsheet file
 
 An `.xlsx` file, read and written by `internal/sheet` with Go's standard library alone (BSD-3-Clause, as the rest of the build), so there is no reader's licence to carry and no new dependency: `go.mod` is unchanged. CSV was left out: it opens with the wrong encoding in the office's spreadsheet program, and it is where formula injection does its harm. Files from openpyxl and files this package writes have been read; the export has been opened by openpyxl and by LibreOffice.
@@ -82,7 +94,7 @@ Confidential is refused first and goes nowhere, not even the glossary's look-up,
 
 ## What counts as returning the original (R-TRN-09)
 
-A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. This means a piece that truly stays the same, such as a system's name alone, fails until the glossary's "keep as written" answers it in R4. That was chosen over ever passing an echo off as a translation.
+A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. So a piece that truly stays the same, such as a system's name alone, fails unless the glossary's "keep as written" answers it, which it now does (see terms in translation). That was chosen over ever passing an echo off as a translation.
 
 ## The piece pipeline
 
