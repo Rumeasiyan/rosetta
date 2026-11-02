@@ -1,0 +1,91 @@
+// ROSETTA technical architecture (Annex B of docs/ROSETTA-PRD.md).
+// Render from the repository root:
+//   dot -Tsvg docs/diagrams/rosetta-architecture.dot -o docs/diagrams/rosetta-architecture.svg
+// The numbers on the links must match the table in Annex B, row for row.
+// Red links carry text on its way to outside websites; dashed links are periodic, occasional or later.
+
+digraph rosetta_architecture {
+  graph [rankdir=TB, newrank=true, nodesep=0.35, ranksep=0.55, fontname="Helvetica", pad=0.3];
+  node  [shape=box, style="rounded,filled", fillcolor="white", color="#334155", fontname="Helvetica", fontsize=11, margin="0.15,0.06"];
+  edge  [color="#334155", fontname="Helvetica", fontsize=11, fontcolor="#0f172a", arrowsize=0.7];
+
+  subgraph cluster_people {
+    label=<<B>People and calling systems</B>>; style="dashed,rounded"; color="#1d4ed8"; fontcolor="#1d4ed8";
+    browsers [label=<<B>Browsers</B><BR/><FONT POINT-SIZE="9">administrator, glossary keepers,<BR/>memory reviewers, system owners</FONT>>];
+    editor   [label=<<B>Officers' letter editor</B><BR/><FONT POINT-SIZE="9">ONLYOFFICE LanguageTool plug-in,<BR/>in the officer's browser</FONT>>];
+    scospro  [label=<<B>SCOS Pro server</B><BR/><FONT POINT-SIZE="9">first caller, on another machine;<BR/>translation and approved text</FONT>>];
+  }
+
+  subgraph cluster_edge {
+    label=<<B>Edge</B>>; labelloc=b; style="dashed,rounded"; color="#b45309"; fontcolor="#b45309";
+    cloudflare [label=<<B>Cloudflare</B><BR/><FONT POINT-SIZE="9">DNS and TLS for rosetta.epc.lk; tunnel edge<BR/>Access on the screens; /api/ passed through</FONT>>];
+  }
+
+  subgraph cluster_server {
+    label=<<B>ep-shared-01</B>: the shared provincial server<BR/><FONT POINT-SIZE="10">no port open to the internet; web traffic through the tunnel</FONT>>;
+    style="filled,rounded"; fillcolor="#f1f5f9"; color="#475569"; fontcolor="#0f172a"; labeljust=l;
+
+    cloudflared [label=<<B>cloudflared</B><BR/><FONT POINT-SIZE="9">tunnel, outbound only</FONT>>];
+    systems     [label=<<B>Systems on this server</B><BR/><FONT POINT-SIZE="9">later callers</FONT>>];
+    paradox     [label=<<B>PARADOX</B><BR/><FONT POINT-SIZE="9">signed calls, sign/v0.2.0: nightly totals,<BR/>partitions, flags, TVA refresh, audit catch-up</FONT>>];
+    caddy       [label=<<B>Caddy</B><BR/><FONT POINT-SIZE="9">rosetta.epc.lk, always on<BR/>answers /__up itself</FONT>>];
+    kuma        [label=<<B>Uptime Kuma</B><BR/><FONT POINT-SIZE="9">monitoring</FONT>>];
+    docker      [label=<<B>Docker host</B><BR/><FONT POINT-SIZE="9">deploy.sh</FONT>>];
+    cerberus    [label=<<B>CERBERUS</B><BR/><FONT POINT-SIZE="9">access policy, once it runs</FONT>>];
+    mjolnir     [label=<<B>MJOLNIR</B><BR/><FONT POINT-SIZE="9">sign-in</FONT>>];
+    rosetta     [label=<<B>ROSETTA</B><BR/><FONT POINT-SIZE="9">Go, port 8080, never sleeps<BR/>max 250 MB, 1 CPU, read-only root<BR/>grammar results in memory only</FONT>>, color="#047857", penwidth=2];
+    pensieve    [label=<<B>PENSIEVE</B><BR/><FONT POINT-SIZE="9">audit record</FONT>>];
+    hedwig      [label=<<B>HEDWIG</B><BR/><FONT POINT-SIZE="9">notifications</FONT>>];
+    link        [label=<<B>BUMBLEBEE link container</B><BR/><FONT POINT-SIZE="9">platform's; alias bumblebee, port 8080<BR/>holds the Access service token only</FONT>>];
+    pgbouncer   [label=<<B>PgBouncer</B><BR/><FONT POINT-SIZE="9">pool 5, migrations 1</FONT>>];
+    postgres    [shape=cylinder, style=filled, label=<<B>PostgreSQL</B><BR/><FONT POINT-SIZE="9">database rosetta: glossary, memory,<BR/>cache, settings, records; no grammar text</FONT>>];
+    seaweed     [shape=folder, style=filled, label=<<B>SeaweedFS</B><BR/><FONT POINT-SIZE="9">TVA's published<BR/>lookup file</FONT>>];
+    phoenix     [label=<<B>PHOENIX</B><BR/><FONT POINT-SIZE="9">backups</FONT>>];
+
+    { rank=same; cloudflared; systems; paradox; }
+    { rank=same; caddy; kuma; docker; }
+    caddy -> kuma -> docker [style=invis];
+    { rank=same; cerberus; rosetta; }
+    cerberus -> rosetta [style=invis];
+    { rank=same; mjolnir; pgbouncer; seaweed; link; pensieve; hedwig; }
+    mjolnir -> pgbouncer -> seaweed -> link -> pensieve -> hedwig [style=invis];
+    { rank=same; postgres; phoenix; }
+  }
+
+  subgraph cluster_outside {
+    label=<<B>Outside services</B>>; labelloc=b; style="dashed,rounded"; color="#0e7490"; fontcolor="#0e7490";
+    bumblebee [label=<<B>BUMBLEBEE</B><BR/><FONT POINT-SIZE="9">its own machine, its own tunnel;<BR/>keeps no text</FONT>>];
+    websites  [label=<<B>Source websites</B><BR/><FONT POINT-SIZE="9">public translation and<BR/>grammar sites</FONT>>];
+    email     [label=<<B>HEDWIG's email service</B><BR/><FONT POINT-SIZE="9">to the administrator's and<BR/>system owners' inboxes</FONT>>];
+    offsite   [label=<<B>PHOENIX's off-site copy</B><BR/><FONT POINT-SIZE="9">out of reach from<BR/>ep-shared-01</FONT>>];
+    ghcr      [label=<<B>ghcr.io</B><BR/><FONT POINT-SIZE="9">ROSETTA's tagged images</FONT>>];
+  }
+
+  { rank=same; browsers; editor; scospro; }
+  { rank=same; offsite; bumblebee; email; ghcr; }
+  offsite -> bumblebee -> email -> ghcr [style=invis];
+
+  browsers -> cloudflare     [label="1"];
+  editor -> cloudflare       [label="2"];
+  scospro -> cloudflare      [label="3"];
+  cloudflare -> cloudflared  [label="4", dir=both];
+  cloudflared -> caddy       [label="5"];
+  caddy -> rosetta           [label="6"];
+  systems -> rosetta         [label="7", style=dashed];
+  rosetta -> mjolnir         [label="8"];
+  caddy -> cerberus          [label="9", style=dashed];
+  rosetta -> pgbouncer       [label="10"];
+  pgbouncer -> postgres      [label="10"];
+  rosetta -> seaweed         [label="11", style=dashed];
+  paradox -> rosetta         [label="12", style=dashed];
+  rosetta -> pensieve        [label="13", style=dashed];
+  rosetta -> hedwig          [label="14", style=dashed];
+  hedwig -> email            [label="14", style=dashed];
+  rosetta -> link            [label="15", color="#b91c1c", fontcolor="#b91c1c", penwidth=1.6];
+  link -> bumblebee          [label="16", color="#b91c1c", fontcolor="#b91c1c", penwidth=1.6];
+  bumblebee -> websites      [label="17", color="#b91c1c", fontcolor="#b91c1c", penwidth=1.6];
+  kuma -> caddy              [label="18", style=dashed, constraint=false];
+  phoenix -> postgres        [label="19", style=dashed, constraint=false];
+  phoenix -> offsite         [label="19", style=dashed];
+  docker -> ghcr             [label="20", style=dashed];
+}

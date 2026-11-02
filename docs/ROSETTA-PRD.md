@@ -231,7 +231,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 
 | Entity | Fields |
 |---|---|
-| `source` | `name`: text, unique, as in BUMBLEBEE's list, for example google-translate; `version`: text; BUMBLEBEE's part for this site, returned with every answer; `state`: on, resting after a block, resting after a page change, or off; `tried_again_at`: time (UTC); empty unless resting; skipped until then (R-PRV-01); `on_for_rosetta`: yes/no; the administrator can turn a source off (R-PRV-02); `switched_at`: time (UTC); `seen_at`: time (UTC); last refresh of the list, never older than 60 seconds; `processes_text`: always an outside public website for BUMBLEBEE sources |
+| `source` | `name`: text, unique, as in BUMBLEBEE's list, for example google-translate; `version`: text; BUMBLEBEE's part for this site, returned with every answer; `state`: on, resting after a block, resting after a page change, or off; `rest_until`: time (UTC); empty unless resting; skipped until then (R-PRV-01); `on_for_rosetta`: yes/no; the administrator can turn a source off (R-PRV-02); `switched_at`: time (UTC); `seen_at`: time (UTC); last refresh of the list, never older than 60 seconds; `processes_text`: always an outside public website for BUMBLEBEE sources |
 | `source_offer` | `operation`: translate or grammar check; `from_language`: si, ta or en; `to_language`: si, ta or en; translation only, never the same as from_language; `benchmark_score`: grammar only; found share less false-alarm share, from BUMBLEBEE's latest run (R-GRM-06) |
 | `source_order` | `operation`: translate or grammar check; `to_language`: si, ta or en; for grammar the same as from_language; `position`: number from 1; grammar follows benchmark score unless set (R-GRM-06); `set_at`: time (UTC) |
 | `gate_decision` | `from_language, to_language`: si, ta or en; `source_version`: text; a new version starts closed (R-GAT-01); `state`: open or closed; `test_set_version, score`: text; number; the evaluation it rests on; `evaluated_on`: date; `effective_from, effective_to`: time (UTC); empty to while current; history kept |
@@ -262,6 +262,35 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | `alert` | `kind`: BUMBLEBEE not answering, source paused or resumed, no source for a direction, failures over 20 percent, caller or language flagged (R-ADM-03); `raised_at, sent_at`: time (UTC); sent_at empty until HEDWIG accepts it; `hedwig_notice_id`: text; returned by HEDWIG; `kept`: 90 days |
 <!-- dictionary:end -->
 
+<div class="land">
+
 ## Annex B: Technical architecture
 
-To be produced with the companion prompt.
+Numbers on the diagram match the table below. Red links carry text on its way to outside websites; dashed links are periodic, occasional or later. ROSETTA never sleeps, so no link waits for it to wake.
+
+<img src="diagrams/rosetta-architecture.svg" alt="ROSETTA technical architecture: browsers, the officers' letter editor and the SCOS Pro server reach the shared server through Cloudflare and the tunnel; Caddy fronts ROSETTA, which uses MJOLNIR, PgBouncer and PostgreSQL, TVA's lookup file in SeaweedFS, PENSIEVE and HEDWIG; PARADOX calls ROSETTA; ROSETTA reaches BUMBLEBEE on its own machine through the platform's link container, and BUMBLEBEE reaches the source websites; PHOENIX carries the database to its off-site copy.">
+
+| # | From and to | What flows | Protocol and port |
+|---|---|---|---|
+| 1 | Browsers to Cloudflare | Screens (htmx) for the administrator, glossary keepers, memory reviewers and system owners, after Cloudflare Access for named people | HTTPS 443 |
+| 2 | Officers' letter editor to Cloudflare | Grammar checks and the list of languages, to `/api/v2/check` and `/api/v2/languages`, sent from the officer's browser only when they click Check (R-GRM-01, R-CAL-06). Outside Cloudflare Access; carries the officer's own ROSETTA session, from MJOLNIR sign-in. CORS allows only the listed editor address, and the preflight goes through without the session. At most about 50 checks a minute for an office of 50, well under Caddy's limit per address | HTTPS 443 |
+| 3 | SCOS Pro server to Cloudflare | Translation requests and approved text for the memory, to `/api/` only, signed and with the system's key (R-TRN-01, R-MEM-01). Outside Cloudflare Access. SCOS Pro's server is in this path; it is not in link 2 | HTTPS 443 |
+| 4 | cloudflared and Cloudflare | The tunnel, opened from the server outward; it carries all web traffic both ways | QUIC (UDP 7844); HTTP/2 (TCP 7844) when UDP is blocked |
+| 5 | cloudflared to Caddy | Requests for rosetta.epc.lk | HTTP 80, platform network |
+| 6 | Caddy to ROSETTA | Screens, grammar checks and API requests; ROSETTA is always on, so nothing is held | HTTP 8080, platform network |
+| 7 | Systems on this server to ROSETTA | Requests with the system's key. Later: no system on this server calls ROSETTA in version 1 | HTTP 8080, platform network |
+| 8 | ROSETTA to MJOLNIR | Sign-in: the browser is sent to MJOLNIR and back; ROSETTA exchanges the code for the person's identity and sets its own session | OpenID Connect over HTTP, platform network |
+| 9 | Caddy to CERBERUS | The policy check on each request, once CERBERUS runs. It must let grammar checks through on the officer's session, and pass requests on `/api/` with a system's signature | HTTP (`forward_auth`), platform network |
+| 10 | ROSETTA to PgBouncer, and PgBouncer to PostgreSQL | Glossary, memory, cache, settings and records in database `rosetta` (Annex A); never grammar text; at most 5 connections, 1 more for migrations | PostgreSQL protocol, 6432 then 5432 |
+| 11 | ROSETTA to SeaweedFS | TVA's published lookup file, with ROSETTA's read-only key; when a system is registered (R-CAL-01) and in the daily refresh (R-CAL-05); never wakes TVA | S3 API, HTTP 8333 |
+| 12 | PARADOX to ROSETTA | Nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed, and a run already done is skipped | HTTP `POST` to port 8080, contract `sign/v0.2.0` (Ed25519, RFC 9421), platform network |
+| 13 | ROSETTA to PENSIEVE | Audit entries without text (R-REC-02), with ROSETTA's PENSIEVE key; held in the outbox up to 30 days while PENSIEVE is out of reach | HTTP, by the route ALLSPARK sets for reaching PENSIEVE; straight after each change and from the outbox |
+| 14 | ROSETTA to HEDWIG, and HEDWIG to its email service | Alerts to the administrator and system owners (R-ADM-03), with ROSETTA's HEDWIG key | HTTP, by the route ALLSPARK sets for reaching HEDWIG; then SMTP; only when an alert is due |
+| 15 | ROSETTA to the link container | Translation and grammar calls of at most 5,000 characters, with identity card and phone numbers already masked (R-MSK-02), and the source list every 60 seconds; ROSETTA's key in a normal bearer header; the answer on the same call within 55 seconds, inside ROSETTA's 60-second wait (R-PRV-04); ROSETTA's request reference on every call (R-REC-01) | HTTP to `bumblebee:8080`, ROSETTA's network on the server |
+| 16 | The link container to BUMBLEBEE | Everything from link 15, through Cloudflare to BUMBLEBEE's own tunnel, inside one stream opened with the server's Access service token; plain HTTP runs inside it end to end | WebSocket over HTTPS 443, outbound |
+| 17 | BUMBLEBEE to the source websites | The masked text and the website's answer; the only link where text leaves the province's control (R-NFR-13). BUMBLEBEE keeps no text | HTTPS 443, outbound |
+| 18 | Uptime Kuma to Caddy | `/__up`, which Caddy answers itself, and whether ROSETTA's container is running; alerts within 5 minutes without depending on ROSETTA or HEDWIG (R-NFR-07) | HTTP and the Docker API, periodic |
+| 19 | PHOENIX to PostgreSQL, and to its off-site copy | Nightly backup of database `rosetta` and its change logs (R-NFR-08). The cache may be empty after a restore from change logs (Annex A.1) | PostgreSQL protocol, nightly, change logs every 15 minutes; encrypted copy off the server |
+| 20 | Docker host to ghcr.io | Pulls ROSETTA's image at a version tag; GitHub Actions built it when the tag was pushed | HTTPS 443, outbound, at deploy only |
+
+</div>
