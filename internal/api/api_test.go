@@ -144,7 +144,8 @@ func reasonOf(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return out.Error.Reason
 }
 
-// A caller on this server has no public key and sends no signature.
+// A caller on this server has no public key, sends no signature, and comes directly, so
+// neither of the front door's headers is on the request.
 func TestACallerOnThisServerNeedsOnlyItsKey(t *testing.T) {
 	b := newBench(t)
 	rec := b.send(request("/api/v1/echo", "rst_here", "hello"))
@@ -225,8 +226,55 @@ func TestASignedRequest(t *testing.T) {
 	}
 }
 
-// With no public key a signature is simply not asked for; with one it always is, so
-// a key alone from another machine is no use.
+// A key with no public key works directly on the platform network (B 7), and is refused
+// when the request shows it came through Cloudflare and Caddy (B 3): if it leaked it would
+// otherwise work from outside. Both headers count alone, and empty too. A signed key is
+// not touched by any of this, as outside is where it belongs.
+func TestAKeyWithNoPublicKeyIsRefusedFromOutside(t *testing.T) {
+	for name, set := range map[string]func(http.Header){
+		"Cloudflare's header":       func(h http.Header) { h.Set("CF-Connecting-IP", "192.0.2.1") },
+		"the proxy's header":        func(h http.Header) { h.Set("X-Forwarded-For", "192.0.2.1") },
+		"both":                      func(h http.Header) { h.Set("Cf-Connecting-Ip", "192.0.2.1"); h.Set("X-Forwarded-For", "192.0.2.1") },
+		"empty still came that way": func(h http.Header) { h["Cf-Connecting-Ip"] = []string{""} },
+	} {
+		b := newBench(t)
+		r := request("/api/v1/echo", "rst_here", marker)
+		set(r.Header)
+		rec := b.send(r)
+		if rec.Code != 401 || reasonOf(t, rec) != "no key" {
+			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
+		}
+		if b.keys.used != 0 || b.srv.Counts().Today()[reasons.NoKey] != 1 {
+			t.Errorf("%s: used %d, counted %v", name, b.keys.used, b.srv.Counts().Today())
+		}
+		if len(b.denials) != 1 || b.denials[0].System != "TEST-1" || b.denials[0].Why != "A key with no public key came from outside" {
+			t.Errorf("%s: %+v", name, b.denials)
+		}
+		for _, place := range []string{b.logs.String(), rec.Body.String()} {
+			if strings.Contains(place, marker) || strings.Contains(place, "rst_") || strings.Contains(place, "192.0.2.1") {
+				t.Errorf("%s: %s", name, place)
+			}
+		}
+	}
+	// A signed call from outside goes through, the headers Caddy adds and all.
+	b := newBench(t)
+	r := b.signed("/api/v1/echo", "rst_signs", "hello", "a-nonce-of-sixteen-or-more", t0)
+	r.Header.Set("Cf-Connecting-Ip", "192.0.2.1")
+	r.Header.Set("X-Forwarded-For", "192.0.2.1")
+	if rec := b.send(r); rec.Code != 200 || rec.Body.String() != "TEST-2 hello" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	// A key refused for another reason keeps that reason.
+	b = newBench(t)
+	r = request("/api/v1/echo", "rst_off", marker)
+	r.Header.Set("Cf-Connecting-Ip", "192.0.2.1")
+	if rec := b.send(r); rec.Code != 401 || b.denials[0].Why != "The key is turned off" {
+		t.Fatalf("%d %+v", rec.Code, b.denials)
+	}
+}
+
+// With no public key a signature is simply not asked for on this server; with one it
+// always is, so a key alone from another machine is no use.
 func TestAKeyHoldingAPublicKeyMustSign(t *testing.T) {
 	b := newBench(t)
 	if rec := b.send(request("/api/v1/echo", "rst_signs", "hello")); rec.Code != 401 {

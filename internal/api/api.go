@@ -1,6 +1,6 @@
 // Package api is ROSETTA's server-to-server path under /api/: every request here
-// carries its system's key, and a caller holding a public key signs it too (R-CAL-03,
-// R-CAL-04; STACK section 5). There are no screens here and no scopes: a key allows
+// carries its system's key, a caller holding a public key signs it too, and a key with
+// none is refused if the request came from outside (R-CAL-03, R-CAL-04; STACK section 5). There are no screens here and no scopes: a key allows
 // what R-CAL and R-TRN allow any system.
 //
 // Caller text never reaches a log, record, error or the outbox (AGENTS C4). Nothing
@@ -116,8 +116,9 @@ func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}
 // nothing of the request.
 func NewRef() string { return "r-" + oidc.Random() }
 
-// withKey checks the key, then the signature if this key has a public key. A failure
-// is "no key" with 401 (R-CAL-04), counted, and kept as a denial.
+// withKey checks the key, then the signature if this key has a public key; a key with
+// none works only from this server. A failure is "no key" with 401 (R-CAL-04), counted,
+// and kept as a denial.
 func (s *Server) withKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -152,12 +153,17 @@ func (s *Server) withKey(next http.Handler) http.Handler {
 			s.answer(w, ref, reasons.New(reasons.TooLong))
 			return
 		}
-		if h.PublicKey != "" {
+		switch {
+		case h.PublicKey != "":
 			if err := s.checkSignature(r, body, h); err != nil {
 				s.deps.Logger.Warn("a signature was refused", "request_ref", ref, "system", h.Caller.Reference, "why", err.Error())
 				s.refuseKey(w, r, ref, h.Caller.Reference, "The signature did not pass")
 				return
 			}
+		case throughFrontDoor(r):
+			s.deps.Logger.Warn("an unsigned key came from outside", "request_ref", ref, "system", h.Caller.Reference)
+			s.refuseKey(w, r, ref, h.Caller.Reference, "A key with no public key came from outside")
+			return
 		}
 		if err := s.deps.Keys.Used(ctx, h); err != nil {
 			s.deps.Logger.Error("a key's use was not noted", "request_ref", ref)
@@ -181,6 +187,15 @@ func (s *Server) checkSignature(r *http.Request, body []byte, h callers.Holder) 
 		return apisign.ErrBadSignature
 	}
 	return s.verifier.Verify(r, body, h.Prefix, pub)
+}
+
+// throughFrontDoor says the request came through Cloudflare and Caddy, not directly on
+// the platform network (B 3, B 7). Caddy sets Cf-Connecting-Ip on every site and its
+// reverse proxy adds X-Forwarded-For, whatever the caller sent, so a caller outside
+// cannot take them away; one who forges them refuses only itself. Being there at all
+// counts, even empty.
+func throughFrontDoor(r *http.Request) bool {
+	return len(r.Header.Values("Cf-Connecting-Ip")) > 0 || len(r.Header.Values("X-Forwarded-For")) > 0
 }
 
 // bearer is the key from the Authorization header.
