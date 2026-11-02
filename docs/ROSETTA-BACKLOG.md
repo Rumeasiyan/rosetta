@@ -1,6 +1,6 @@
 # ROSETTA backlog
 
-Source: `docs/ROSETTA-PRD.md` v1.5 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
+Source: `docs/ROSETTA-PRD.md` v1.6 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
 
 ## Definition of done (every story)
 
@@ -148,7 +148,7 @@ Notes:
 - **E-REC-04:** An export is an audit entry (P-ING-02).
 - **E-ADM-05:** Invented text only; say so on the screen. Cites the same pipeline, so it is recorded as operation `test`.
 - **E-CAL-04:** `docs/CALLERS.md`, in the form BUMBLEBEE's has: every request, answer, reason and limit, with a copy-and-run Go example against the stand-ins. The EP website and SCOS Pro read this; neither gets its own shape.
-- **E-CAL-05:** A language with no keeper is flagged here too (s2). Owners come from `systems.json` only. For granted roles it looks up one person's post by email through BIFROST, in the call shape BIFROST's session gives: when a role is granted, at sign-in, and in a daily pass over live roles. "Not found" or another post at that office ends the role; a failed look-up ends nothing and the role stands. So a moved keeper who stays signed out still loses the role within a day. The session keeps the post for audit entries; no list is stored. A person not found cannot be granted a role, except the bootstrap administrator, whose post is filled at their first sign-in. A person switched off is MJOLNIR's, not this story's.
+- **E-CAL-05:** A language with no keeper is flagged here too (s2). Owners come from `systems.json` only. For granted roles it looks up one person's post by email through BIFROST, in the call shape BIFROST's session gives: when a role is granted, at sign-in, and in a daily pass over live roles. A person found earlier and now not found, or at another post at that office, loses the role, within a day even if they stay signed out. A person never found keeps it, flagged, with the post "not known"; the first time they are found, `post_ref` is filled and the flag clears. A failed look-up changes nothing. The session keeps the post for audit entries; no list is stored. A person switched off is MJOLNIR's, not this story's.
 - **E-ADM-06:** One alert when a state changes, not one per failed request. Only ROSETTA's own owners. Silence from audit is PENSIEVE's to flag, and not alerted here.
 - **E-GAT-02:** A command that takes a test set and a source and writes the score the gate records. Test text is invented or supplied by volunteers, never real letters.
 - **E-NFR-01:** Against stand-ins with their slow modes: inside 250 MB with `GOMEMLIMIT` 200 MiB at capacity; grammar's held suggestions counted. Check `docker stats`, since ROSETTA is one of the 6 systems awake.

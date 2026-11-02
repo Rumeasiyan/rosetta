@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.5, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.6, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -154,10 +154,10 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 |---|---|
 | R-ADM-01 | Every screen is reached through MJOLNIR sign-in and the CERBERUS check, then ROSETTA's own roles (R-ADM-06). Any signed-in officer may propose a glossary term (R-GLO-04); every other screen needs a role. Calling systems never use the screens. |
 | R-ADM-02 | A status screen shows BUMBLEBEE up or down, each source's state and resume time, and today's requests, refusals and failures by reason. |
-| R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system or language is flagged (R-CAL-02, R-CAL-05). A system owner gets the alerts about their own systems. |
+| R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system, language or person is flagged (R-CAL-02, R-CAL-05, R-ADM-06). A system owner gets the alerts about their own systems. |
 | R-ADM-04 | A system owner or the administrator can send a test request with invented text from the screens and see the full answer, including sources and fallback. |
 | R-ADM-05 | Every change to a setting, source order, gate or key is kept as history with who made it and when, and takes effect within 60 seconds with no change in any calling system. |
-| R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. ROSETTA looks up one person's post at a time from SCROLL, through BIFROST under ROSETTA's own sharing agreement: at each sign-in and in a daily pass over live roles. A role ends when the answer no longer shows the person in the post it was granted on; a failed look-up ends nothing. |
+| R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. ROSETTA looks up one person's post at a time from SCROLL, through BIFROST under ROSETTA's own sharing agreement: at each sign-in and in a daily pass over live roles. A role ends only if the person was found earlier and is now not found or at another post. A person never found keeps the role, with the post recorded as "not known", and is flagged to the administrator (R-ADM-03), since their office may not have entered them yet. A failed look-up ends nothing. |
 | R-ADM-07 | Changes to how systems call ROSETTA only add to what exists. A change that would break a caller runs beside the old way for at least 6 months (default: 6 months), and every system owner is told. |
 
 ## 4. Non-functional requirements
@@ -205,7 +205,7 @@ Boxes show each entity's keys; the other fields are in A.2. Lines point from a t
 
 ### A.1 Storage and loss
 
-Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. A role and an audit entry record the post SCROLL gave at the last look-up; ROSETTA keeps no staff list; an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
+Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. A role and an audit entry record the post SCROLL gave at the last look-up, or "not known" for a person never found; ROSETTA keeps no staff list; an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
 
 ### A.2 Data dictionary
 
@@ -215,7 +215,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | Entity | Fields |
 |---|---|
 | `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; `name, email`: text, as MJOLNIR sent them at the last sign-in; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC) |
-| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post and office at grant, from SCROLL; role ends when no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
+| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post and office from SCROLL, or not known; role ends when no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
 | `setting` | `value`: text; every "(default: ...)" value in the PRD; `updated_at`: time (UTC); takes effect within 60 seconds (R-ADM-05) |
 | `change_history` | `subject`: setting, source order or source switch (R-ADM-05); `subject_ref`: text; the setting name, or the operation and direction; `old_value, new_value`: text; never text sent by a caller; `changed_at`: time (UTC) |
 | `paradox_run` | `job`: nightly totals and removals, monthly record parts, daily flags, TVA refresh or audit catch-up; `started_at, finished_at`: time (UTC); a run_id already here is skipped; `kept`: 90 days |
@@ -260,7 +260,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | `usage_record` | `request_ref`: text, unique; passed to every BUMBLEBEE call (R-REC-01); `at`: time (UTC); `operation`: translate, grammar check, memory add or test; `sensitivity`: ordinary, personal or confidential; `from_language, to_language`: si, ta or en; `passages, characters`: numbers; `pieces_glossary, pieces_memory, pieces_cache, pieces_source`: numbers; `sources_used, fallback_used`: source names; yes/no; `mismatch`: yes/no; ordinary text held an identity card number (R-MSK-04); `duration_ms`: milliseconds; `outcome`: answered, or one reason from R-ERR-01; `kept`: 2 years in monthly parts, the oldest dropped; never any text; about 50 million rows (about 20 GB) at full capacity |
 | `daily_total` | `requests, characters`: numbers; `pieces by origin`: glossary, memory, cache and source counts; `mismatches`: number; `time_buckets`: counts by time taken, for the usage screens (R-REC-03); `kept`: 5 years (R-REC-04) |
 | `audit_outbox` | `entry_id`: text, unique; the ID PENSIEVE uses to keep the entry once; `occurred_at`: time (UTC); `action`: glossary change, memory add or removal, gate change, source order or state, key, role or setting (R-REC-02); `details`: structured text; who, what and when, never text sent by a caller; `attempts, next_try_at`: number; time (UTC); retried by PARADOX; `kept`: until PENSIEVE accepts it, at most 30 days |
-| `alert` | `kind`: BUMBLEBEE not answering, source paused or resumed, no source for a direction, failures over 20 percent, caller or language flagged (R-ADM-03); `raised_at, sent_at`: time (UTC); sent_at empty until HEDWIG accepts it; `hedwig_notice_id`: text; returned by HEDWIG; `kept`: 90 days |
+| `alert` | `kind`: BUMBLEBEE not answering, source paused or resumed, no source for a direction, failures over 20 percent, caller, language or person flagged (R-ADM-03); `raised_at, sent_at`: time (UTC); sent_at empty until HEDWIG accepts it; `hedwig_notice_id`: text; returned by HEDWIG; `kept`: 90 days |
 <!-- dictionary:end -->
 
 <div class="land">

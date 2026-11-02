@@ -71,7 +71,7 @@ ENTITIES = {
             ("language", f"{LANG}; glossary keeper and memory reviewer only"),
             (
                 "post_ref",
-                "text; post and office at grant, from SCROLL; role ends when no longer held",
+                "text; post and office from SCROLL, or not known; role ends when no longer held",
             ),
             ("starts_at, ends_on", "time (UTC); date or empty for no end date"),
             ("ended_at, ended_by", "time (UTC); person; ending takes effect at once"),
@@ -366,7 +366,8 @@ ENTITIES = {
             (
                 "kind",
                 "BUMBLEBEE not answering, source paused or resumed, no source for a "
-                "direction, failures over 20 percent, caller or language flagged (R-ADM-03)",
+                "direction, failures over 20 percent, caller, language or person flagged "
+                "(R-ADM-03)",
             ),
             ("raised_at, sent_at", "time (UTC); sent_at empty until HEDWIG accepts it"),
             ("hedwig_notice_id", "text; returned by HEDWIG"),
