@@ -60,8 +60,10 @@ type Deps struct {
 	// Snapshot and Policy are the source list and what the administrator has set.
 	Snapshot func(ctx context.Context) sources.Snapshot
 	Policy   func(ctx context.Context) sources.Policy
-	Logger   *slog.Logger
-	Now      func() time.Time // time.Now when nil
+	// Translator answers translation requests. Nil answers "no provider".
+	Translator Translator
+	Logger     *slog.Logger
+	Now        func() time.Time // time.Now when nil
 }
 
 // Server is the path.
@@ -84,6 +86,7 @@ func New(deps Deps) *Server {
 	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
+	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
 	})

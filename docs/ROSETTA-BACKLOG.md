@@ -90,6 +90,8 @@ Notes:
 - **E-GAT-01:** Walk: open a direction on a recorded test score at `/gate` (E-GAT-02 brings the real evaluation), read it from `GET /api/v1/gate` with a key, close it, change the stand-in's source version and see it start closed; read the history and the entries back.
 - **E-CAL-03:** Walk: set a system's limits on its screen, send requests past them with a key, read `over limit` and `Retry-After`; see no denial reach PENSIEVE's stand-in for those; change the two settings and register a new system to see them start from there.
 - **E-PRV-03:** Walk with E-TRN-01: through `/control` make the first source fail with each of the eight reasons (control param `source`), read which source answered and that the answer says fallback; `blocked` and see the source left alone until `retry_at`; every source down and read `no provider` with its time; `silent` with the request limit lowered, and `timed out`.
+- **E-TRN-01:** Walk: with a key, a signed key and the stand-ins from source, send a list of invented passages with line breaks, edge spacing and long sentences in each script; read the answer and `/control/bumblebee/received`; fail one passage and read the one failure with its position. A long request against BUMBLEBEE's real rate is E-NFR-01's to measure.
+- **E-TRN-01:** Walk: with a key, a signed key and the stand-ins from source, send a list of invented passages with line breaks, edge spacing and long sentences in each script; read the answer and `/control/bumblebee/received`; fail one passage and read the one failure with its position. A long request against BUMBLEBEE's real rate is E-NFR-01's to measure.
 <!-- r2-still -->
 
 ## R3 Grammar

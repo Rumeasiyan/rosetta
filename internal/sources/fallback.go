@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
+	"golang.org/x/text/unicode/norm"
 )
 
 // A failed source call goes to the next source in order (R-PRV-03). What each reason
@@ -190,6 +194,9 @@ func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
 		if errors.As(err, &failed) && failed.Reason == bumblebee.ReasonBusy {
 			ans, err = f.onceMore(ctx, s, p, failed)
 		}
+		if err == nil && !acceptable(ans.Text, p.Text) {
+			err = &bumblebee.Failure{Reason: bumblebee.ReasonUnavailable}
+		}
 		if err == nil {
 			version := ans.Version
 			if version == "" {
@@ -219,6 +226,27 @@ func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
 		}
 	}
 	return Result{}, &Exhausted{RetryAt: back}
+}
+
+// MaxText is the size to split to.
+func (f *Fallback) MaxText() int { return f.Book.MaxText() }
+
+// standIn finds what is a stand-in's shape, which holds no words of the caller's.
+var standIn = regexp.MustCompile(`⟦[^⟦⟧]*⟧`)
+
+// acceptable refuses an answer that is empty, or that is only the text sent back (R-TRN-09):
+// a site that fails often echoes what it was given, and ROSETTA never passes that off as a
+// translation. A piece with no letters in it, such as a number on its own line, comes back
+// the same in any language.
+func acceptable(answer, sent string) bool {
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return false
+	}
+	if norm.NFC.String(answer) != norm.NFC.String(strings.TrimSpace(sent)) {
+		return true
+	}
+	return !strings.ContainsFunc(standIn.ReplaceAllString(sent, ""), unicode.IsLetter)
 }
 
 // call is one source call, inside the wait CALLERS.md gives. The wait running out with

@@ -22,7 +22,7 @@ const (
 var bumblebeeModes = []string{
 	"normal",
 	"busy", "blocked", "changed", "timeout", "too-long", "unsupported", "source-off", "unavailable",
-	"lose-masking", "change-term", "slow", "silent",
+	"lose-masking", "change-term", "echo", "slow", "silent",
 }
 
 // reasonStatus is each failure reason's status in CALLERS.md.
@@ -221,6 +221,8 @@ func (s *Server) bbRequest(w http.ResponseWriter, r *http.Request) {
 	// a test can tell it from the original (R-TRN-09).
 	text := "[" + in.To + "] " + in.Text
 	switch mode {
+	case "echo":
+		text = in.Text
 	case "lose-masking":
 		match := p["match"]
 		if match == "" {

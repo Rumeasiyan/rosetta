@@ -278,6 +278,32 @@ func TestAStaleListSendsNothing(t *testing.T) {
 	}
 }
 
+// R-TRN-09: the text sent back, or nothing, is a source failing, and the next is tried.
+func TestAnEchoIsAFailure(t *testing.T) {
+	for name, answer := range map[string]string{"the same": marker, "the same with spacing": " " + marker + "\n", "empty": "", "only spacing": " \n"} {
+		b := newFB(t)
+		b.provider.answers["a"] = []func(bumblebee.Request) (bumblebee.Answer, error){func(bumblebee.Request) (bumblebee.Answer, error) {
+			return bumblebee.Answer{Text: answer, Source: "a", Version: "1"}, nil
+		}}
+		if r, err := b.send(context.Background()); err != nil || r.Source != "b" || !r.Fallback {
+			t.Errorf("%s: %+v %v", name, r, err)
+		}
+	}
+	if !acceptable("⟦M1⟧", "⟦M1⟧") || !acceptable("12.", "12.") {
+		t.Fatal("a piece with no letters comes back the same in any language")
+	}
+	if acceptable("Call ⟦M1⟧", "Call ⟦M1⟧") {
+		t.Fatal("an echo with a stand-in in it is still an echo")
+	}
+	if !acceptable("வணக்கம்", "Hello") {
+		t.Fatal("a translation")
+	}
+	// The same text in another normal form is still the same text.
+	if acceptable("\u0D9A\u0DDC", "\u0D9A\u0DD9\u0DCF") {
+		t.Fatal("normalised")
+	}
+}
+
 // The order, the switch and the gate all reach the choice.
 func TestTheChoiceFollowsThePolicy(t *testing.T) {
 	b := newFB(t)

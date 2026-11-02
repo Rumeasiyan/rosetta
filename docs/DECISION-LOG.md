@@ -2,6 +2,22 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## What counts as returning the original (R-TRN-09)
+
+A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. This means a piece that truly stays the same, such as a system's name alone, fails until the glossary's "keep as written" answers it in R4. That was chosen over ever passing an echo off as a translation.
+
+## The piece pipeline
+
+A passage is masked before it is split, so a number written with spaces can never be broken up and sent in parts, and the splitter sees no dots inside numbers. Pieces go to a source one at a time, in order: simple, fair to BUMBLEBEE's queue, and the first failure stops the rest. A piece repeated in one request goes once. A long request can run into R-ERR-03 under BUMBLEBEE's rate, in which case the caller may send it again and ordinary text picks up from the cache; E-NFR-01 must measure this, and sending some at once is the first thing to try if it matters. `too long` for characters, passages or body says so with a position when one passage is at fault. The 5,000 characters of a passage is a setting too, though R-TRN-01 marks only its neighbours. Only the first `too long` from a source re-splits; a part too long again fails, as the list keeps changing under it.
+
+## What counts as returning the original (R-TRN-09)
+
+A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. This means a piece that truly stays the same, such as a system's name alone, fails until the glossary's "keep as written" answers it in R4. That was chosen over ever passing an echo off as a translation.
+
+## The piece pipeline
+
+A passage is masked before it is split, so a number written with spaces can never be broken up and sent in parts, and the splitter sees no dots inside numbers. Pieces go to a source one at a time, in order: simple, fair to BUMBLEBEE's queue, and the first failure stops the rest. A piece repeated in one request goes once. A long request can run into R-ERR-03 under BUMBLEBEE's rate, in which case the caller may send it again and ordinary text picks up from the cache; E-NFR-01 must measure this, and sending some at once is the first thing to try if it matters. `too long` for characters, passages or body says so with a position when one passage is at fault. The 5,000 characters of a passage is a setting too, though R-TRN-01 marks only its neighbours. Only the first `too long` from a source re-splits; a part too long again fails, as the list keeps changing under it.
+
 ## How fallback decides
 
 Only `failure.reason` counts, and only it is read: the explanation is never kept, so an error cannot carry text. A reason it does not know, an answer in no documented shape and a refused key on BUMBLEBEE's side are all `unavailable`, as CALLERS.md has it. `busy`, `blocked` and `changed` hold the source in memory until their `retry_at`, for every request, as R-PRV-05 says every "try again after" is respected; a busy source this request is waiting on is held from the others too. A busy wait must leave 2 seconds for the call, and no call starts with under 2 seconds of the request left, so a late fallback cannot run past R-ERR-03: that is this build's figure. The one-call wait of 60 seconds is the one CALLERS.md gives and is a constant, as the source list does not publish it. Fallback used means a source earlier in the order was resting or failed, not merely a busy source tried again.

@@ -28,6 +28,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
 )
@@ -179,9 +180,17 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
 		return sources.LoadPolicy(ctx, pool)
 	}, settings.RefreshEvery, logger)
+	pipeline := &translate.Service{
+		Glossary: translate.None{}, // E-GLO-04
+		Memory:   translate.None{}, // E-MEM-02
+		Cache:    translate.None{}, // E-TRN-03
+		Sources:  &sources.Fallback{Book: book, Provider: provider, Policy: policy.Get, Logger: logger},
+		Settings: values.Get,
+		Logger:   logger,
+	}
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
-		Snapshot: book.Snapshot, Policy: policy.Get,
+		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
 	})
 
 	mux := http.NewServeMux()

@@ -40,8 +40,11 @@ var (
 	SourceListSeconds = Int{Name: "source_list_seconds", Default: 60, Min: 10, Max: 600, Word: "settingSourceList", Unit: "unitSeconds", Source: "R-PRV-01"}
 	CallerPerMinute   = Int{Name: "caller_requests_per_minute", Default: 60, Min: 1, Max: 6000, Word: "settingCallerPerMinute", Unit: "unitRequests", Source: "R-CAL-07"}
 	CallerAtOnce      = Int{Name: "caller_requests_at_once", Default: 5, Min: 1, Max: 100, Word: "settingCallerAtOnce", Unit: "unitRequests", Source: "R-CAL-07"}
+	PassagesMax       = Int{Name: "passages_max", Default: 200, Min: 1, Max: 1000, Word: "settingPassagesMax", Unit: "unitPassages", Source: "R-TRN-01"}
+	PassageCharsMax   = Int{Name: "passage_chars_max", Default: 5000, Min: 1, Max: 50000, Word: "settingPassageChars", Unit: "unitChars", Source: "R-TRN-01"}
+	RequestCharsMax   = Int{Name: "request_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingRequestChars", Unit: "unitChars", Source: "R-TRN-01"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce}
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax}
 )
 
 // Find is the setting with this name.

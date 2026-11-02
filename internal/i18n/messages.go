@@ -198,4 +198,9 @@ var messages = map[string]text{
 	"settingCallerPerMinute": {"Requests a minute", "මිනිත්තුවකට ඉල්ලීම්", "நிமிடத்துக்குக் கோரிக்கைகள்"},
 	"settingCallerAtOnce":    {"Requests at once", "එකවර ඉල්ලීම්", "ஒரே நேரத்தில் கோரிக்கைகள்"},
 	"unitRequests":           {"requests", "ඉල්ලීම්", "கோரிக்கைகள்"},
+
+	"settingPassagesMax":  {"Most passages in one request", "එක් ඉල්ලීමක උපරිම ඡේද", "ஒரு கோரிக்கையில் அதிகபட்சப் பத்திகள்"},
+	"settingPassageChars": {"Longest passage", "දිගම ඡේදය", "மிக நீண்ட பத்தி"},
+	"settingRequestChars": {"Most characters in one request", "එක් ඉල්ලීමක උපරිම අකුරු", "ஒரு கோரிக்கையில் அதிகபட்ச எழுத்துகள்"},
+	"unitPassages":        {"passages", "ඡේද", "பத்திகள்"},
 }
