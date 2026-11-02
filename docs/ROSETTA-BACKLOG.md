@@ -1,6 +1,6 @@
 # ROSETTA backlog
 
-Source: `docs/ROSETTA-PRD.md` v1.2 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
+Source: `docs/ROSETTA-PRD.md` v1.3 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
 
 ## Definition of done (every story)
 
@@ -77,7 +77,7 @@ Notes:
 Notes:
 
 - **E-CAL-01:** The reader refuses a file format it does not know and ignores fields it does not know (TVA's R-LKP-05). `may_join` counts, as live does. Read the owner as `docs/LOOKUP-FORMAT.md` in TVA's repository gives it; a null subject means the flag in R-CAL-02. Match on the subject, never on email.
-- **E-CAL-02:** R-CAL-03 points to STACK section 2 for the rule; a third live key is refused until one is turned off. Requests from another machine also carry the signature in §5. Its scheme is not agreed: PARADOX's contract is proposed, which would be SCOS Pro's first scheme of that kind, and key custody and rotation need the user's decision. Annex A changes if it adds a public key.
+- **E-CAL-02:** R-CAL-03 points to STACK section 2 for the rule; a third live key is refused until one is turned off. Requests from another machine also carry the signature in §5; ROSETTA checks it, including `created`, `expires` and a nonce held in memory for the window, and answers "no key" with 401 on failure. The caller keeps its private key and pastes its public key when the key is issued on the screens: no enrolment endpoint. The two live keys give the overlap for rotation; turning a key off revokes its public key. No scopes: a key allows what R-CAL and R-TRN allow any system.
 - **E-PRV-01:** The refresh is an in-process timer, allowed because ROSETTA never sleeps and this is reading, not scheduled work. Keep a default size for when the list cannot be read. BUMBLEBEE counts size in code points, positions are UTF-16 (R-GRM-03): keep the two apart. `state` values as `docs/CALLERS.md` gives them.
 - **E-MSK-01:** A pure package with no store, table-tested on old and new card forms and Sri Lankan phone forms in all three scripts' text. Stand-ins must survive translation; test by the BUMBLEBEE stand-in changing them (R-MSK-03). Each stand-in keeps a map to the original offsets, which E-GRM-04 uses.
 - **E-GAT-01:** Screens for the administrator. The evaluation it rests on comes from E-GAT-02; until then the local run opens a direction with a recorded test score.

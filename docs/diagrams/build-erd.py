@@ -137,6 +137,7 @@ ENTITIES = {
         [
             ("key_hash", "one-way hash; the key itself is shown once (R-CAL-03)"),
             ("prefix", "first characters, shown in lists"),
+            ("public_key", "text; checks the signature from another machine; empty on this server"),
             ("created_at, last_used_at", "time (UTC)"),
             ("turned_off_at", "time (UTC); empty while live; at most 2 live per caller"),
         ],

@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.2, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.3, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -185,7 +185,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 |---|---|
 | Service | Go, one small program on ep-shared-01 under the ALLSPARK STACK; always on, counted inside the 6 systems awake, on the platform network like JARVIS; memory cap 250 MB, Go memory target 200 MB, 1 CPU; logs 3 files of 10 MB; read-only root filesystem; a `-healthcheck` flag that exits 0 when healthy |
 | Data | Database `rosetta` in the shared PostgreSQL through PgBouncer (pool 5, migrations pool 1) for glossary, memory, cache, settings and records; `pg_trgm` text search to find pieces holding a changed term; translation cache in an `UNLOGGED` table (may be empty after a crash or restore); usage records in monthly partitions; grammar results in process memory only; no cache server |
-| Translation API | HTTPS JSON, versioned, server to server; callers on ep-shared-01 call ROSETTA directly on the platform network; callers on other machines (SCOS Pro) through Cloudflare to `/api/` only, with signed requests and their key; keys stored hashed |
+| Translation API | HTTPS JSON, versioned, server to server; callers on ep-shared-01 call ROSETTA directly on the platform network; callers on other machines (SCOS Pro) through Cloudflare to `/api/` only, with their key and requests signed by the caller (Ed25519, RFC 9421, as in PARADOX's contract); keys stored hashed, each with the caller's public key |
 | Grammar API | LanguageTool-compatible check and languages endpoints, so the editor's ONLYOFFICE LanguageTool plug-in works unchanged; called from the officer's browser with MJOLNIR sign-in, CORS only for the listed editor addresses; separate from the server-to-server path |
 | Browser sources | BUMBLEBEE on its own machine, reached only through its Cloudflare tunnel from a link container on ep-shared-01 with an Access service token, plus ROSETTA's own key; synchronous calls within BUMBLEBEE's limits (R-PRV-04); BUMBLEBEE keeps no text |
 | Schedules | PARADOX, contract `sign/v0.2.0` (`apps/rosetta/schedules.yaml`, `paradox.pub`): nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed and checked |
@@ -225,7 +225,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | Entity | Fields |
 |---|---|
 | `caller` | `tva_reference`: text, unique; the system's entry in TVA (R-CAL-01); `name`: text (max 200); display copy, refreshed daily from TVA's published file; `owner_post_ref, owner_subject`: copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02); `tva_status, tva_checked_at`: as TVA gives it; time (UTC); a caller neither live nor may join is refused; `requests_per_minute`: number (default: 60) (R-CAL-07); `requests_at_once`: number (default: 5); `registered_at, last_request_at`: time (UTC); `flag`: none, no owner, idle 90 days or not live or may join (R-CAL-02, R-CAL-05) |
-| `caller_key` | `key_hash`: one-way hash; the key itself is shown once (R-CAL-03); `prefix`: first characters, shown in lists; `created_at, last_used_at`: time (UTC); `turned_off_at`: time (UTC); empty while live; at most 2 live per caller |
+| `caller_key` | `key_hash`: one-way hash; the key itself is shown once (R-CAL-03); `prefix`: first characters, shown in lists; `public_key`: text; checks the signature from another machine; empty on this server; `created_at, last_used_at`: time (UTC); `turned_off_at`: time (UTC); empty while live; at most 2 live per caller |
 | `caller_origin` | `origin`: browser address allowed to call the grammar check, for example the letter editor's (R-CAL-06); `added_at`: time (UTC) |
 
 #### A.2.3 Sources and gate
