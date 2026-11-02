@@ -53,6 +53,12 @@ var (
 // Status is the reason's HTTP status.
 func (r Reason) Status() int { return statuses[r] }
 
+// IsFailure says ROSETTA or a source could not do the work, rather than the request being refused:
+// the difference R-ADM-02 and R-ADM-03 draw between refusals and failures.
+func (r Reason) IsFailure() bool {
+	return r == MaskingLost || r == NoProvider || r == TimedOut
+}
+
 // Word is the message key of the reason.
 func (r Reason) Word() string { return words[r] }
 
@@ -136,16 +142,21 @@ func WriteText(w http.ResponseWriter, requestRef string, f *Failure, message str
 	w.Write([]byte(message))
 }
 
-// Write answers with the failure. Retry-After goes with any failure that says when.
-func Write(w http.ResponseWriter, requestRef string, f *Failure, now time.Time) {
+// Body is what a failure answers: a caller's JSON, and what a test from the screens shows.
+func Body(requestRef string, f *Failure) any {
 	d := detail{Reason: f.Reason, Messages: f.Reason.Messages(), Position: f.Position, Terms: f.Terms}
-	h := w.Header()
 	if f.RetryAt != nil {
 		d.RetryAt = f.RetryAt.Format(time.RFC3339)
 	}
+	return body{RequestRef: requestRef, Error: d}
+}
+
+// Write answers with the failure. Retry-After goes with any failure that says when.
+func Write(w http.ResponseWriter, requestRef string, f *Failure, now time.Time) {
+	h := w.Header()
 	retryAfter(h, f, now)
 	h.Set("Content-Type", "application/json")
 	h.Set("Cache-Control", "no-store")
 	w.WriteHeader(f.Reason.Status())
-	json.NewEncoder(w).Encode(body{RequestRef: requestRef, Error: d})
+	json.NewEncoder(w).Encode(Body(requestRef, f))
 }

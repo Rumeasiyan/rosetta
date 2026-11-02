@@ -203,6 +203,15 @@ func deliver(ctx context.Context, s Sender, rows []row, logger *slog.Logger) (ma
 	return out, false
 }
 
+// Waiting counts what has not reached PENSIEVE and what it refused for good, for the status
+// screen: the only place, beyond the log, a person sees these.
+func Waiting(ctx context.Context, q interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}) (waiting, refused int, err error) {
+	err = q.QueryRow(ctx, `SELECT count(*) FILTER (WHERE refused_at IS NULL), count(*) FILTER (WHERE refused_at IS NOT NULL) FROM audit_outbox`).Scan(&waiting, &refused)
+	return waiting, refused, err
+}
+
 // DropExpired removes each entry past KeepFor, sent or not, which PENSIEVE would refuse as too old
 // (Annex A: at most 30 days), and says so in the log. A sent entry's row is gone already. It reports
 // how many went.

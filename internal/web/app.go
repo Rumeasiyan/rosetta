@@ -15,6 +15,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/jackc/pgx/v5"
@@ -53,7 +54,9 @@ type Deps struct {
 	TVA tva.Reader
 	// Sources is BUMBLEBEE's source list. Nil shows it as never read.
 	Sources SourceList
-	Logger  *slog.Logger
+	// NoSystem is today's refusals of requests with no known system (R-CAL-04). Nil counts none.
+	NoSystem func() map[reasons.Reason]int
+	Logger   *slog.Logger
 }
 
 // Kicker starts sending what the outbox holds, without waiting for it.
@@ -111,6 +114,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountGlossary(mux)
 	a.mountMemory(mux)
 	a.mountUsage(mux)
+	a.mountStatus(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -162,7 +166,7 @@ func nav(c *current) []NavItem {
 		items = append(items, NavItem{ID: "people", Word: "people", Href: "/people"}, NavItem{ID: "settings", Word: "settings", Href: "/settings"})
 	}
 	if seesSystems(c) {
-		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"}, NavItem{ID: "usage", Word: "usage", Href: "/usage"})
+		items = append(items, NavItem{ID: "status", Word: "statusScreen", Href: "/status"}, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"}, NavItem{ID: "usage", Word: "usage", Href: "/usage"})
 	}
 	if isAdmin(c) {
 		items = append(items, NavItem{ID: "gate", Word: "gate", Href: "/gate"})

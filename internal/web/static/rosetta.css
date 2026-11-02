@@ -123,3 +123,4 @@ details.row-actions { margin-top: 12px; }
 .view-field { display: grid; gap: 4px; min-width: min(100%, 170px); flex: 1 1 170px; }
 .view-field label { margin-top: 0; }
 .view-form button { margin-top: 0; }
+.section-gap { margin-top: 16px; }

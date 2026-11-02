@@ -49,7 +49,7 @@
   {{if .Data.More}}<p class="soft">{{t .Lang "usageMore"}}</p>{{end}}
   {{if .Data.Reasons}}<h2 class="fat section">{{t .Lang "usageByReason"}}</h2>
   <div class="stack"><table>
-    <thead><tr><th scope="col">{{t .Lang "status"}}</th><th scope="col">{{t .Lang "usageRequests"}}</th></tr></thead>
+    <thead><tr><th scope="col">{{t .Lang "reason"}}</th><th scope="col">{{t .Lang "usageRequests"}}</th></tr></thead>
     <tbody>{{range .Data.Reasons}}<tr><td><strong>{{t $.Lang (whyWord .Reason)}}</strong></td><td><span class="stack-label">{{t $.Lang "usageRequests"}}: </span>{{.Count}}</td></tr>{{end}}</tbody>
   </table></div>{{end}}
   <p class="row-actions"><a class="pill" href="{{.Data.ExportURL}}" hx-boost="false">{{t .Lang "usageExport"}}</a></p>

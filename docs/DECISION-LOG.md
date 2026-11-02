@@ -2,6 +2,12 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The status screen
+
+`/status` is open to the administrator and to system owners, as the source screen is. BUMBLEBEE counts as up while the source list is fresh (R-PRV-01), the same test that decides whether anything is sent, so the screen cannot say up while requests fail for that reason. Today's counts come from the records, by Sri Lanka's day, so they survive a restart; an owner sees only their own systems' and BUMBLEBEE's state, which is nobody's in particular. Refusals are what a caller or a setting decided; failures are `masking lost`, `no provider` and `timed out`, what ROSETTA or a source could not do (`reasons.IsFailure`). Requests with no known system stay in the memory count and show to the administrator only, marked as counted since the last start.
+
+The earlier entry on the outbox left telling the administrator of refused or dropped rows to E-ADM-06. R-ADM-03 does not list them and E-ADM-06's note leaves silence from audit to PENSIEVE, so no email goes: the screen shows what waits and what PENSIEVE refused for good, and the log has the rest. The page does not refresh itself, so no timer reaches the sign-in renewal.
+
 ## The usage screens
 
 `/usage` is open to the administrator and to system owners, who see their own systems only; asking for another's is a denial. A view is grouped by one of day, system, operation, direction or source, and filtered by any of them and by two dates, last 30 days by default, in Sri Lanka's days. What the totals hold comes from them and the rest, today at least, is added up from the records by the same SQL, so a view reads the same before and after the night's work. By source, or with a source chosen, only requests that used a source show and one with two counts under each, which the screen says.

@@ -71,7 +71,9 @@ type Deps struct {
 	Origins Origins
 	// Usage keeps each request's record (R-REC-01). Nil keeps nothing. A failure here is logged
 	// as fixed words and changes no answer.
-	Usage  func(ctx context.Context, r usage.Record) error
+	Usage func(ctx context.Context, r usage.Record) error
+	// Counts is where requests with no known system are counted. Nil makes its own.
+	Counts *Counts
 	Logger *slog.Logger
 	Now    func() time.Time // time.Now when nil
 }
@@ -94,7 +96,10 @@ func New(deps Deps) *Server {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
+	if deps.Counts == nil {
+		deps.Counts = NewCounts(deps.Now)
+	}
+	s := &Server{deps: deps, counts: deps.Counts, limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
