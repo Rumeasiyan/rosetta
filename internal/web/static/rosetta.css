@@ -113,3 +113,5 @@ code { overflow-wrap: anywhere; }
 .band-empty { margin: 0; font-size: 20px; }
 .fields textarea { font: inherit; }
 .order details { margin-top: 10px; }
+.fields input[type=file] { padding: 9px 16px; height: auto; }
+.row-list { padding-left: 20px; }

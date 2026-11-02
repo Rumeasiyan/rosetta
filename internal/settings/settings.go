@@ -48,7 +48,9 @@ var (
 	GrammarCharsMax    = Int{Name: "grammar_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingGrammarChars", Unit: "unitChars", Source: "R-GRM-02"}
 	GrammarHoldMinutes = Int{Name: "grammar_hold_minutes", Default: 10, Min: 1, Max: 1440, Word: "settingGrammarHold", Unit: "unitMinutes", Source: "R-GRM-05"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes}
+	GlossaryImportRows = Int{Name: "glossary_import_rows", Default: 5000, Min: 1, Max: 20000, Word: "settingGlossaryImportRows", Unit: "unitRows", Source: "R-GLO-07"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows}
 )
 
 // Find is the setting with this name.

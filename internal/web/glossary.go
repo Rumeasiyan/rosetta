@@ -23,6 +23,9 @@ func (a *App) mountGlossary(mux *http.ServeMux) {
 	mux.Handle("GET /glossary/propose", a.signedIn(a.glossaryProposeForm))
 	mux.Handle("POST /glossary/propose", a.signedIn(a.post(a.glossaryPropose)))
 	mux.Handle("GET /glossary/mine", a.signedIn(a.glossaryMine))
+	mux.Handle("GET /glossary/import", a.signedIn(a.only(isAdmin, a.glossaryImportForm)))
+	mux.Handle("POST /glossary/import", a.signedIn(a.only(isAdmin, a.glossaryImport)))
+	mux.Handle("GET /glossary/export", a.signedIn(a.only(isAdmin, a.glossaryExport)))
 	mux.Handle("GET /glossary-versions", a.signedIn(a.only(hasAnyRole, a.glossaryVersions)))
 	mux.Handle("GET /glossary-versions/{number}", a.signedIn(a.only(hasAnyRole, a.glossaryVersion)))
 	mux.Handle("GET /glossary/{id}", a.signedIn(a.glossaryEntry))
@@ -111,11 +114,12 @@ func statusWord(status string) string {
 
 // glossaryListData is the list's data.
 type glossaryListData struct {
-	Entries []glossary.Entry
-	Find    string
-	Version int
-	Full    bool // the page holds as many as it can: finding narrows it
-	MayKeep bool
+	Entries  []glossary.Entry
+	Find     string
+	Version  int
+	Full     bool // the page holds as many as it can: finding narrows it
+	MayKeep  bool
+	MaySheet bool
 }
 
 func (a *App) glossaryList(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +136,7 @@ func (a *App) glossaryList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := a.page(r, "glossary", "glossary")
-	p.Data = glossaryListData{Entries: list, Find: find, Version: version, Full: len(list) == glossary.PageLimit, MayKeep: mayKeep(fromCtx(r))}
+	p.Data = glossaryListData{Entries: list, Find: find, Version: version, Full: len(list) == glossary.PageLimit, MayKeep: mayKeep(fromCtx(r)), MaySheet: isAdmin(fromCtx(r))}
 	a.Render(w, r, http.StatusOK, "glossary", p)
 }
 

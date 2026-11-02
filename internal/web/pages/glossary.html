@@ -11,6 +11,7 @@
   <div class="inline row-actions">
     <a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a>{{if .Data.MayKeep}}<a class="pill" href="/glossary/waiting">{{t .Lang "glossaryWaiting"}}</a>{{end}}
     <a class="pill" href="/glossary-versions">{{t .Lang "glossaryVersions"}}</a>
+    {{if .Data.MaySheet}}<a class="pill" href="/glossary/import">{{t .Lang "glossaryImport"}}</a><a class="pill" href="/glossary/export" hx-boost="false">{{t .Lang "glossaryExport"}}</a>{{end}}
   </div>
 </div>
 {{end}}

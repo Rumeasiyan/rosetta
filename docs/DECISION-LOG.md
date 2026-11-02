@@ -2,6 +2,16 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The glossary's spreadsheet file
+
+An `.xlsx` file, read and written by `internal/sheet` with Go's standard library alone (BSD-3-Clause, as the rest of the build), so there is no reader's licence to carry and no new dependency: `go.mod` is unchanged. CSV was left out: it opens with the wrong encoding in the office's spreadsheet program, and it is where formula injection does its harm. Files from openpyxl and files this package writes have been read; the export has been opened by openpyxl and by LibreOffice.
+
+What is read has limits of its own: 8 MiB as sent, 32 MiB for any part unpacked, read to that limit whatever the file's header claims, so a small file that unpacks far is refused rather than filling the 250 MB. The upload stays in memory, as the root filesystem is read-only. `glossary_import_rows` (R-GLO-07, default 5,000) counts rows with anything in them, not the first, and one row over refuses the whole file, keeping nothing. The first row names the columns: `type`, and at least one of `en`, `si`, `ta`, with `english`, `sinhala` and `tamil` allowed; others are not read.
+
+A row that cannot join (a bad type, a text a term may not be, a term already published or held earlier in the file, or a cell holding a formula, whose stored value is not taken instead) is left out and counted, and the screen gives its row number and why, never its words. Rows join as `proposed` in two whole statements rather than row by row, so 5,000 rows took under 3 seconds here and hold one of the five connections only that long. One notice goes for the whole file. A file that fails to read keeps no `glossary_import` row; one that reads keeps its name, shown only on these screens.
+
+On export every cell is text, and any value a spreadsheet could read as a formula, beginning `=`, `+`, `-`, `@`, a tab or a line break, or their wide forms, after any spaces, gets a leading apostrophe. An inline string is not a formula in an `.xlsx` as it stands; the apostrophe is for when a person saves it on as CSV. On import a leading apostrophe before such a mark is taken off, so the file can come in again. The export is the published glossary at the present version; a past version is read on the screens. It is PENSIEVE's `export` action (P-ING-02), with the row count and no words.
+
 ## Telling keepers of a proposal
 
 The notice is a row in `alert`, written in the proposal's transaction, as the one record of what HEDWIG carries (Annex A), with `glossary_entry_id` and `glossary_import_id` added (migration 006) and two kinds, `glossary proposal` and `glossary import`, that Annex A's list of kinds does not name. After the change commits a goroutine sends what is due and the person does not wait (AGENTS C6). What does not go waits, and PARADOX's `audit-catch-up` sends it, rather than a new job on the schedules, since both are what is owed to another service. `hedwig_notice_id` holds HEDWIG's request number, as one notice goes to several people and that number finds them all. `request_key` is `rosetta-alert-<id>`, so a retry tells nobody twice. A rate limit stops the pass; any other refusal stays for the next, and logs its code. Past 90 days, Annex A's keeping, nobody is told.
