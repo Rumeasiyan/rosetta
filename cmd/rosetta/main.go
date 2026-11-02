@@ -202,7 +202,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	published := &glossary.Book{Q: pool}
 	pipeline := &translate.Service{
 		Glossary: published,
-		Memory:   translate.None{}, // E-MEM-02
+		Memory:   memory.Served{Q: pool},
 		Cache:    cache,
 		Keeper:   cache,
 		Sources:  fallback,

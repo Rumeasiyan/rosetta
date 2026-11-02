@@ -194,3 +194,134 @@ func TestPiecesThatDoNotLineUp(t *testing.T) {
 		}
 	}
 }
+
+func origins(p map[string]any) map[string]any { return p["origins"].(map[string]any) }
+
+// R-TRN-04, R-TRN-07, R-MEM-02, R-GAT-02: approved text answers without any source, for every calling
+// system, under a closed gate, marked as checked by a person with no label. Each number comes back as
+// the caller wrote it.
+func TestServedFromMemoryMarkedAsCheckedByAPerson(t *testing.T) {
+	w := newPathWorld(t)
+	code, out := w.remember(approved(pair{"source": "The office is closed. Ring 0771234567.", "approved": "அலுவலகம் மூடப்பட்டுள்ளது. 0771234567 அழைக்க."}))
+	if code != 200 || out["pieces"] != float64(2) {
+		t.Fatalf("%d %v", code, out)
+	}
+	// The gate is closed for every source, and nothing goes out.
+	code, out = w.translate("ordinary", "The office is closed. Ring 0719999999.")
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	p := passageOf(out, 0)
+	if p["text"] != "அலுவலகம் மூடப்பட்டுள்ளது. 0719999999 அழைக்க." || p["machine"] != false || p["checked_by_person"] != true || p["label"] != nil || origins(p)["memory"] != float64(2) {
+		t.Fatalf("%v", p)
+	}
+	if strings.Contains(w.received(), "/v1/requests") {
+		t.Fatal("a source was called")
+	}
+	// BUMBLEBEE gone: it still answers (R-NFR-09). Personal text is served and kept nowhere; another way
+	// of typing it is the same piece (R-NFR-05).
+	w.mode("unavailable")
+	if code, out := w.translate("personal", "The office is closed."); code != 200 || origins(passageOf(out, 0))["memory"] != float64(1) {
+		t.Fatalf("%d %v", code, out)
+	}
+	w.mode("normal")
+	// Partly from memory: the passage carries the label, and says where each piece came from (R-TRN-06, R-TRN-07).
+	w.open("en", "ta")
+	code, out = w.translate("ordinary", "The office is closed. A new sentence.")
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	p = passageOf(out, 0)
+	if p["text"] != "அலுவலகம் மூடப்பட்டுள்ளது. [ta] A new sentence." || p["machine"] != true || p["checked_by_person"] != false || p["label"] == nil ||
+		origins(p)["memory"] != float64(1) || origins(p)["source"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+	// Direction counts: this was approved from English to Tamil.
+	raw, _ := json.Marshal(map[string]any{"from": "en", "to": "si", "sensitivity": "ordinary", "passages": []string{"The office is closed."}})
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/translate", bytes.NewReader(raw))
+	r.Header.Set("Authorization", "Bearer "+w.key)
+	rec := httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	if rec.Code != 409 {
+		t.Fatalf("en to si: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// R-TRN-04: a whole glossary term comes before the memory, the memory before the cache and a source.
+// R-TRN-05: while nothing changes, the same request gets the same answer.
+func TestTheOrderWithTheRealTables(t *testing.T) {
+	w := newPathWorld(t)
+	w.open("en", "ta")
+	const sentence = "The invented office wrote."
+	code, first := w.translate("ordinary", sentence)
+	if code != 200 || origins(passageOf(first, 0))["source"] != float64(1) {
+		t.Fatalf("%d %v", code, first)
+	}
+	if _, out := w.translate("ordinary", sentence); origins(passageOf(out, 0))["cache"] != float64(1) {
+		t.Fatalf("%v", out)
+	}
+	if code, out := w.remember(approved(pair{"source": sentence, "approved": "கற்பனை அலுவலகம் எழுதியது."})); code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	_, out := w.translate("ordinary", sentence)
+	if p := passageOf(out, 0); origins(p)["memory"] != float64(1) || p["text"] != "கற்பனை அலுவலகம் எழுதியது." || p["checked_by_person"] != true {
+		t.Fatalf("%v", p)
+	}
+	_, again := w.translate("ordinary", sentence)
+	if passageOf(again, 0)["text"] != passageOf(out, 0)["text"] {
+		t.Fatalf("%v", again)
+	}
+	// A term in a memory piece is as the person wrote it, and served as a whole. A whole term goes first.
+	if code, out := w.remember(approved(pair{"source": "Chief Secretary", "approved": "ஒரு நபரின் சொல்"}, pair{"source": "The Chief Secretary wrote.", "approved": "செயலாளர் எழுதினார்."})); code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	w.publish("post", "Chief Secretary", "ප්‍රධාන ලේකම්", "பிரதம செயலாளர்")
+	_, whole := w.translate("ordinary", "Chief Secretary", "The Chief Secretary wrote.")
+	if p := passageOf(whole, 0); p["text"] != "பிரதம செயலாளர்" || origins(p)["glossary"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+	if p := passageOf(whole, 1); p["text"] != "செயலாளர் எழுதினார்." || origins(p)["memory"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+}
+
+// R-MEM-04: marked for recheck, an entry is not served; it goes to the next way of answering.
+func TestAnEntryMarkedForRecheckIsNotServed(t *testing.T) {
+	w := newPathWorld(t)
+	w.remember(approved(pair{"source": "A piece to recheck.", "approved": "சரிபார்க்க ஒரு துண்டு."}))
+	if _, err := w.pool.Exec(context.Background(), `UPDATE memory_entry SET state = 'recheck'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := w.translate("ordinary", "A piece to recheck."); code != 409 {
+		t.Fatalf("closed, and nothing to serve: %d %v", code, out)
+	}
+	w.open("en", "ta")
+	if _, out := w.translate("ordinary", "A piece to recheck."); origins(passageOf(out, 0))["source"] != float64(1) {
+		t.Fatalf("%v", out)
+	}
+	if _, err := w.pool.Exec(context.Background(), `UPDATE memory_entry SET state = 'removed'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, out := w.translate("ordinary", "A piece to recheck."); origins(passageOf(out, 0))["memory"] != float64(0) {
+		t.Fatalf("%v", out)
+	}
+}
+
+// Text sent for translation is kept nowhere by asking the memory, and what the memory served is in no log.
+func TestServingLeavesNothingBehind(t *testing.T) {
+	w := newPathWorld(t)
+	const secret = "Servedmarkertext"
+	w.remember(approved(pair{"source": secret + " one.", "approved": secret + " ஒன்று."}))
+	w.translate("ordinary", secret+" one.")
+	if strings.Contains(w.logs.String(), secret) {
+		t.Fatal(w.logs.String())
+	}
+	ctx := context.Background()
+	var n int
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FROM audit_outbox WHERE details::text LIKE '%' || $1 || '%'`, secret).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("%d %v", n, err)
+	}
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FROM cache_piece`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("what the memory served went to the cache: %d %v", n, err)
+	}
+}

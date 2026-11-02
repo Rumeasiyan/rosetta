@@ -95,7 +95,7 @@ func newPathWorld(t *testing.T) *pathWorld {
 	fallback := &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: policy, Logger: logger}
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
-		Translator: &translate.Service{Glossary: published, Memory: translate.None{}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
+		Translator: &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
 		Memory:     &memory.Service{Pool: pool, Settings: values, Logger: logger},
 		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")

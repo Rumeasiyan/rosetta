@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Serving from the memory
+
+A piece is looked up with terms as written and values as stand-ins, by the hash of its normalised text, language pair and state `served`, with one query for each piece not already a whole term. It is asked for personal text too, as it holds people's work and keeps nothing of what is asked, and whatever the gate says. The answer's numbers are the caller's own, as what is stored holds stand-ins. An entry approved in one direction answers only that direction. A piece from the memory is not copied to the cache. Being unable to read the memory costs a source call and logs fixed words, as with the cache.
+
 ## What joins the memory
 
 `POST /api/v1/memory` takes `from`, `to`, `sensitivity`, `approver_post`, an optional `approved_on` (today in Sri Lanka if left out, never ahead of it), and `passages`, each a `source` and `approved`. It carries the key and the signature as every call on `/api/` does, and the limits are a translation's. It answers `pieces`, the number that joined, and `not_kept`, the passages left out. E-CAL-04 publishes this.
