@@ -136,6 +136,10 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if err != nil {
 		return err
 	}
+	signout, err := oidc.SignOutURL(getenv)
+	if err != nil {
+		return err
+	}
 	links, err := config.LinksFromEnv(getenv)
 	if err != nil {
 		return err
@@ -170,7 +174,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	defer stopReading()
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}

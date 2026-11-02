@@ -12,7 +12,6 @@ var messages = map[string]text{
 
 	"signInFailed":      {"The sign-in did not finish. Please try again.", "පිවිසීම අවසන් වූයේ නැත. නැවත උත්සාහ කරන්න.", "உள்நுழைவு நிறைவடையவில்லை. மீண்டும் முயற்சிக்கவும்."},
 	"signInUnavailable": {"The sign-in service is not answering. Your work is safe: please try again in a moment.", "පිවිසුම් සේවාව පිළිතුරු නොදේ. ඔබේ වැඩ ආරක්ෂිතයි: මොහොතකින් නැවත උත්සාහ කරන්න.", "உள்நுழைவுச் சேவை பதிலளிக்கவில்லை. உங்கள் பணி பாதுகாப்பாக உள்ளது: சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்."},
-	"signedOut":         {"You have signed out of ROSETTA.", "ඔබ ROSETTA වෙතින් පිටව ඇත.", "நீங்கள் ROSETTA இலிருந்து வெளியேறிவிட்டீர்கள்."},
 	"expired":           {"Your session has ended. Please sign in again.", "ඔබේ සැසිය අවසන් වී ඇත. නැවත පිවිසෙන්න.", "உங்கள் அமர்வு முடிந்தது. மீண்டும் உள்நுழைக."},
 	"badForm":           {"That form has expired. Please go back and try again.", "එම පෝරමය කල් ඉකුත් වී ඇත. ආපසු ගොස් නැවත උත්සාහ කරන්න.", "அந்தப் படிவம் காலாவதியானது. பின்சென்று மீண்டும் முயற்சிக்கவும்."},
 	"somethingWrong":    {"Something went wrong. Please try again.", "යම් දෝෂයක් සිදු විය. නැවත උත්සාහ කරන්න.", "ஏதோ தவறு நேர்ந்தது. மீண்டும் முயற்சிக்கவும்."},

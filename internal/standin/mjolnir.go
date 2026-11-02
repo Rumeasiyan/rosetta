@@ -91,6 +91,7 @@ func (s *Server) mountMjolnir(mux *http.ServeMux) {
 	mux.HandleFunc("POST /mjolnir/oauth2/auth", s.serve("mjolnir", s.mjForm))
 	mux.HandleFunc("POST /mjolnir/oauth2/token", s.serve("mjolnir", s.mjToken))
 	mux.HandleFunc("POST /mjolnir/oauth2/revoke", s.serve("mjolnir", s.mjRevoke))
+	mux.HandleFunc("GET /mjolnir/sign-out", s.serve("mjolnir", s.mjSignOut))
 }
 
 func (s *Server) mjDiscovery(w http.ResponseWriter, _ *http.Request) {
@@ -156,6 +157,20 @@ func (s *Server) mjAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	mjFormPage.Execute(w, data)
+}
+
+// mjSignOut ends the sign-in on this browser and shows a plain page, with no way back to
+// the system, as MJOLNIR's own page does (SESSION-INTERFACE.md). A system's token is the
+// system's own to revoke: this leaves it alone, also as there.
+func (s *Server) mjSignOut(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(mjolnirCookie); err == nil {
+		s.mjolnir.mu.Lock()
+		delete(s.mjolnir.sessions, c.Value)
+		s.mjolnir.mu.Unlock()
+	}
+	http.SetCookie(w, &http.Cookie{Name: mjolnirCookie, Value: "", Path: "/mjolnir/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte("<!doctype html><title>MJOLNIR stand-in</title><p>You have signed out of the MJOLNIR stand-in.</p>\n"))
 }
 
 func (s *Server) mjForm(w http.ResponseWriter, r *http.Request) {

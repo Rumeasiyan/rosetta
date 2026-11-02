@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -670,5 +671,46 @@ func TestStandInsAreNotInTheService(t *testing.T) {
 	}
 	if bytes.Contains(out, []byte("internal/standin")) {
 		t.Fatal("the service's binary depends on the stand-ins")
+	}
+}
+
+// Signing out at MJOLNIR's stand-in ends the sign-in on that browser only: the next
+// sign-in shows the form.
+func TestMjolnirSignOutEndsTheSignIn(t *testing.T) {
+	ts, _ := start(t)
+	jar, _ := cookiejar.New(nil)
+	browser := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	q := url.Values{"client_id": {"rosetta"}, "redirect_uri": {"http://localhost/back"}, "response_type": {"code"}, "state": {"s"}, "code_challenge": {"c"}, "code_challenge_method": {"S256"}}
+	auth := func() *http.Response {
+		res, err := browser.Get(ts.URL + "/mjolnir/oauth2/auth?" + q.Encode())
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res
+	}
+	if res := auth(); res.StatusCode != 200 {
+		t.Fatalf("no form at first: %d", res.StatusCode)
+	}
+	form := url.Values{"client_id": {"rosetta"}, "redirect_uri": {"http://localhost/back"}, "state": {"s"}, "code_challenge": {"c"}, "own": {"dev-admin"}}
+	res, err := browser.PostForm(ts.URL+"/mjolnir/oauth2/auth", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res := auth(); res.StatusCode != 303 {
+		t.Fatalf("signed in, it should pass with no form: %d", res.StatusCode)
+	}
+	res, err = browser.Get(ts.URL + "/mjolnir/sign-out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != 200 || !strings.Contains(string(page), "signed out") || strings.Contains(string(page), "href") {
+		t.Fatalf("%d %s", res.StatusCode, page)
+	}
+	if res := auth(); res.StatusCode != 200 {
+		t.Fatalf("still signed in after signing out: %d", res.StatusCode)
 	}
 }

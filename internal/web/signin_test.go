@@ -2,10 +2,12 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -285,20 +287,32 @@ func TestSignOutRevokesAndNeedsTheToken(t *testing.T) {
 	if p := b.get("/"); p.status != 200 || !strings.Contains(p.body, "Test "+who) {
 		t.Fatal("a refused sign-out ended the session")
 	}
-	if p := b.post("/signout", url.Values{"csrf": {token}}); p.status != 200 {
-		t.Fatalf("%d", p.status)
-	}
-	revoked := 0
-	for _, r := range w.received("mjolnir") {
-		if strings.HasSuffix(r.Path, "/oauth2/revoke") {
-			revoked++
-			if r.Auth != "Basic" {
-				t.Fatalf("not client_secret_basic: %+v", r)
+	countRevoked := func() int {
+		revoked := 0
+		for _, r := range w.received("mjolnir") {
+			if strings.HasSuffix(r.Path, "/oauth2/revoke") {
+				revoked++
+				if r.Auth != "Basic" {
+					t.Fatalf("not client_secret_basic: %+v", r)
+				}
 			}
 		}
+		return revoked
 	}
-	if revoked != 1 {
-		t.Fatalf("%d revocations", revoked)
+	if n := countRevoked(); n != 0 {
+		t.Fatalf("a refused sign-out revoked %d", n)
+	}
+	// The revocation has happened by the time the browser is told to go; nothing sent
+	// changes where it goes.
+	leave, _ := http.NewRequest(http.MethodPost, w.screens.URL+"/signout?next=https://evil.test/", strings.NewReader(url.Values{"csrf": {token}, "next": {"https://evil.test/"}}.Encode()))
+	leave.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	leave.Header.Set("Referer", "https://evil.test/")
+	p := b.noFollow(leave)
+	if p.status != 303 || p.header.Get("Location") != w.standin.URL+"/mjolnir/sign-out" {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
+	}
+	if n := countRevoked(); n != 1 {
+		t.Fatalf("%d revocations when the browser was sent on", n)
 	}
 	req := mustGet(w.screens.URL + "/")
 	if p := b.noFollow(req); p.status != 303 {
@@ -309,8 +323,61 @@ func TestSignOutRevokesAndNeedsTheToken(t *testing.T) {
 	b2.signIn(subject("leaving"))
 	tok := b2.csrf()
 	w.control("mjolnir", "renew-server-error", nil)
-	if p := b2.post("/signout", url.Values{"csrf": {tok}}); p.status != 200 {
-		t.Fatalf("%d", p.status)
+	if p := b2.post("/signout", url.Values{"csrf": {tok}}); p.status != 200 || !strings.HasSuffix(p.url, "/mjolnir/sign-out") {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+}
+
+// The whole way round: MJOLNIR's page ends the sign-in, so the next one shows the form
+// instead of passing with none.
+func TestSignOutEndsTheSignInAtMjolnir(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	who := subject("leaving")
+	b.signIn(who)
+	if p := b.post("/signout", url.Values{"csrf": {b.csrf()}}); p.status != 200 || !strings.HasSuffix(p.url, "/mjolnir/sign-out") {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+	if p := b.get("/signin/start"); !strings.Contains(p.body, "MJOLNIR stand-in") {
+		t.Fatalf("passed with no form: %d %s", p.status, p.url)
+	}
+}
+
+// A page with the sign-out form names the origins it passes through in form-action, and
+// nothing else in the policy moves. A page without the form stays with 'self'.
+func TestFormActionNamesWhereSignOutGoes(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	const rest = "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action %s; frame-ancestors 'none'; base-uri 'none'"
+	if p := b.get("/signin"); p.header.Get("Content-Security-Policy") != fmt.Sprintf(rest, "'self'") {
+		t.Fatalf("signed out: %q", p.header.Get("Content-Security-Policy"))
+	}
+	b.signIn(subject("policy"))
+	p := b.get("/")
+	if !strings.Contains(p.body, `action="/signout"`) {
+		t.Fatal("no sign-out form on the page")
+	}
+	if got := p.header.Get("Content-Security-Policy"); got != fmt.Sprintf(rest, "'self' "+w.standin.URL) {
+		t.Fatalf("signed in: %q", got)
+	}
+}
+
+func TestOriginsOf(t *testing.T) {
+	got := originsOf("https://sign-out.epc.test/sign-out?x=1", "https://sso.epc.test/", "https://sso.epc.test/other", "http://localhost:53190/mjolnir", "/nowhere", "")
+	want := []string{"https://sign-out.epc.test", "https://sso.epc.test", "http://localhost:53190"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("%v", got)
+	}
+}
+
+// With no session there is nothing to revoke, and the browser still goes to MJOLNIR.
+func TestSignOutWithNoSessionStillGoesToMjolnir(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	req, _ := http.NewRequest(http.MethodPost, w.screens.URL+"/signout", nil)
+	p := b.noFollow(req)
+	if p.status != 303 || p.header.Get("Location") != w.standin.URL+"/mjolnir/sign-out" {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
 	}
 }
 

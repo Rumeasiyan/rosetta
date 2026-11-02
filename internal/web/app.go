@@ -34,6 +34,12 @@ type Deps struct {
 	Pool      *pgxpool.Pool
 	SignIn    SignIn
 	PublicURL string // ROSETTA_PUBLIC_URL
+	// SignOutURL is ROSETTA_SIGNOUT_URL: MJOLNIR's own sign-out page. It is required, and
+	// the only place a sign-out sends the browser.
+	SignOutURL string
+	// SignInIssuer is ROSETTA_SIGNIN_ISSUER. A sign-out passes through both of MJOLNIR's
+	// hosts, so pages holding the sign-out form name its origin in form-action too.
+	SignInIssuer string
 	// FirstAdmin is ROSETTA_FIRST_ADMIN: the MJOLNIR account that becomes the first
 	// administrator, only while no administrator exists.
 	FirstAdmin string
@@ -65,6 +71,9 @@ type App struct {
 
 // New makes the screens.
 func New(deps Deps) (*App, error) {
+	if deps.SignOutURL == "" {
+		return nil, errors.New("web: no address for MJOLNIR's sign-out page")
+	}
 	if deps.Logger == nil {
 		deps.Logger = slog.New(slog.DiscardHandler)
 	}
@@ -72,6 +81,7 @@ func New(deps Deps) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	r.signOutOrigins = originsOf(deps.SignOutURL, deps.SignInIssuer)
 	a := &App{Renderer: r, deps: deps, sessions: newSessions(), secure: strings.HasPrefix(deps.PublicURL, "https://")}
 	a.settings = settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
 		return settings.Load(ctx, deps.Pool)
@@ -496,6 +506,10 @@ func (a *App) revoke(ctx context.Context, refresh string) {
 	}
 }
 
+// signout does what MJOLNIR's docs/SESSION-INTERFACE.md gives a system's own button:
+// revoke the token, end the session here, then send the browser to MJOLNIR's page, or
+// the person stays signed in there and the next sign-in passes with no form. MJOLNIR's
+// page does not come back. Nothing sent can change where the browser goes.
 func (a *App) signout(w http.ResponseWriter, r *http.Request) {
 	ck, err := r.Cookie(SessionCookie)
 	if err == nil {
@@ -509,5 +523,5 @@ func (a *App) signout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.setCookie(w, SessionCookie, "", -1)
-	a.gate(w, r, http.StatusOK, "signedOut", "good", "/")
+	http.Redirect(w, r, a.deps.SignOutURL, http.StatusSeeOther)
 }

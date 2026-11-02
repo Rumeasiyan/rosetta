@@ -47,24 +47,39 @@ const CallbackPath = "/signin/callback"
 // It must be https, except on the machine itself for local work.
 func PublicURL(getenv func(string) string) (string, error) {
 	public := strings.TrimRight(strings.TrimSpace(getenv("ROSETTA_PUBLIC_URL")), "/")
-	if public == "" {
-		return "", errors.New("ROSETTA_PUBLIC_URL is not set (see .env.example)")
+	return public, browserAddress("ROSETTA_PUBLIC_URL", public)
+}
+
+// SignOutURL reads ROSETTA_SIGNOUT_URL: MJOLNIR's own sign-out page, where the browser
+// goes once ROSETTA has revoked its token and ended its session (MJOLNIR's
+// docs/SESSION-INTERFACE.md, "Signing out, and client registration"). The same rule as
+// the public address holds, as a browser is sent there.
+func SignOutURL(getenv func(string) string) (string, error) {
+	address := strings.TrimSpace(getenv("ROSETTA_SIGNOUT_URL"))
+	return address, browserAddress("ROSETTA_SIGNOUT_URL", address)
+}
+
+// browserAddress checks an address a browser is given: https, except on the machine
+// itself for local work.
+func browserAddress(name, address string) error {
+	if address == "" {
+		return errors.New(name + " is not set (see .env.example)")
 	}
-	u, err := url.Parse(public)
+	u, err := url.Parse(address)
 	if err != nil || u.Host == "" {
-		return "", errors.New("ROSETTA_PUBLIC_URL is not an address")
+		return errors.New(name + " is not an address")
 	}
 	switch u.Scheme {
 	case "https":
 	case "http":
 		host := u.Hostname()
 		if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
-			return "", errors.New("ROSETTA_PUBLIC_URL must be https, except on this machine for local work")
+			return errors.New(name + " must be https, except on this machine for local work")
 		}
 	default:
-		return "", errors.New("ROSETTA_PUBLIC_URL must be https")
+		return errors.New(name + " must be https")
 	}
-	return public, nil
+	return nil
 }
 
 // FromEnv reads the sign-in settings. Pass os.Getenv.

@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,8 +118,10 @@ type Page struct {
 
 // Renderer holds the parsed screens.
 type Renderer struct {
-	pages  map[string]*template.Template
-	logger *slog.Logger
+	pages map[string]*template.Template
+	// signOutOrigins are added to form-action on a page holding the sign-out form.
+	signOutOrigins []string
+	logger         *slog.Logger
 }
 
 // NewRenderer parses every screen once, at start.
@@ -176,19 +180,46 @@ func (s *Renderer) Render(w http.ResponseWriter, r *http.Request, status int, na
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "no-store")
 	h.Set("Vary", "Cookie, Accept-Language")
-	SecurityHeaders(h)
+	// Only a page with the sign-out form on it may post anywhere but here.
+	if p.Viewer != nil {
+		SecurityHeaders(h, s.signOutOrigins...)
+	} else {
+		SecurityHeaders(h)
+	}
 	w.WriteHeader(status)
 	buf.WriteTo(w)
 }
 
 // SecurityHeaders are set on every screen: nothing loads from elsewhere, no inline
-// script or style, and no other site may frame ROSETTA. The sign-in's own form
-// action goes back to ROSETTA, and the browser is only ever redirected to MJOLNIR.
-func SecurityHeaders(h http.Header) {
-	h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+// script or style, and no other site may frame ROSETTA. Every form posts back to
+// ROSETTA, and forms go nowhere else: the origins given are added to form-action alone,
+// since Chrome also holds a redirect after a form's post to it. Sign-in is a link, not a
+// form, so it needs none of this.
+func SecurityHeaders(h http.Header, formOrigins ...string) {
+	action := "'self'"
+	if len(formOrigins) > 0 {
+		action += " " + strings.Join(formOrigins, " ")
+	}
+	h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action "+action+"; frame-ancestors 'none'; base-uri 'none'")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Frame-Options", "DENY")
+}
+
+// originsOf is the origin of each address, each once, in order. An address with no
+// origin is left out, so nothing but scheme and host can reach the header.
+func originsOf(addresses ...string) []string {
+	var out []string
+	for _, a := range addresses {
+		u, err := url.Parse(a)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			continue
+		}
+		if origin := u.Scheme + "://" + u.Host; !slices.Contains(out, origin) {
+			out = append(out, origin)
+		}
+	}
+	return out
 }
 
 // Language is the language for this request: the person's pick, else the
