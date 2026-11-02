@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The masking stand-in's form
+
+`⟦M1⟧`, `⟦M2⟧`: brackets no language here writes, the form BUMBLEBEE's stand-in already looked for, and room for the glossary's `⟦G1⟧` in E-GLO-04. Numbers are counted from one within a piece (`Slice`), so the same sentence with another number in it is the same piece for the cache, and a number the caller wrote as a stand-in is skipped. Restoring is strict: each stand-in exactly once, and any other of that shape the text did not hold is a change, so a source that repeats one fails with "masking lost" rather than guessing. What counts as a number is written in `internal/mask`: digits of any script, single spaces, hyphens or dots between them, a Sinhala or Tamil letter joined to the end does not stop it, a Latin letter does. Twelve digits are a card, ten beginning 0 and the `94` forms a phone. A reference in those shapes gets masked too, which does no harm. Whether the real sites keep `⟦M1⟧` is unverified until E-ENB-18.
+
 ## How the source list is read
 
 `internal/sources` Book reads the list on the in-process timer AGENTS C6 allows, twice within the `source_list_seconds` setting (R-PRV-01), so one failed read does not make it stale. A list older than the setting is never used to send anything, with no read on the way: while BUMBLEBEE is down a request fails at once (R-NFR-09) rather than waiting for it. The size is the list's `limits.max_text_chars`, then the last one known, and 5,000 code points only if it was never read, which sends nothing anyway since nothing is fresh. A source gone from the list stays in the table as `off`, since gate decisions and orders refer to it. The stand-in gains a second translation source, `standin-translate-b`, and a control param `source` that keeps a failure mode to one source, so fallback can be tested and walked.

@@ -50,7 +50,7 @@ var bbSources = []bbSource{
 
 var bbRequestID = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 
-// defaultMasking finds a masking stand-in, until E-MSK-01 fixes their form; the
+// defaultMasking finds a masking stand-in in the form internal/mask gives them; the
 // control's "match" replaces it.
 const defaultMasking = `⟦[^⟧]*⟧`
 
