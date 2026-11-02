@@ -1,6 +1,6 @@
 # ROSETTA backlog
 
-Source: `docs/ROSETTA-PRD.md` v1.3 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
+Source: `docs/ROSETTA-PRD.md` v1.4 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
 
 ## Definition of done (every story)
 
@@ -37,7 +37,7 @@ Source: `docs/ROSETTA-PRD.md` v1.3 (requirements, Annex A data model, Annex B ar
 |---|---|---|---|---|---|---|---|
 | 1 | [ ] | Solo | E-ENB-01 | Go service, Compose run, settings from one env file, `-healthcheck` | §5; B 6; R-NFR-14 | Must |  |
 | 2 | [ ] | Solo | E-ENB-02 | PostgreSQL behind PgBouncer; migrations for every table in Annex A | Annex A, A.1; §5; B 10 | Must | 1 |
-| 3 | [ ] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15; R-NFR-14 | Must | 1 |
+| 3 | [ ] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
 | 4 | [ ] | Solo | E-GRM-01 | Spike: the stock plug-in on a local Document Server, against a stand-in check | R-CAL-06, R-GRM-01; B 2, B 9 | Must | 1 |
 | 5 | [ ] | Solo | E-ADM-01 | Sign-in through MJOLNIR's stand-in, the person's record, ROSETTA's own session | R-ADM-01; §5; B 8 | Must | 2, 3 |
 | 6 | [ ] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |
@@ -49,12 +49,12 @@ Notes:
 
 - **E-ENB-01:** Listens on 8080; JSON logs to stderr; `-healthcheck` calls the service itself and exits 0 when ready. Memory, CPU and read-only root are set in the local Compose file too, so a breach shows early.
 - **E-ENB-02:** Roles and limits as STACK 4 gives them; migrations through the session-mode entry. The first month's usage partition comes with the migration; later ones with E-REC-03.
-- **E-ENB-03:** Each chosen by a setting, so Go live swaps settings, not code. The BUMBLEBEE stand-in answers as `docs/CALLERS.md` in its repository documents, `limits` included, and can be told to fail with each of the eight reasons, lose a masking stand-in, change a glossary term, answer slowly or stop answering. The TVA stand-in is a local file in the form of `docs/LOOKUP-FORMAT.md` in TVA's repository, with every status, `may_join` included, a null owner subject, and `post-holders.json`. CERBERUS's stand-in allows, refuses shortly, or does not answer. Only development uses stand-ins: no interim path for a provincial system not ready reaches production.
+- **E-ENB-03:** Each chosen by a setting, so Go live swaps settings, not code. The BUMBLEBEE stand-in answers as `docs/CALLERS.md` in its repository documents, `limits` included, and can be told to fail with each of the eight reasons, lose a masking stand-in, change a glossary term, answer slowly or stop answering. The TVA stand-in is a local file in the form of `docs/LOOKUP-FORMAT.md` in TVA's repository, with every status, `may_join` included, and a null owner subject. BIFROST's stand-in serves `scroll.staff-list` in format 1 (SCROLL's SC-LST-01), and can fail or be empty. CERBERUS's stand-in allows, refuses shortly, or does not answer. Only development uses stand-ins: no interim path for a provincial system not ready reaches production.
 - **E-GRM-01:** Goes first because R-CAL-06 rests on it. Document Server 8.2 Community in a local container, stock plug-in unchanged, local TLS with the editor at `writedocument.epc.test` and ROSETTA at `rosetta.epc.test`, so the two are same-site over HTTPS as on epc.lk. Watch the network panel and record in `docs/`: does it send credentials; is the session cookie sent with them; does it send text only on a Check click or also on a timer; does it send regional language codes; how it behaves on a short refusal, and whether the refusal needs CORS headers for it to be read. Send the refusal and timer findings to CERBERUS's session (K-CHK-03, K-SES-03). If credentials are not sent, stop and ask: R-CAL-06 changes.
 - **E-ADM-01:** Cookie host-only, Secure, HttpOnly, SameSite=Lax. Caddy removes MJOLNIR's own cookies before a request reaches ROSETTA (ALLSPARK decision on sign-in cookies), so ROSETTA relies only on its own. Renew and revoke as MJOLNIR's `docs/SESSION-INTERFACE.md` says, never on a timer. No second sign-in history: `last_seen_at` only.
 - **E-ADM-02:** The first administrator comes from a bootstrap setting that works only while no administrator exists. Each system has its own theme (STACK 2). No outside fonts or scripts.
 - **E-ENB-04:** Uses the module at `sign/v0.2.0`; the stand-in signs with a test key pair. Missed runs are PARADOX's to report (owners register): no monitor push per job.
-- **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from TVA's post-holder file (E-CAL-05). PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
+- **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from the staff list (E-CAL-05); the actor's post is blank locally until that story, as the stand-in allows. PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
 
 ## R2 Translation
 
@@ -134,7 +134,7 @@ Notes:
 | 41 | [ ] | Wave 10 | E-ADM-04 | Status screen | R-ADM-02, R-NFR-13 | Must | 38 |
 | 42 | [ ] | Wave 10 | E-ADM-05 | Send a test request from the screens | R-ADM-04 | Should | 38 |
 | 43 | [ ] | Wave 10 | E-CAL-04 | Publish how to call ROSETTA, with a working example | R-CAL-08, R-ADM-07, R-NFR-14 | Must | 38 |
-| 44 | [ ] | Wave 11 | E-CAL-05 | Daily flags and TVA refresh | R-CAL-02, R-CAL-05; s2; B 11 | Must | 39 |
+| 44 | [ ] | Wave 11 | E-CAL-05 | Daily flags, TVA refresh, staff list and role ends | R-CAL-02, R-CAL-05, R-ADM-06; s2; B 11, B 21 | Must | 39 |
 | 45 | [ ] | Wave 11 | E-ADM-06 | Alerts by email to the administrator and owners, from BUMBLEBEE's state | R-ADM-03; B 14 | Must | 41 |
 | 46 | [ ] | Wave 11 | E-GAT-02 | Run the shared test set against a source for the gate | R-GAT-01, R-NFR-14 | Must | 40 |
 | 47 | [ ] | Solo | E-NFR-01 | Capacity, speed and memory under load | R-NFR-01, R-NFR-02; §5 | Must | 44, 45, 46 |
@@ -148,7 +148,7 @@ Notes:
 - **E-REC-04:** An export is an audit entry (P-ING-02).
 - **E-ADM-05:** Invented text only; say so on the screen. Cites the same pipeline, so it is recorded as operation `test`.
 - **E-CAL-04:** `docs/CALLERS.md`, in the form BUMBLEBEE's has: every request, answer, reason and limit, with a copy-and-run Go example against the stand-ins. The EP website and SCOS Pro read this; neither gets its own shape.
-- **E-CAL-05:** A language with no keeper is flagged here too (s2). Also reads `post-holders.json` as `docs/LOOKUP-FORMAT.md` in TVA's repository gives it, and ends a role when its subject and `post_ref` are no longer listed together. A failed read ends nothing. TVA sleeps and cannot push, so this runs daily; expect up to a day's lag. Do not rely on this file for a person switched off (TVA #38): that is MJOLNIR's.
+- **E-CAL-05:** A language with no keeper is flagged here too (s2). Owners come from `systems.json` only. For granted roles it reads `scroll.staff-list` through BIFROST, matches `person.email` to the list's email without regard to case, and ends a role when that person no longer holds `post` at that office. A failed read ends nothing, and the last list read stays. This runs daily. A person switched off is MJOLNIR's, not this story's. A grant picks from the person's posts on the list; the bootstrap administrator's post is filled at the first read.
 - **E-ADM-06:** One alert when a state changes, not one per failed request. Only ROSETTA's own owners. Silence from audit is PENSIEVE's to flag, and not alerted here.
 - **E-GAT-02:** A command that takes a test set and a source and writes the score the gate records. Test text is invented or supplied by volunteers, never real letters.
 - **E-NFR-01:** Against stand-ins with their slow modes: inside 250 MB with `GOMEMLIMIT` 200 MiB at capacity; grammar's held suggestions counted. Check `docker stats`, since ROSETTA is one of the 6 systems awake.
@@ -164,15 +164,16 @@ Notes:
 | 54 | [ ] | With you | E-ENB-09 | First administrator; roles for glossary keepers and memory reviewers named by the Office | s2; R-ADM-06 | Must | 53 |
 | 55 | [ ] | With you | E-ENB-10 | CERBERUS connected: ROSETTA's parts marked, checks walked | B 9; R-ADM-01, R-NFR-10 | Must | 53 |
 | 56 | [ ] | With you | E-ENB-11 | TVA's lookup file read with ROSETTA's read-only key | B 11; R-CAL-01 | Must | 52 |
-| 57 | [ ] | With you | E-ENB-12 | PENSIEVE connected: entries reach the audit log | B 13; R-REC-02 | Must | 52 |
-| 58 | [ ] | With you | E-ENB-13 | HEDWIG connected: a test alert reaches the administrator | B 14; R-ADM-03 | Must | 52 |
-| 59 | [ ] | With you | E-ENB-14 | PARADOX schedules running | B 12; §5; R-REC-04 | Must | 52 |
-| 60 | [ ] | With you | E-ENB-15 | Uptime Kuma: address and container monitors; alert timed | B 18; R-NFR-07 | Must | 52 |
-| 61 | [ ] | With you | E-ENB-16 | PHOENIX backup of database `rosetta`; a restore tried | B 19; R-NFR-08 | Must | 51 |
-| 62 | [ ] | With you | E-ENB-17 | BUMBLEBEE connected through the link: key handed over, source list read | B 15, B 16, B 17; R-PRV-01, R-NFR-10 | Must | 52 |
-| 63 | [ ] | With you | E-ENB-18 | Directions opened at the gate on evaluations of the real sources | R-GAT-01, R-GRM-06; B 17 | Must | 62 |
-| 64 | [ ] | With you | E-ENB-19 | SCOS Pro registered as a caller, key handed over, first real translation | B 3; R-CAL-01, R-CAL-03, R-TRN-01 | Must | 54, 55, 56, 57, 58, 59, 60, 61, 63 |
-| 65 | [ ] | With you | E-ENB-20 | Plug-in installed on SCOS Pro's Document Server, pointed at ROSETTA; an officer checks a letter | B 2; R-CAL-06, R-GRM-01 | Must | 64 |
+| 57 | [ ] | With you | E-ENB-21 | BIFROST connected: ROSETTA's agreement in TVA, its key, the staff list read | B 21; R-ADM-06 | Must | 52 |
+| 58 | [ ] | With you | E-ENB-12 | PENSIEVE connected: entries reach the audit log | B 13; R-REC-02 | Must | 52, 57 |
+| 59 | [ ] | With you | E-ENB-13 | HEDWIG connected: a test alert reaches the administrator | B 14; R-ADM-03 | Must | 52 |
+| 60 | [ ] | With you | E-ENB-14 | PARADOX schedules running | B 12; §5; R-REC-04 | Must | 52 |
+| 61 | [ ] | With you | E-ENB-15 | Uptime Kuma: address and container monitors; alert timed | B 18; R-NFR-07 | Must | 52 |
+| 62 | [ ] | With you | E-ENB-16 | PHOENIX backup of database `rosetta`; a restore tried | B 19; R-NFR-08 | Must | 51 |
+| 63 | [ ] | With you | E-ENB-17 | BUMBLEBEE connected through the link: key handed over, source list read | B 15, B 16, B 17; R-PRV-01, R-NFR-10 | Must | 52 |
+| 64 | [ ] | With you | E-ENB-18 | Directions opened at the gate on evaluations of the real sources | R-GAT-01, R-GRM-06; B 17 | Must | 63 |
+| 65 | [ ] | With you | E-ENB-19 | SCOS Pro registered as a caller, key handed over, first real translation | B 3; R-CAL-01, R-CAL-03, R-TRN-01 | Must | 54, 55, 56, 58, 59, 60, 61, 62, 64 |
+| 66 | [ ] | With you | E-ENB-20 | Plug-in installed on SCOS Pro's Document Server, pointed at ROSETTA; an officer checks a letter | B 2; R-CAL-06, R-GRM-01 | Must | 65 |
 
 Notes:
 
@@ -180,6 +181,7 @@ Notes:
 - **E-ENB-07:** No Cloudflare Access on any screen (owners register).
 - **E-ENB-10:** The owning office's rule manager marks the parts, with a reason (K-SYS-05): the key-only translation and memory paths open; `OPTIONS` on the grammar paths open, `POST` checked; screens checked. Then repeat E-GRM-03's refusal test for real, and stop CERBERUS once to see grammar stop and the editor stay usable.
 - **E-ENB-11:** Through RUNBOOK's step for a reading key (B4), on ALLSPARK's side. The key goes in the server's env file, by the user, never in chat.
+- **E-ENB-21:** Each reader signs its own agreement in TVA; ROSETTA's names the staff list and these two purposes. Needs BIFROST and SCROLL's list there.
 - **E-ENB-12:** Needs PENSIEVE there (allspark#10): ROSETTA registered as a source, its key, and the path marked open by PENSIEVE's owner.
 - **E-ENB-13:** Needs HEDWIG there (allspark#25): ROSETTA a calling system with its own key, and one notice template per alert kind.
 - **E-ENB-14:** `apps/rosetta/schedules.yaml` with `wake: none`, and `apps/rosetta/paradox.pub`; `deploy.sh` loads a system only with both.

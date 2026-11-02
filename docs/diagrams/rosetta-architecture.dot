@@ -35,6 +35,7 @@ digraph rosetta_architecture {
     mjolnir     [label=<<B>MJOLNIR</B><BR/><FONT POINT-SIZE="9">sign-in</FONT>>];
     rosetta     [label=<<B>ROSETTA</B><BR/><FONT POINT-SIZE="9">Go, port 8080, never sleeps<BR/>max 250 MB, 1 CPU, read-only root<BR/>grammar results in memory only</FONT>>, color="#047857", penwidth=2];
     pensieve    [label=<<B>PENSIEVE</B><BR/><FONT POINT-SIZE="9">audit record</FONT>>];
+    bifrost     [label=<<B>BIFROST</B><BR/><FONT POINT-SIZE="9">SCROLL's staff list</FONT>>];
     hedwig      [label=<<B>HEDWIG</B><BR/><FONT POINT-SIZE="9">notifications</FONT>>];
     link        [label=<<B>BUMBLEBEE link container</B><BR/><FONT POINT-SIZE="9">platform's; alias bumblebee, port 8080<BR/>holds the Access service token only</FONT>>];
     pgbouncer   [label=<<B>PgBouncer</B><BR/><FONT POINT-SIZE="9">pool 5, migrations 1</FONT>>];
@@ -47,8 +48,8 @@ digraph rosetta_architecture {
     caddy -> kuma -> docker [style=invis];
     { rank=same; cerberus; rosetta; }
     cerberus -> rosetta [style=invis];
-    { rank=same; mjolnir; pgbouncer; seaweed; link; pensieve; hedwig; }
-    mjolnir -> pgbouncer -> seaweed -> link -> pensieve -> hedwig [style=invis];
+    { rank=same; mjolnir; pgbouncer; seaweed; bifrost; link; pensieve; hedwig; }
+    mjolnir -> pgbouncer -> seaweed -> bifrost -> link -> pensieve -> hedwig [style=invis];
     { rank=same; postgres; phoenix; }
   }
 
@@ -88,4 +89,5 @@ digraph rosetta_architecture {
   phoenix -> postgres        [label="19", style=dashed, constraint=false];
   phoenix -> offsite         [label="19", style=dashed];
   docker -> ghcr             [label="20", style=dashed];
+  rosetta -> bifrost         [label="21", style=dashed];
 }

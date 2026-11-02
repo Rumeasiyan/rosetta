@@ -71,7 +71,7 @@ ENTITIES = {
             ("language", f"{LANG}; glossary keeper and memory reviewer only"),
             (
                 "post_ref",
-                "text; post held at the grant, from TVA; the role ends when it is no longer held",
+                "text; post and office at grant, from SCROLL; role ends when no longer held",
             ),
             ("starts_at, ends_on", "time (UTC); date or empty for no end date"),
             ("ended_at, ended_by", "time (UTC); person; ending takes effect at once"),

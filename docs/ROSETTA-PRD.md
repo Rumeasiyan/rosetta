@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.3, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.4, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -38,7 +38,7 @@ Values marked "(default: ...)" are settings the Office can change.
 | Calling systems (the letter editor first) | Call ROSETTA with their key; never call BUMBLEBEE or a model directly. Each decides what it sends, marks its sensitivity, keeps its own approval record, and answers for what it issues |
 | Volunteers and maintainers | Research and test models that may become providers, and run the shared test set for the gate; run the shared server; never see real text |
 
-Every role is held by a personal account signed in through MJOLNIR, the provincial sign-in. A system owner's powers cover only their own systems. The glossary, memory, settings and records belong to the Office, never to a person or a calling system. TVA publishes who holds a post; when a person stops holding the post a role was granted on, ROSETTA ends that role (up to a day after the change takes effect, as TVA publishes it), and records keep the post held at the time. A calling system left without an owner, or a language left without a glossary keeper, is flagged to the administrator.
+Every role is held by a personal account signed in through MJOLNIR, the provincial sign-in. A system owner's powers cover only their own systems. The glossary, memory, settings and records belong to the Office, never to a person or a calling system. SCROLL's staff list says which post an officer holds; when a person stops holding the post a role was granted on, ROSETTA ends that role (R-ADM-06), and records keep the post held at the time. A calling system left without an owner, or a language left without a glossary keeper, is flagged to the administrator.
 
 ## 3. Functional requirements
 
@@ -157,7 +157,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system or language is flagged (R-CAL-02, R-CAL-05). A system owner gets the alerts about their own systems. |
 | R-ADM-04 | A system owner or the administrator can send a test request with invented text from the screens and see the full answer, including sources and fallback. |
 | R-ADM-05 | Every change to a setting, source order, gate or key is kept as history with who made it and when, and takes effect within 60 seconds with no change in any calling system. |
-| R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. |
+| R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. A role also ends when SCROLL's staff list, read daily through BIFROST under ROSETTA's own sharing agreement, no longer shows the person in the post it was granted on; a failed read ends nothing. |
 | R-ADM-07 | Changes to how systems call ROSETTA only add to what exists. A change that would break a caller runs beside the old way for at least 6 months (default: 6 months), and every system owner is told. |
 
 ## 4. Non-functional requirements
@@ -190,7 +190,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | Browser sources | BUMBLEBEE on its own machine, reached only through its Cloudflare tunnel from a link container on ep-shared-01 with an Access service token, plus ROSETTA's own key; synchronous calls within BUMBLEBEE's limits (R-PRV-04); BUMBLEBEE keeps no text |
 | Schedules | PARADOX, contract `sign/v0.2.0` (`apps/rosetta/schedules.yaml`, `paradox.pub`): nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed and checked |
 | Screens and sign-in | Go templates and htmx; MJOLNIR (OpenID Connect); CERBERUS checked by Caddy; ROSETTA's own roles. No Cloudflare Access on any screen |
-| Links to other services | TVA's published register file read from SeaweedFS with a read-only key; PENSIEVE for audit entries; HEDWIG for alert email |
+| Links to other services | TVA's published register file read from SeaweedFS with a read-only key; SCROLL's staff list (`scroll.staff-list`) through BIFROST, under ROSETTA's own agreement in TVA; PENSIEVE for audit entries; HEDWIG for alert email |
 | Operations | Uptime Kuma on `/__up` and a container monitor; one env file for secrets on the server, `.example` only in the repository; PHOENIX nightly backup of the database; Docker Compose with a stand-in BUMBLEBEE for development; GitHub Actions builds tagged images to GHCR; `deploy.sh` |
 
 <div class="a3">
@@ -205,7 +205,7 @@ Boxes show each entity's keys; the other fields are in A.2. Lines point from a t
 
 ### A.1 Storage and loss
 
-Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. Posts and their holders are TVA's: a role records the post it was granted on, and an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
+Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. A role and an audit entry record the post from SCROLL's staff list; an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
 
 ### A.2 Data dictionary
 
@@ -215,7 +215,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | Entity | Fields |
 |---|---|
 | `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; `name, email`: text, as MJOLNIR sent them at the last sign-in; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC) |
-| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post held at the grant, from TVA; the role ends when it is no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
+| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post and office at grant, from SCROLL; role ends when no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
 | `setting` | `value`: text; every "(default: ...)" value in the PRD; `updated_at`: time (UTC); takes effect within 60 seconds (R-ADM-05) |
 | `change_history` | `subject`: setting, source order or source switch (R-ADM-05); `subject_ref`: text; the setting name, or the operation and direction; `old_value, new_value`: text; never text sent by a caller; `changed_at`: time (UTC) |
 | `paradox_run` | `job`: nightly totals and removals, monthly record parts, daily flags, TVA refresh or audit catch-up; `started_at, finished_at`: time (UTC); a run_id already here is skipped; `kept`: 90 days |
@@ -269,7 +269,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 
 Numbers on the diagram match the table below. Red links carry text on its way to outside websites; dashed links are periodic, occasional or later. ROSETTA never sleeps, so no link waits for it to wake.
 
-<img src="diagrams/rosetta-architecture.svg" alt="ROSETTA technical architecture: browsers, the officers' letter editor and the SCOS Pro server reach the shared server through Cloudflare and the tunnel; Caddy fronts ROSETTA, which uses MJOLNIR, PgBouncer and PostgreSQL, TVA's lookup file in SeaweedFS, PENSIEVE and HEDWIG; PARADOX calls ROSETTA; ROSETTA reaches BUMBLEBEE on its own machine through the platform's link container, and BUMBLEBEE reaches the source websites; PHOENIX carries the database to its off-site copy.">
+<img src="diagrams/rosetta-architecture.svg" alt="ROSETTA technical architecture: browsers, the officers' letter editor and the SCOS Pro server reach the shared server through Cloudflare and the tunnel; Caddy fronts ROSETTA, which uses MJOLNIR, PgBouncer and PostgreSQL, TVA's lookup file in SeaweedFS, BIFROST, PENSIEVE and HEDWIG; PARADOX calls ROSETTA; ROSETTA reaches BUMBLEBEE on its own machine through the platform's link container, and BUMBLEBEE reaches the source websites; PHOENIX carries the database to its off-site copy.">
 
 | # | From and to | What flows | Protocol and port |
 |---|---|---|---|
@@ -283,7 +283,7 @@ Numbers on the diagram match the table below. Red links carry text on its way to
 | 8 | ROSETTA to MJOLNIR | Sign-in: the browser is sent to MJOLNIR and back; ROSETTA exchanges the code for the person's identity and sets its own session | OpenID Connect over HTTP, platform network |
 | 9 | Caddy to CERBERUS | The policy check on each request, marked in CERBERUS by ROSETTA's owning office with a reason (K-SYS-05): the key-only translation and memory paths are open; the grammar paths are checked as a person's request, with only their preflight (`OPTIONS`) open; screens are checked. While CERBERUS is down, grammar checks stop and the editor stays usable | HTTP (`forward_auth`), platform network |
 | 10 | ROSETTA to PgBouncer, and PgBouncer to PostgreSQL | Glossary, memory, cache, settings and records in database `rosetta` (Annex A); never grammar text; at most 5 connections, 1 more for migrations | PostgreSQL protocol, 6432 then 5432 |
-| 11 | ROSETTA to SeaweedFS | TVA's published files (systems, owners and post holders), with ROSETTA's read-only key; when a system is registered (R-CAL-01) and in the daily refresh (R-CAL-02, R-CAL-05); never wakes TVA | S3 API, HTTP 8333 |
+| 11 | ROSETTA to SeaweedFS | TVA's published systems file (status and owner), with ROSETTA's read-only key; when a system is registered (R-CAL-01) and in the daily refresh (R-CAL-02, R-CAL-05); never wakes TVA | S3 API, HTTP 8333 |
 | 12 | PARADOX to ROSETTA | Nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed, and a run already done is skipped | HTTP `POST` to port 8080, contract `sign/v0.2.0` (Ed25519, RFC 9421), platform network |
 | 13 | ROSETTA to PENSIEVE | Audit entries without text (R-REC-02), with ROSETTA's PENSIEVE key; held in the outbox up to 30 days while PENSIEVE is out of reach | HTTP through Caddy on the platform network; straight after each change and from the outbox |
 | 14 | ROSETTA to HEDWIG, and HEDWIG to its email service | Alerts to the administrator and system owners (R-ADM-03), with ROSETTA's HEDWIG key | HTTP through Caddy on the platform network; then SMTP; only when an alert is due |
@@ -293,5 +293,6 @@ Numbers on the diagram match the table below. Red links carry text on its way to
 | 18 | Uptime Kuma to Caddy | `/__up`, which Caddy answers itself, and whether ROSETTA's container is running; alerts within 5 minutes without depending on ROSETTA or HEDWIG (R-NFR-07) | HTTP and the Docker API, periodic |
 | 19 | PHOENIX to PostgreSQL, and to its off-site copy | Nightly backup of database `rosetta` and its change logs (R-NFR-08). The cache may be empty after a restore from change logs (Annex A.1) | PostgreSQL protocol, nightly, change logs every 15 minutes; encrypted copy off the server |
 | 20 | Docker host to ghcr.io | Pulls ROSETTA's image at a version tag; GitHub Actions built it when the tag was pushed | HTTPS 443, outbound, at deploy only |
+| 21 | ROSETTA to BIFROST | Reads SCROLL's staff list, under ROSETTA's own sharing agreement, in the daily refresh (R-ADM-06) and for the post on audit entries; never reaches SCROLL | HTTP, Caddy's inside-only port, ROSETTA's own key |
 
 </div>
