@@ -2,8 +2,6 @@ package sources
 
 import (
 	"context"
-	"errors"
-	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 )
@@ -27,40 +25,26 @@ type GrammarResult struct {
 	Fallback    bool // a source earlier in the order was resting or failed
 }
 
-// Grammar sends the piece to the first grammar source in order that can be called. Grammar
-// has no gate, and its text is taken as personal: it may go to a source once masked, and
-// nothing of it stays (R-MSK-01, R-GRM-05). Its error is as Translate's.
+// Grammar sends the piece to the first grammar source that can take it, in the order of their
+// English benchmark score unless the administrator set another (R-GRM-06), with the same
+// fallback as translation (R-PRV-03). Grammar has no gate, and its text is taken as personal: it
+// may go to a source once masked, and nothing of it stays (R-MSK-01, R-GRM-05). Its error is
+// as attempt's. An empty list is an answer, not a failure.
 func (f *Fallback) Grammar(ctx context.Context, p GrammarPiece) (GrammarResult, error) {
-	snap := f.Book.Snapshot(ctx)
-	if !snap.Fresh || f.Grammars == nil {
+	if f.Grammars == nil {
 		return GrammarResult{}, &Exhausted{}
 	}
-	now := f.now()
-	for _, s := range f.Policy(ctx).Candidates(snap.List, Grammar, Personal) {
-		if !s.Usable(now) {
-			continue
-		}
-		if left, limited := timeLeft(ctx, now); limited && left < leastTime {
-			return GrammarResult{}, ErrTooLate
-		}
+	var found []bumblebee.Suggestion
+	a, err := f.attempt(ctx, Grammar, Personal, p.Ref, p.Text, func(ctx context.Context, s bumblebee.Source) (string, error) {
 		ans, err := f.Grammars.Grammar(ctx, bumblebee.GrammarRequest{RequestID: p.Ref, Source: s.Name, Text: p.Text})
-		var failed *bumblebee.Failure
-		switch {
-		case err == nil:
-			version := ans.Version
-			if version == "" {
-				version = s.Version
-			}
-			return GrammarResult{Suggestions: ans.Suggestions, Source: s.Name, Version: version}, nil
-		case !errors.As(err, &failed):
-			return GrammarResult{}, err
-		case failed.Reason == bumblebee.ReasonTooLong:
-			f.Book.Refresh(ctx)
-			if limit := f.Book.MaxText(); utf8.RuneCountInString(p.Text) > limit {
-				return GrammarResult{}, &TooLong{Limit: limit}
-			}
+		if err != nil {
+			return "", err
 		}
-		break
+		found = ans.Suggestions
+		return ans.Version, nil
+	})
+	if err != nil {
+		return GrammarResult{}, err
 	}
-	return GrammarResult{}, &Exhausted{}
+	return GrammarResult{Suggestions: found, Source: a.source, Version: a.version, Fallback: a.fallback}, nil
 }

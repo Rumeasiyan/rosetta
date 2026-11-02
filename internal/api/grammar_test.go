@@ -23,7 +23,7 @@ import (
 )
 
 // withChecks gives the bench the whole check against BUMBLEBEE's stand-in.
-func withChecks(t *testing.T, b *bench) *standin.Server {
+func withChecks(t *testing.T, b *bench) string {
 	t.Helper()
 	sd := standin.New(standin.Options{ClientID: "rosetta", ClientSecret: "x"})
 	ts := httptest.NewServer(sd.Handler())
@@ -37,7 +37,7 @@ func withChecks(t *testing.T, b *bench) *standin.Server {
 		Sources:  &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: func(context.Context) sources.Policy { return sources.Policy{} }},
 		Settings: func(context.Context) settings.Values { return settings.Defaults() },
 	}
-	return sd
+	return ts.URL
 }
 
 // form is the check as the plug-in sends it (docs/plugin-findings.md).
@@ -462,4 +462,39 @@ func TestNoListListsNobody(t *testing.T) {
 		t.Fatalf("%d", rec.Code)
 	}
 	wantNoCORS(t, "no list", rec)
+}
+
+// ---- sources (R-GRM-06) --------------------------------------------------------
+
+// Through the stand-in: the best score answers, and on its failure the next does, and the
+// answer says so.
+func TestAnAnswerSaysFallback(t *testing.T) {
+	b := newBench(t)
+	standinURL := withChecks(t, b)
+	rec := b.send(checkRequest("rst_here", form("We recieve one.", "en")))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"fallback_used":false`) || !strings.Contains(rec.Body.String(), `"source":"standin-grammar"`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	mode := func(body string) {
+		t.Helper()
+		res, err := http.Post(standinURL+"/control/bumblebee/mode", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode >= 300 {
+			t.Fatal(res.StatusCode)
+		}
+	}
+	mode(`{"mode":"unavailable","params":{"source":"standin-grammar"}}`)
+	rec = b.send(checkRequest("rst_here", form("We recieve two.", "en")))
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"fallback_used":true`) || !strings.Contains(rec.Body.String(), `"source":"standin-grammar-b"`) || !strings.Contains(rec.Body.String(), `"offset":3`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	// With every source failing, one reason and no text.
+	mode(`{"mode":"unavailable"}`)
+	rec = b.send(checkRequest("rst_here", form(marker+" three.", "en")))
+	if rec.Code != 503 || reasonOf(t, rec) != "no provider" || strings.Contains(rec.Body.String(), marker) || strings.Contains(b.logs.String(), marker) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
 }

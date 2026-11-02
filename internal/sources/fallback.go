@@ -164,17 +164,28 @@ func timeLeft(ctx context.Context, now time.Time) (time.Duration, bool) {
 	return d.Sub(now), true
 }
 
-// Translate sends the piece to the first source in order that can take it. Its error
-// is an *Exhausted, a *TooLong, ErrTooLate, or ctx's own. While the list is older than
-// its limit nothing is sent at all, so every such request fails at once (R-NFR-09).
-func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
+// attempted is the source that answered.
+type attempted struct {
+	source, version string
+	fallback        bool // a source earlier in the order was resting or failed
+}
+
+// sourceCall is one call to one source, giving the version it answered with. A translation
+// and a grammar check differ only here.
+type sourceCall func(ctx context.Context, s bumblebee.Source) (string, error)
+
+// attempt tries the sources for this work in order, until one answers. Its error is an
+// *Exhausted, a *TooLong, ErrTooLate, or ctx's own. While the list is older than its limit
+// nothing is sent at all, so every such request fails at once (R-NFR-09). text is only
+// measured, on "too long".
+func (f *Fallback) attempt(ctx context.Context, d Direction, sensitivity, ref, text string, call sourceCall) (attempted, error) {
 	snap := f.Book.Snapshot(ctx)
 	if !snap.Fresh {
-		return Result{}, &Exhausted{}
+		return attempted{}, &Exhausted{}
 	}
 	var back time.Time
 	passed := false // a source earlier in the order did not answer
-	for _, s := range f.Policy(ctx).Candidates(snap.List, Translate(p.From, p.To), p.Sensitivity) {
+	for _, s := range f.Policy(ctx).Candidates(snap.List, d, sensitivity) {
 		now := f.now()
 		if !s.Usable(now) {
 			passed = true
@@ -189,28 +200,24 @@ func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
 			continue
 		}
 		if left, limited := timeLeft(ctx, now); limited && left < leastTime {
-			return Result{}, ErrTooLate
+			return attempted{}, ErrTooLate
 		}
-		ans, err := f.call(ctx, s, p)
+		version, err := f.call(ctx, s, call)
 		var failed *bumblebee.Failure
 		if errors.As(err, &failed) && failed.Reason == bumblebee.ReasonBusy {
-			ans, err = f.onceMore(ctx, s, p, failed)
-		}
-		if err == nil && !acceptable(ans.Text, p.Text) {
-			err = &bumblebee.Failure{Reason: bumblebee.ReasonUnavailable}
+			version, err = f.onceMore(ctx, s, call, failed)
 		}
 		if err == nil {
-			version := ans.Version
 			if version == "" {
 				version = s.Version
 			}
-			return Result{Text: ans.Text, Source: s.Name, Version: version, Fallback: passed}, nil
+			return attempted{source: s.Name, version: version, fallback: passed}, nil
 		}
 		if !errors.As(err, &failed) {
-			return Result{}, err // the request's own time ran out, or it was given up
+			return attempted{}, err // the request's own time ran out, or it was given up
 		}
 		passed = true
-		f.log().Warn("a source call failed", "request_ref", p.Ref, "source", s.Name, "reason", failed.Reason)
+		f.log().Warn("a source call failed", "request_ref", ref, "source", s.Name, "reason", failed.Reason)
 		switch failed.Reason {
 		case bumblebee.ReasonBusy, bumblebee.ReasonBlocked, bumblebee.ReasonChanged:
 			// Not before retry_at, by this request or any other (R-PRV-05).
@@ -222,12 +229,33 @@ func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
 			// It counts as a failure only if the list, read again, does not call for
 			// splitting it further (R-PRV-04).
 			f.Book.Refresh(ctx)
-			if limit := f.Book.MaxText(); utf8.RuneCountInString(p.Text) > limit {
-				return Result{}, &TooLong{Limit: limit}
+			if limit := f.Book.MaxText(); utf8.RuneCountInString(text) > limit {
+				return attempted{}, &TooLong{Limit: limit}
 			}
 		}
 	}
-	return Result{}, &Exhausted{RetryAt: back}
+	return attempted{}, &Exhausted{RetryAt: back}
+}
+
+// Translate sends the piece to the first source in order that can take it. Its error is as
+// attempt's.
+func (f *Fallback) Translate(ctx context.Context, p Piece) (Result, error) {
+	var answer string
+	a, err := f.attempt(ctx, Translate(p.From, p.To), p.Sensitivity, p.Ref, p.Text, func(ctx context.Context, s bumblebee.Source) (string, error) {
+		ans, err := f.Provider.Translate(ctx, bumblebee.Request{RequestID: p.Ref, Source: s.Name, From: p.From, To: p.To, Text: p.Text})
+		if err != nil {
+			return "", err
+		}
+		if !acceptable(ans.Text, p.Text) {
+			return "", &bumblebee.Failure{Reason: bumblebee.ReasonUnavailable}
+		}
+		answer = ans.Text
+		return ans.Version, nil
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{Text: answer, Source: a.source, Version: a.version, Fallback: a.fallback}, nil
 }
 
 // MaxText is the size to split to.
@@ -251,33 +279,33 @@ func acceptable(answer, sent string) bool {
 	return !strings.ContainsFunc(standIn.ReplaceAllString(sent, ""), unicode.IsLetter)
 }
 
-// call is one source call, inside the wait CALLERS.md gives. The wait running out with
-// the request's own time left is that source not answering.
-func (f *Fallback) call(ctx context.Context, s bumblebee.Source, p Piece) (bumblebee.Answer, error) {
+// call is one source call, inside the wait CALLERS.md gives. The wait running out with the
+// request's own time left is that source not answering.
+func (f *Fallback) call(ctx context.Context, s bumblebee.Source, call sourceCall) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, callWait)
 	defer cancel()
-	ans, err := f.Provider.Translate(cctx, bumblebee.Request{RequestID: p.Ref, Source: s.Name, From: p.From, To: p.To, Text: p.Text})
+	version, err := call(cctx, s)
 	if err != nil && ctx.Err() == nil && cctx.Err() != nil {
-		return ans, &bumblebee.Failure{Reason: bumblebee.ReasonTimeout}
+		return version, &bumblebee.Failure{Reason: bumblebee.ReasonTimeout}
 	}
-	return ans, err
+	return version, err
 }
 
-// onceMore waits as a busy source asked and tries it once more, when the wait is
-// shorter than the time left (R-PRV-03). Otherwise, or if it fails again, the failure
-// stands and the caller moves on.
-func (f *Fallback) onceMore(ctx context.Context, s bumblebee.Source, p Piece, busy *bumblebee.Failure) (bumblebee.Answer, error) {
+// onceMore waits as a busy source asked and tries it once more, when the wait is shorter than
+// the time left (R-PRV-03). Otherwise, or if it fails again, the failure stands and the caller
+// moves on.
+func (f *Fallback) onceMore(ctx context.Context, s bumblebee.Source, call sourceCall, busy *bumblebee.Failure) (string, error) {
 	if busy.RetryAt == nil {
-		return bumblebee.Answer{}, busy
+		return "", busy
 	}
 	now := f.now()
 	wait := max(busy.RetryAt.Sub(now), 0)
 	if left, limited := timeLeft(ctx, now); limited && wait+leastTime > left {
-		return bumblebee.Answer{}, busy
+		return "", busy
 	}
 	f.hold(s.Name, busy.RetryAt) // others do not call it while this one waits
 	if err := f.sleep(ctx, wait); err != nil {
-		return bumblebee.Answer{}, err
+		return "", err
 	}
-	return f.call(ctx, s, p)
+	return f.call(ctx, s, call)
 }
