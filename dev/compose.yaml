@@ -1,0 +1,78 @@
+# Local stack for development and tests. Not a deployment: passwords and ports
+# here are throwaway values for this machine only.
+#
+#   docker compose -f dev/compose.yaml up -d postgres pgbouncer
+#   export ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rosetta
+#   go test ./...
+#   docker compose -f dev/compose.yaml down
+#
+# The whole service, with one command:
+#
+#   dev/keys.sh && docker compose -f dev/compose.yaml up -d --build
+#
+# Start only what you need: the machine runs many stacks at once.
+name: rosetta-dev
+
+services:
+  postgres:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d rosetta"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.26.1-p0
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    mem_limit: 32m
+    ports:
+      - "127.0.0.1:53432:5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    build: ..
+    command: ["migrate"]
+    environment:
+      MIGRATE_DATABASE_URL: postgres://rosetta:rosetta@pgbouncer:5432/rosetta_session
+    read_only: true
+    depends_on:
+      - pgbouncer
+    restart: on-failure
+
+  rosetta:
+    build: ..
+    # PARADOX_PUBLIC_KEY for the PARADOX stand-in; make it with dev/keys.sh.
+    env_file:
+      - ./keys/paradox.env
+    environment:
+      DATABASE_URL: postgres://rosetta:rosetta@pgbouncer:5432/rosetta
+      GOMEMLIMIT: 200MiB
+    mem_limit: 250m
+    cpus: 1
+    read_only: true
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:53080:8080"
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 2s
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
