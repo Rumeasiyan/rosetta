@@ -159,7 +159,7 @@ func TestPensieveDownKeepsEntriesAndTheyGoLater(t *testing.T) {
 	if n := w.run(); n != 0 || w.waiting() != 1 {
 		t.Fatalf("%d %d", n, w.waiting())
 	}
-	w.pool.Exec(context.Background(), `UPDATE audit_outbox SET next_try_at = now()`)
+	w.pool.Exec(context.Background(), `UPDATE audit_outbox SET next_try_at = now() - interval '1 minute'`)
 	if n := w.run(); n != 1 || w.waiting() != 0 {
 		t.Fatalf("%d %d", n, w.waiting())
 	}
