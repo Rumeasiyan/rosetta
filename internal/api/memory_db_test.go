@@ -272,10 +272,11 @@ func TestTheOrderWithTheRealTables(t *testing.T) {
 		t.Fatalf("%v", again)
 	}
 	// A term in a memory piece is as the person wrote it, and served as a whole. A whole term goes first.
+	// Approved after the term was published, so nothing marks it for recheck (R-GLO-06).
+	w.publish("post", "Chief Secretary", "ප්‍රධාන ලේකම්", "பிரதம செயலாளர்")
 	if code, out := w.remember(approved(pair{"source": "Chief Secretary", "approved": "ஒரு நபரின் சொல்"}, pair{"source": "The Chief Secretary wrote.", "approved": "செயலாளர் எழுதினார்."})); code != 200 {
 		t.Fatalf("%d %v", code, out)
 	}
-	w.publish("post", "Chief Secretary", "ප්‍රධාන ලේකම්", "பிரதம செயலாளர்")
 	_, whole := w.translate("ordinary", "Chief Secretary", "The Chief Secretary wrote.")
 	if p := passageOf(whole, 0); p["text"] != "பிரதம செயலாளர்" || origins(p)["glossary"] != float64(1) {
 		t.Fatalf("%v", p)
