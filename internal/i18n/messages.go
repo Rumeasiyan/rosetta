@@ -152,6 +152,8 @@ var messages = map[string]text{
 	"grammarNotListed":    {"This address may not call the grammar check. Ask the system's owner.", "මෙම ලිපිනයට ව්‍යාකරණ පරීක්ෂාව ඇමතිය නොහැක. පද්ධතියේ හිමිකරුගෙන් විමසන්න.", "இந்த முகவரி இலக்கணச் சரிபார்ப்பை அழைக்க முடியாது. முறைமையின் உரிமையாளரைக் கேளுங்கள்."},
 	"grammarNoProvider":   {"No grammar checker is available just now. Please try again later.", "දැනට ව්‍යාකරණ පරීක්ෂකයක් නොමැත. පසුව නැවත උත්සාහ කරන්න.", "இப்போது இலக்கணச் சரிபார்ப்பி எதுவும் கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்."},
 	"grammarTimedOut":     {"The check took too long and was stopped. It is safe to try again.", "පරීක්ෂාවට වැඩි කාලයක් ගත වූ බැවින් නවත්වන ලදී. නැවත උත්සාහ කිරීම ආරක්ෂිතයි.", "சரிபார்ப்புக்கு அதிக நேரம் ஆனதால் நிறுத்தப்பட்டது. மீண்டும் முயற்சிப்பது பாதுகாப்பானது."},
+	"settingGrammarHold":  {"How long the suggestions for an identical text are held in memory", "එකම පාඨයක යෝජනා මතකයේ තබා ගන්නා කාලය", "ஒரே உரைக்கான பரிந்துரைகள் நினைவகத்தில் வைக்கப்படும் நேரம்"},
+	"unitMinutes":         {"minutes", "මිනිත්තු", "நிமிடங்கள்"},
 	"settingGrammarChars": {"Longest text for one grammar check", "එක් ව්‍යාකරණ පරීක්ෂාවක් සඳහා දිගම පාඨය", "ஒரு இலக்கணச் சரிபார்ப்புக்கான மிக நீண்ட உரை"},
 	"unitChars":           {"characters", "අකුරු", "எழுத்துகள்"},
 	"settingSourceList":   {"Oldest BUMBLEBEE's source list may be", "BUMBLEBEE මූලාශ්‍ර ලැයිස්තුවට තිබිය හැකි උපරිම වයස", "BUMBLEBEE மூலப் பட்டியலின் அதிகபட்ச வயது"},

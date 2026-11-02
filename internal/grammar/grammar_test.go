@@ -2,7 +2,14 @@ package grammar
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"go/parser"
+	"go/token"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf16"
@@ -466,4 +473,204 @@ func FuzzPlacedSuggestionsMarkTheSameWord(f *testing.F) {
 			}
 		}
 	})
+}
+
+// ---- held suggestions (R-GRM-05) ------------------------------------------------
+
+func TestAnIdenticalTextIsAnsweredFromMemory(t *testing.T) {
+	now := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	f := &fake{}
+	s := service(f)
+	s.Held = &Held{Now: func() time.Time { return now }}
+	check := func(text string) Answer {
+		t.Helper()
+		a, fail := s.Check(context.Background(), Request{Language: "en", Text: text})
+		if fail != nil {
+			t.Fatal(fail)
+		}
+		return a
+	}
+	const text = "We recieve letters."
+	first := check(text)
+	if again := check(text); len(f.sent) != 1 || len(again.Suggestions) != 1 || again.Suggestions[0].Offset != first.Suggestions[0].Offset {
+		t.Fatalf("%d calls: %+v", len(f.sent), again)
+	}
+	check(text + " ")
+	if len(f.sent) != 2 {
+		t.Fatal("another text is another check")
+	}
+	// Ten minutes by default, and then forgotten.
+	now = now.Add(10*time.Minute - time.Second)
+	check(text)
+	if len(f.sent) != 2 {
+		t.Fatal("too early")
+	}
+	now = now.Add(time.Second)
+	check(text)
+	if len(f.sent) != 3 {
+		t.Fatal("kept too long")
+	}
+	// The setting moves it.
+	v := settings.Defaults()
+	v[settings.GrammarHoldMinutes.Name] = 1
+	s.Settings = func(context.Context) settings.Values { return v }
+	now = now.Add(time.Minute)
+	check(text)
+	if len(f.sent) != 4 {
+		t.Fatal("the setting was not read")
+	}
+	// A new process has none of it.
+	s.Held = &Held{Now: func() time.Time { return now }}
+	check(text)
+	if len(f.sent) != 5 {
+		t.Fatal("it outlived a restart")
+	}
+}
+
+func TestAFailureIsNotHeld(t *testing.T) {
+	calls := 0
+	f := &fake{answer: func(text string) ([]bumblebee.Suggestion, error) {
+		calls++
+		if calls == 1 {
+			return nil, &sources.Exhausted{}
+		}
+		return find(text, "recieve"), nil
+	}}
+	s := service(f)
+	s.Held = &Held{}
+	if _, fail := s.Check(context.Background(), Request{Language: "en", Text: "We recieve."}); fail == nil {
+		t.Fatal("no failure")
+	}
+	if s.Held.Len() != 0 {
+		t.Fatal("a failure was held")
+	}
+	if a, fail := s.Check(context.Background(), Request{Language: "en", Text: "We recieve."}); fail != nil || len(a.Suggestions) != 1 {
+		t.Fatalf("%+v %v", a, fail)
+	}
+	if s.Held.Len() != 1 {
+		t.Fatal(s.Held.Len())
+	}
+}
+
+// Nothing of the text is in what is held.
+func TestHeldHoldsNoText(t *testing.T) {
+	f := &fake{answer: func(string) ([]bumblebee.Suggestion, error) {
+		return []bumblebee.Suggestion{{Start: 0, Length: 4, Message: "A fixed message", Replacements: []string{"Other"}, Category: "style"}}, nil
+	}}
+	s := service(f)
+	s.Held = &Held{}
+	text := "Some " + marker + " 0771234567 words."
+	if _, fail := s.Check(context.Background(), Request{Language: "en", Text: text}); fail != nil {
+		t.Fatal(fail)
+	}
+	sum := sha256.Sum256([]byte(text))
+	dump := fmt.Sprintf("%+v %x", s.Held.byKey, s.Held.order.Front().Value.(*heldEntry).key)
+	dump += fmt.Sprintf("%+v", s.Held.order.Front().Value.(*heldEntry).answer)
+	for _, part := range []string{marker, "0771234567", "Some", "words", hex.EncodeToString(sum[:])} {
+		if strings.Contains(dump, part) {
+			t.Fatalf("%q is in what is held: %s", part, dump)
+		}
+	}
+	// And the salt keeps one process's key from meaning anything in another.
+	other := &Held{}
+	other.start()
+	if other.key(text) == s.Held.key(text) {
+		t.Fatal("the same key in two processes")
+	}
+}
+
+func TestHeldStaysUnderItsCap(t *testing.T) {
+	big := Answer{Suggestions: []Suggestion{{Message: strings.Repeat("m", 300)}}}
+	one := sizeOf(big)
+	h := &Held{Max: one * 3}
+	for i := range 10 {
+		h.Put(fmt.Sprint("text ", i), big)
+		if h.size > h.Max {
+			t.Fatalf("%d over %d", h.size, h.Max)
+		}
+	}
+	if h.Len() != 3 {
+		t.Fatal(h.Len())
+	}
+	if _, ok := h.Get("text 0", time.Hour); ok {
+		t.Fatal("the oldest goes first")
+	}
+	if _, ok := h.Get("text 9", time.Hour); !ok {
+		t.Fatal("the newest stays")
+	}
+	h.Put("text 9", big)
+	if h.Len() != 3 || h.size != one*3 {
+		t.Fatal("the same text counts once")
+	}
+	// Too big to hold at all is simply not held, and takes nothing with it.
+	h.Put("huge", Answer{Suggestions: []Suggestion{{Message: strings.Repeat("m", one*4)}}})
+	if _, ok := h.Get("huge", time.Hour); ok || h.Len() != 3 {
+		t.Fatal(h.Len())
+	}
+}
+
+func TestSweepForgetsWithNobodyAsking(t *testing.T) {
+	now := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	h := &Held{Now: func() time.Time { return now }}
+	h.Put("older", Answer{})
+	now = now.Add(5 * time.Minute)
+	h.Put("newer", Answer{})
+	now = now.Add(5 * time.Minute)
+	h.SweepWith(context.Background(), func(context.Context) settings.Values { return settings.Defaults() })
+	if h.Len() != 1 {
+		t.Fatal(h.Len())
+	}
+	if _, ok := h.Get("newer", time.Hour); !ok {
+		t.Fatal("swept too soon")
+	}
+	now = now.Add(5 * time.Minute)
+	h.Sweep(10 * time.Minute)
+	if h.Len() != 0 || h.size != 0 {
+		t.Fatal(h.Len(), h.size)
+	}
+}
+
+func TestHeldUnderManyHands(t *testing.T) {
+	h := &Held{Max: 4096}
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Go(func() {
+			for j := range 200 {
+				k := fmt.Sprint(i, j%20)
+				h.Put(k, Answer{})
+				h.Get(k, time.Hour)
+				if j%50 == 0 {
+					h.Sweep(time.Hour)
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if h.size > h.Max {
+		t.Fatal(h.size)
+	}
+}
+
+// R-GRM-05 says never to disk or a record. The package that holds the text cannot do either:
+// it imports nothing that could.
+func TestThisPackageCannotWriteAnywhere(t *testing.T) {
+	files, err := filepath.Glob("*.go")
+	if err != nil || len(files) == 0 {
+		t.Fatal(files, err)
+	}
+	for _, name := range files {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), name, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, imp := range f.Imports {
+			path := strings.Trim(imp.Path.Value, `"`)
+			if path == "os" || path == "io/ioutil" || path == "database/sql" || strings.Contains(path, "pgx") || strings.Contains(path, "internal/audit") {
+				t.Errorf("%s imports %s", name, path)
+			}
+		}
+	}
 }

@@ -112,3 +112,21 @@ func TestStoredState(t *testing.T) {
 		}
 	}
 }
+
+// The timer's pass ticks whether the list could be read or not, so what hangs off it does not
+// stop while BUMBLEBEE is down.
+func TestRunTicksEachPass(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ticks := make(chan struct{}, 10)
+	book := &Book{
+		Read:   func(context.Context) (bumblebee.List, error) { return bumblebee.List{}, errors.New("down") },
+		MaxAge: func(context.Context) time.Duration { return time.Millisecond },
+		Tick:   func(context.Context) { ticks <- struct{}{} },
+	}
+	done := make(chan struct{})
+	go func() { book.Run(ctx); close(done) }()
+	<-ticks
+	cancel()
+	<-done
+}

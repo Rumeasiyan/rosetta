@@ -49,7 +49,9 @@ type Sources interface {
 type Service struct {
 	Sources  Sources
 	Settings func(ctx context.Context) settings.Values
-	Logger   *slog.Logger
+	// Held spares sources an identical text (R-GRM-05); nil holds nothing.
+	Held   *Held
+	Logger *slog.Logger
 }
 
 // Request is one check.
@@ -117,9 +119,18 @@ func (s *Service) Check(ctx context.Context, q Request) (Answer, *reasons.Failur
 	if utf8.RuneCountInString(q.Text) > v.Of(settings.GrammarCharsMax) {
 		return Answer{}, reasons.New(reasons.TooLong)
 	}
+	if s.Held != nil {
+		if a, ok := s.Held.Get(q.Text, keepFor(v)); ok {
+			return a, nil
+		}
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
 	defer cancel()
-	return s.run(ctx, q)
+	a, fail := s.run(ctx, q)
+	if fail == nil && s.Held != nil {
+		s.Held.Put(q.Text, a)
+	}
+	return a, fail
 }
 
 func (s *Service) run(ctx context.Context, q Request) (Answer, *reasons.Failure) {
