@@ -96,6 +96,7 @@ Notes:
 **Still to run for R2.** Every R2 story is built, with its code and non-database tests passing, and every box stays unticked: no database test and no walk has run, because the coordinator asked that Docker, a database and a Document Server stay off on this overloaded machine. To finish them, first run what "Still to run for R1" lists, then `docker compose -f dev/compose.yaml up -d postgres pgbouncer` and `ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rosetta go test -p 1 ./...`, then walk each story, on desktop and at 360 pixels wide, in three languages, and tick it as it passes:
 
 - **E-CAL-01:** first run of `internal/web/systems_test.go`. Walk: as the administrator register `TEST-0001` (live), `TEST-0002` (may join), `TEST-0003` (flagged, no owner); see `TEST-0005`, `TEST-0006` and `TEST-0007` refused; as `dev-owner` see only that subject's systems; as an officer with no role be denied, and read the entries back from PENSIEVE's stand-in.
+- **E-ERR-01:** nothing needs the database. Read each reason's three messages with a native reader before Go live (they are best effort); walk them through E-TRN-01's answers.
 <!-- r2-still -->
 
 ## R3 Grammar

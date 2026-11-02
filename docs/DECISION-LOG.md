@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Where the reasons' messages live, and their statuses
+
+R-ERR-02 says these messages are approved texts in the memory. The memory comes with R4, so for now they sit in the one message file, best effort like every other word there, and E-MEM-01 can seed them once a person has checked them. The HTTP status for each reason is this build's choice, written in `internal/reasons`: no key 401, over limit 429, invalid request 400, too long 413, unsupported 422, human translation required 409, no provincial provider 403, masking lost 502, no provider 503, timed out 504. Callers decide on the reason. A position counts from 0, as the answer's list does. ROSETTA failing inside itself, such as losing its database, has no reason of its own on the fixed list, so it answers "no provider" with the fault in the log only.
+
 ## Registering a system
 
 Only the administrator registers (s2). TVA's file is read when the form is sent and before the transaction opens, so a slow read holds no connection of the five. The name kept is the English one, else whichever TVA has, at most 200 characters. The owner's post is kept as TVA's reference: the title has three languages and Annex A one column. The copies refresh in E-CAL-05's daily pass, so until then an owner who changes in TVA changes here only by that pass. A system that does not exist looks refused to anyone but the administrator, so an owner learns nothing about other systems. Registering is PENSIEVE's `creation` action, since P-ING-02 has no word nearer.
