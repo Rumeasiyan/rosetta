@@ -54,7 +54,7 @@ Notes:
 - **E-ADM-01:** Cookie host-only, Secure, HttpOnly, SameSite=Lax. Caddy removes MJOLNIR's own cookies before a request reaches ROSETTA (ALLSPARK decision on sign-in cookies), so ROSETTA relies only on its own. Renew and revoke as MJOLNIR's `docs/SESSION-INTERFACE.md` says, never on a timer. No second sign-in history: `last_seen_at` only.
 - **E-ADM-02:** The first administrator comes from a bootstrap setting that works only while no administrator exists. Each system has its own theme (STACK 2). No outside fonts or scripts.
 - **E-ENB-04:** Uses the module at `sign/v0.2.0`; the stand-in signs with a test key pair. Missed runs are PARADOX's to report (owners register): no monitor push per job.
-- **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from the look-up at sign-in (E-CAL-05); the actor's post is blank locally until that story, as the stand-in allows. PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
+- **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from the look-up at sign-in (E-CAL-05). PENSIEVE refuses a blank one: send exactly `not known`, in lower case, when it is not known at the time of the action, which until E-CAL-05 is always, and `system` for automatic work. Older entries are not rewritten once a post is learned. The stand-in refuses a blank too. PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
 
 ## R2 Translation
 
