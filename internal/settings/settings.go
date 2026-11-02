@@ -45,7 +45,9 @@ var (
 	RequestCharsMax   = Int{Name: "request_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingRequestChars", Unit: "unitChars", Source: "R-TRN-01"}
 	CacheDays         = Int{Name: "cache_days", Default: 30, Min: 1, Max: 365, Word: "settingCacheDays", Unit: "unitDays", Source: "R-TRN-08"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays}
+	GrammarCharsMax = Int{Name: "grammar_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingGrammarChars", Unit: "unitChars", Source: "R-GRM-02"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax}
 )
 
 // Find is the setting with this name.

@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The check's form
+
+`POST /api/v2/check` and `GET /api/v2/languages` follow LanguageTool's public v2 form, read against the plug-in's own source. Beyond what the backlog lists, `language.name` is needed: the plug-in looks it up in the language list whenever there is a match, so it is always `English`, the name the list gives. Additions the plug-in ignores: `source` on each match (R-GRM-03), `offered` on each language, and `request_ref`, `fallback_used` and `sources` on the answer. A rule's `id` is `ROSETTA_` and the category, as sources give no rule of their own; `issueType` is LanguageTool's word for the category. Sinhala and Tamil are in the list as `Sinhala (not offered)` and `Tamil (not offered)`, since R-GRM-02 lists them, and picking one answers "unsupported". English's long code is `en-GB`. `auto`, `en` and any `en-*` are English, in any case; no `language` at all is "invalid request"; any other is "unsupported". `enabledOnly` is read by nothing. A key caller's refusal is the JSON shape of the rest of `/api/`.
+
+A text under the limit goes to a source whole, not sentence by sentence as translation does: R-GRM-02 asks for splitting only past what sources allow, a source reads a sentence better among its neighbours, and a letter costs one call and not one each sentence. Over the limit it breaks where `translate.Split` breaks it, then joins neighbours up to the limit. A piece with no letters outside its stand-ins is not sent. An empty text answers an empty list. Text that is not valid UTF-8 is "invalid request", as no position could be true of it. `grammar_chars_max` is R-GRM-02's 20,000, in code points.
+
+Each match's `context` is made from the text as sent while answering, 40 units either side, and never cuts a two-unit character. The plug-in puts that context into its panel as HTML; it replaced `<` before sending, so what comes back is what it sent, and ROSETTA does not escape it, which would move the offsets.
+
 ## What the R2 walk by eye changed
 
 A source switch in `/sources/history` read `true` and `false` in every language; it now reads on and off in the reader's. The gate's history at phone width showed labels with nothing after them on a closed decision; a label now comes only with its value. A true 360 pixels comes from the browser's own emulated width, measured as `window.innerWidth`, since `frame-ancestors 'none'` refuses the page inside a frame. E-ERR-01 and E-TRN-02 stay unticked for a native reader, as R-ERR-02 calls their words approved.

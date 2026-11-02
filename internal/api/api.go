@@ -62,8 +62,10 @@ type Deps struct {
 	Policy   func(ctx context.Context) sources.Policy
 	// Translator answers translation requests. Nil answers "no provider".
 	Translator Translator
-	Logger     *slog.Logger
-	Now        func() time.Time // time.Now when nil
+	// Grammar answers grammar checks. Nil answers "no provider".
+	Grammar GrammarChecker
+	Logger  *slog.Logger
+	Now     func() time.Time // time.Now when nil
 }
 
 // Server is the path.
@@ -73,6 +75,7 @@ type Server struct {
 	counts   *Counts
 	limiter  *limits.Limiter
 	routes   *http.ServeMux
+	checks   *http.ServeMux
 }
 
 // New makes the path.
@@ -83,19 +86,27 @@ func New(deps Deps) *Server {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux()}
+	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
 	})
+	s.checks.HandleFunc("GET "+languagesPath, s.languages)
+	s.checks.HandleFunc("POST "+checkPath, s.check)
+	s.checks.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.refuse(w, r, reasons.New(reasons.Invalid))
+	})
 	return s
 }
 
-// Mount adds the path to mux. Later paths, such as grammar's (B 9), take their own
-// longer patterns and never pass through here.
-func (s *Server) Mount(mux *http.ServeMux) { mux.Handle(Prefix, s.withKey(s.routes)) }
+// Mount adds the path to mux. Grammar's (B 9) takes its own longer pattern, so a mark on
+// the translation paths in CERBERUS never covers it.
+func (s *Server) Mount(mux *http.ServeMux) {
+	mux.Handle(Prefix, s.withKey(s.routes))
+	mux.Handle(GrammarPrefix, s.withKey(s.checks))
+}
 
 // Counts is the refusals and failures by reason today, for the status screen (R-CAL-04,
 // R-ADM-02).

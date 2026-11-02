@@ -225,3 +225,49 @@ func TestTheRequestCarriesTheReferenceAndTheKey(t *testing.T) {
 		t.Fatalf("%+v", last)
 	}
 }
+
+func TestGrammarCallAndAnswers(t *testing.T) {
+	var sent map[string]string
+	body := ""
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/requests" || r.Header.Get("Authorization") != "Bearer k" {
+			t.Errorf("%s %v", r.URL.Path, r.Header)
+		}
+		json.NewDecoder(r.Body).Decode(&sent)
+		w.Write([]byte(body))
+	}))
+	defer ts.Close()
+	c := bumblebee.Client{URL: ts.URL, Key: "k"}
+	call := func() (bumblebee.GrammarAnswer, error) {
+		return c.Grammar(context.Background(), bumblebee.GrammarRequest{RequestID: "r-1", Source: "g", Text: "We recieve."})
+	}
+	body = `{"request_id":"r-1","source":"g","version":"2","took_ms":3,"suggestions":[{"start":3,"length":7,"message":"m","replacements":["x"],"category":"spelling"}]}`
+	a, err := call()
+	if err != nil || len(a.Suggestions) != 1 || a.Source != "g" || a.Version != "2" || a.Suggestions[0].Start != 3 || a.Suggestions[0].Length != 7 || a.Suggestions[0].Replacements[0] != "x" {
+		t.Fatalf("%+v %v", a, err)
+	}
+	if sent["operation"] != "grammar" || sent["language"] != "en" || sent["source"] != "g" || sent["request_id"] != "r-1" || sent["text"] != "We recieve." {
+		t.Fatalf("%v", sent)
+	}
+	if _, has := sent["from"]; has {
+		t.Fatalf("%v", sent)
+	}
+	body = `{"source":"g","suggestions":[]}`
+	if a, err = call(); err != nil || a.Suggestions == nil || len(a.Suggestions) != 0 {
+		t.Fatalf("%+v %v", a, err)
+	}
+	for _, b := range []string{`{"source":"g"}`, `not json`, `{"suggestions":"x"}`, `{"failure":{"reason":"made-up","explanation":"GRAMMARTEXT"}}`} {
+		body = b
+		_, err := call()
+		var f *bumblebee.Failure
+		if !errors.As(err, &f) || f.Reason != bumblebee.ReasonUnavailable || strings.Contains(err.Error(), "GRAMMARTEXT") {
+			t.Errorf("%s: %v", b, err)
+		}
+	}
+	body = `{"failure":{"reason":"busy","retry_at":"2030-01-01T04:30:00Z"}}`
+	_, err = call()
+	var f *bumblebee.Failure
+	if !errors.As(err, &f) || f.Reason != bumblebee.ReasonBusy || f.RetryAt == nil {
+		t.Fatal(err)
+	}
+}

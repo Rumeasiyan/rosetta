@@ -73,6 +73,8 @@ type Result struct {
 type Fallback struct {
 	Book     *Book
 	Provider Provider
+	// Grammars is who a grammar call goes to; nil answers none.
+	Grammars GrammarProvider
 	Policy   func(ctx context.Context) Policy
 	Logger   *slog.Logger
 	Now      func() time.Time                                 // time.Now when nil
