@@ -153,17 +153,17 @@ Notes:
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
-| 38 | [ ] | Solo | E-REC-02 | A usage record for every request, without text | R-REC-01; B 15 | Must | 22, 28, 35 |
-| 39 | [ ] | Wave 10 | E-REC-03 | Nightly totals, removals, next months' partitions | R-REC-04, R-NFR-12; B 12 | Must | 38 |
-| 40 | [ ] | Wave 10 | E-REC-04 | Usage screens and export | R-REC-03, R-REC-02 | Must | 38 |
-| 41 | [ ] | Wave 10 | E-ADM-04 | Status screen | R-ADM-02, R-NFR-13 | Must | 38 |
-| 42 | [ ] | Wave 10 | E-ADM-05 | Send a test request from the screens | R-ADM-04 | Should | 38 |
-| 43 | [ ] | Wave 10 | E-CAL-04 | Publish how to call ROSETTA, with a working example | R-CAL-08, R-ADM-07, R-NFR-14 | Must | 38 |
-| 44 | [ ] | Wave 11 | E-CAL-05 | Daily flags, TVA refresh, post look-ups and role ends | R-CAL-02, R-CAL-05, R-ADM-06; s2; B 11, B 21 | Must | 39 |
-| 45 | [ ] | Wave 11 | E-ADM-06 | Alerts by email to the administrator and owners, from BUMBLEBEE's state | R-ADM-03; B 14 | Must | 41 |
-| 46 | [ ] | Wave 11 | E-GAT-02 | Run the shared test set against a source for the gate | R-GAT-01, R-NFR-14 | Must | 40 |
+| 38 | [x] | Solo | E-REC-02 | A usage record for every request, without text | R-REC-01; B 15 | Must | 22, 28, 35 |
+| 39 | [x] | Wave 10 | E-REC-03 | Nightly totals, removals, next months' partitions | R-REC-04, R-NFR-12; B 12 | Must | 38 |
+| 40 | [x] | Wave 10 | E-REC-04 | Usage screens and export | R-REC-03, R-REC-02 | Must | 38 |
+| 41 | [x] | Wave 10 | E-ADM-04 | Status screen | R-ADM-02, R-NFR-13 | Must | 38 |
+| 42 | [x] | Wave 10 | E-ADM-05 | Send a test request from the screens | R-ADM-04 | Should | 38 |
+| 43 | [x] | Wave 10 | E-CAL-04 | Publish how to call ROSETTA, with a working example | R-CAL-08, R-ADM-07, R-NFR-14 | Must | 38 |
+| 44 | [x] | Wave 11 | E-CAL-05 | Daily flags, TVA refresh, post look-ups and role ends | R-CAL-02, R-CAL-05, R-ADM-06; s2; B 11, B 21 | Must | 39 |
+| 45 | [x] | Wave 11 | E-ADM-06 | Alerts by email to the administrator and owners, from BUMBLEBEE's state | R-ADM-03; B 14 | Must | 41 |
+| 46 | [x] | Wave 11 | E-GAT-02 | Run the shared test set against a source for the gate | R-GAT-01, R-NFR-14 | Must | 40 |
 | 47 | [ ] | Solo | E-NFR-01 | Capacity, speed and memory under load | R-NFR-01, R-NFR-02; §5 | Must | 44, 45, 46 |
-| 48 | [ ] | Wave 12 | E-NFR-02 | Continuity: BUMBLEBEE or every source down; restart mid-request | R-NFR-08, R-NFR-09 | Must | 47 |
+| 48 | [x] | Wave 12 | E-NFR-02 | Continuity: BUMBLEBEE or every source down; restart mid-request | R-NFR-08, R-NFR-09 | Must | 47 |
 | 49 | [ ] | Wave 12 | E-NFR-03 | Screens audit: weak connection, devices, WCAG, no trackers | R-NFR-03, R-NFR-04, R-NFR-06, R-NFR-11 | Must | 47 |
 
 Notes:

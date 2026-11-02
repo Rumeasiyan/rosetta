@@ -2,6 +2,42 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The screens' audit, as far as it goes
+
+Run with `axe-core` 4.11 in headless Chrome over every screen each person opens: the administrator, a system owner and an officer with no role, at 1280 and a true emulated 360 pixels, in three languages, 124 runs against the WCAG 2.0, 2.1 and 2.2 A and AA rules and axe's best practices: no violation. Those rules are only what a machine can judge. Reflow at 320 pixels holds on every screen in Sinhala and Tamil. Tab reaches every control on `/usage` with a mark, once date fields had one of their own, since the browser focuses inside them. Weight and time, on Chrome's own throttling at 1 Mbps and 100 ms: 107 KiB and 1.1 seconds for the first page on an empty cache; after that the largest page is 46 KiB and the slowest 0.63 seconds, inside R-NFR-03's 200 KB. No screen asked for anything outside ROSETTA in any walk, and the policy would refuse it. Firefox 155 walks the same screens at 1280 and 360 with nothing overflowing.
+
+Not shown, so E-NFR-03 stays open: Edge, which is not on this machine; a real phone; a person with a screen reader, and the rest of a WCAG 2.2 AA review that needs a person's judgement. The Sinhala and Tamil words wait for a native reader as ever.
+
+## What ROSETTA stopping does to a request
+
+A request in progress when ROSETTA stops now answers with a reason (R-NFR-08). Before this the server waited out its 10 seconds and then cut the connection. Each request's context now ends 2 seconds before the grace does, so anything still waiting on a source fails as `timed out` and is answered, with its usage record kept, and the caller may send it again (R-TRN-05). Anything quicker simply finishes. Walked with a source taking 30 seconds: 504 and `timed out` after 8.1 seconds, and sent again after the restart it is answered. If the platform's stop is shorter than 10 seconds this does not hold, so E-ENB-05 should leave Docker's stop at 10 seconds or more.
+
+While BUMBLEBEE is down or every source rests, walked and tested: the glossary and memory answer, every other translation and check fails with `no provider`, in 71 ms in the walk, with nothing sent, and the status screen says the sources below are as last read. Backup and restore (R-NFR-08's first half) are PHOENIX's, at E-ENB-16, and not shown here.
+
+## Measured at capacity, on this machine
+
+These are measurements on a development Mac with other stacks running, not the production server. They use `cmd/rosetta-load`, not in the image: 30 systems, 20,000 published entries and 500,000 memory pieces (286 MB with indexes), PostgreSQL capped at 256 MB through PgBouncer in Docker, ROSETTA and the stand-ins as native processes with `GOMEMLIMIT=200MiB` and `GOMAXPROCS=1`, and a source slowed to 2 seconds a call. Load stayed under 10 throughout.
+
+| Rate | Requests | Kind | n | 50 percent | 95 percent | Slowest |
+|---|---|---|---|---|---|---|
+| 3,000 an hour, 5 minutes | 251 | Glossary | 29 | 12 ms | 98 ms | 204 ms |
+| | | Memory | 93 | 16 ms | 98 ms | 331 ms |
+| | | Cache | 59 | 16 ms | 279 ms | 453 ms |
+| | | Check held | 40 | 12 ms | 906 ms | 2.0 s |
+| | | Through a source | 30 | 2.03 s | 2.10 s | 2.14 s |
+| Five times that, 1 minute | 252 | Glossary | 36 | 17 ms | 121 ms | 248 ms |
+| | | Memory | 73 | 21 ms | 141 ms | 217 ms |
+| | | Cache | 70 | 23 ms | 93 ms | 179 ms |
+| | | Through a source | 31 | 2.03 s | 2.28 s | 2.54 s |
+
+Every request was answered, none refused. ROSETTA's own part of a source's time at 95 percent was 104 ms at capacity and 278 ms at five times it. "Check held" is the first of one text going to the slowed source, then held. Screens, walked on these figures: 156 visits with none over 2 seconds.
+
+Memory, from macOS's `footprint` of the native process, as `ps` understates it once pages are compressed: 12 MB at the start, 65 MB with all six directions of 20,000 terms built, 78 MB with 120 large checks held, 79 MB after the burst. So `HeldBytes` and the glossary fit with room to spare here.
+
+Not shown, so E-NFR-01 stays open: `docker stats` and the 250 MB cap on a container, as this machine's limits allowed only PostgreSQL and PgBouncer in Docker; 3,000 requests an hour for a whole hour; `usage_record` at its 50 million rows (about 20 GB), which the shared disk and this PostgreSQL cap would not bear; the real server's disk and CPU; BUMBLEBEE's real sources, and so R-NFR-02's 2 to 6 seconds; and `glossary.MaxMarks` again, which waits for the real machine.
+
+For the owner's review, a limit R-TRN-01 and R-ERR-03 do not agree on. Pieces go to a source one at a time, so a request of 40 new sentences through a 2-second source stopped as `timed out` at 58.9 seconds; sent again it answered in 23.9 seconds, 29 pieces from the cache and 11 from the source. So a request at the full 20,000 characters, which can be hundreds of sentences, cannot finish in 60 seconds through any browser source on its first send, and BUMBLEBEE's own rate (its `docs/CALLERS.md`) holds it back further. A caller retrying ordinary text gets there, as the cache keeps what was done; personal text is never cached, so it starts again every time and may never finish. Nothing was changed: the first thing to try is sending some at once, as the entry on the piece pipeline says, or a lower request limit in R-TRN-01, and that is the owner's to choose.
+
 ## The score the gate records
 
 `rosetta evaluate -set FILE -source NAME -from X -to Y`, part of the one program as R-NFR-14 asks, so it can run wherever the service's settings are. It prints one line of JSON with what the gate's form takes: `test_set`, `score`, `source_version` and `evaluated_on`; the root filesystem is read-only, so it writes to nothing else, and an administrator still decides. It goes straight to BUMBLEBEE and names the source, as a new version starts closed and the pipeline would refuse it. Numbers are masked and put back like everything leaving the server. A test set is TSV or JSONL with the columns STANDARDS section 7 gives; `dev/test-set/invented.tsv` is ten invented sentences to walk with, its Sinhala and Tamil best effort, so it is no measure of any source. A test set is named by its file and a hash of its bytes, so another version never reads as this one, in the form the gate takes.
