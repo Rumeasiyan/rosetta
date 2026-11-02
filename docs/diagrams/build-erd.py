@@ -9,7 +9,7 @@ dictionary cannot drift apart:
 
 Run from the repository root:
 
-    python3 docs/diagrams/build_erd.py
+    python3 docs/diagrams/build-erd.py
 
 Needs Python 3.11 or newer and Graphviz (`dot` on the PATH; on macOS:
 brew install graphviz).
@@ -429,7 +429,7 @@ def dot_source():
         out.append(f"  subgraph cluster_{key} {{")
         out.append(
             f'    label=<<B>{title}</B>>; style="dashed,rounded"; color="{border}";'
-            f" fontcolor=\"{border}\"; fontsize=14;"
+            f' fontcolor="{border}"; fontsize=14;'
         )
         for name, (area, _, _) in ENTITIES.items():
             if area == key:
