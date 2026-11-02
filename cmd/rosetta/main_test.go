@@ -110,7 +110,7 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 		"ROSETTA_PENSIEVE_URL":         "http://localhost:53190/pensieve",
 		"ROSETTA_PENSIEVE_KEY":         "pv_standin",
 		"ROSETTA_TVA_DIR":              "../../dev/tva",
-		"ROSETTA_BUMBLEBEE_URL":        "http://localhost:53090/bumblebee",
+		"ROSETTA_BUMBLEBEE_URL":        "http://localhost:53190/bumblebee",
 		"ROSETTA_BUMBLEBEE_KEY":        "bb_standin",
 	})
 	ready := make(chan string, 1)
