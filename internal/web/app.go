@@ -42,8 +42,10 @@ type Deps struct {
 	Outbox Kicker
 	// TVA reads the system register's published file when a system is registered
 	// (R-CAL-01). Nil refuses every registration, as a file that cannot be read does.
-	TVA    tva.Reader
-	Logger *slog.Logger
+	TVA tva.Reader
+	// Sources is BUMBLEBEE's source list. Nil shows it as never read.
+	Sources SourceList
+	Logger  *slog.Logger
 }
 
 // Kicker starts sending what the outbox holds, without waiting for it.
@@ -92,6 +94,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountPeople(mux)
 	a.mountSettings(mux)
 	a.mountSystems(mux)
+	a.mountSources(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -143,7 +146,7 @@ func nav(c *current) []NavItem {
 		items = append(items, NavItem{ID: "people", Word: "people", Href: "/people"}, NavItem{ID: "settings", Word: "settings", Href: "/settings"})
 	}
 	if seesSystems(c) {
-		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"})
+		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"})
 	}
 	return items
 }

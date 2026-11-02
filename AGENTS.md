@@ -23,6 +23,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
 | `internal/tva`, `internal/callers` | TVA's `systems.json` (format 1) and the calling systems with their owners. |
 | `internal/reasons` | The fixed reasons and how a failure is answered, with messages in three languages. |
+| `internal/bumblebee`, `internal/sources` | BUMBLEBEE's client, and what ROSETTA knows of its sources: the list and size limit on a timer. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 
 ## Commands

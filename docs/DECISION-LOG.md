@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## How the source list is read
+
+`internal/sources` Book reads the list on the in-process timer AGENTS C6 allows, twice within the `source_list_seconds` setting (R-PRV-01), so one failed read does not make it stale. A list older than the setting is never used to send anything, with no read on the way: while BUMBLEBEE is down a request fails at once (R-NFR-09) rather than waiting for it. The size is the list's `limits.max_text_chars`, then the last one known, and 5,000 code points only if it was never read, which sends nothing anyway since nothing is fresh. A source gone from the list stays in the table as `off`, since gate decisions and orders refer to it. The stand-in gains a second translation source, `standin-translate-b`, and a control param `source` that keeps a failure mode to one source, so fallback can be tested and walked.
+
 ## Where the reasons' messages live, and their statuses
 
 R-ERR-02 says these messages are approved texts in the memory. The memory comes with R4, so for now they sit in the one message file, best effort like every other word there, and E-MEM-01 can seed them once a person has checked them. The HTTP status for each reason is this build's choice, written in `internal/reasons`: no key 401, over limit 429, invalid request 400, too long 413, unsupported 422, human translation required 409, no provincial provider 403, masking lost 502, no provider 503, timed out 504. Callers decide on the reason. A position counts from 0, as the answer's list does. ROSETTA failing inside itself, such as losing its database, has no reason of its own on the fixed list, so it answers "no provider" with the fault in the log only.

@@ -30,14 +30,16 @@ type Int struct {
 	Source   string // the requirement that sets it
 }
 
-// Every setting so far. Nothing reads these yet: R2 and R5 do. The range is the
-// sensible span for each; only the default is the PRD's.
+// Every setting so far. Stories read theirs as they come. The range is the sensible
+// span for each; only the default is the PRD's.
 var (
 	RequestLimitSeconds = Int{Name: "request_limit_seconds", Default: 60, Min: 5, Max: 600, Word: "settingRequestLimit", Unit: "unitSeconds", Source: "R-ERR-03"}
 	CallerIdleDays      = Int{Name: "caller_idle_days", Default: 90, Min: 1, Max: 3650, Word: "settingCallerIdle", Unit: "unitDays", Source: "R-CAL-05"}
 	FailureAlertPercent = Int{Name: "failure_alert_percent", Default: 20, Min: 1, Max: 100, Word: "settingFailureAlert", Unit: "unitPercent", Source: "R-ADM-03"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent}
+	SourceListSeconds = Int{Name: "source_list_seconds", Default: 60, Min: 10, Max: 600, Word: "settingSourceList", Unit: "unitSeconds", Source: "R-PRV-01"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds}
 )
 
 // Find is the setting with this name.

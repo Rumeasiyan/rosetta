@@ -13,16 +13,20 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
+	"github.com/Rumeasiyan/rosetta/internal/settings"
+	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
 )
@@ -140,9 +144,31 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if links.TVADir == "" {
 		return errors.New("ROSETTA_TVA_DIR is not set (the system register's file; see .env.example)")
 	}
+	if links.BumblebeeURL == "" || links.BumblebeeKey == "" {
+		return errors.New("ROSETTA_BUMBLEBEE_URL and ROSETTA_BUMBLEBEE_KEY are not set (browser sources; see .env.example)")
+	}
+	values := settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
+		return settings.Load(ctx, pool)
+	}, settings.RefreshEvery, logger)
+	provider := bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}
+	book := &sources.Book{
+		Read: provider.Sources,
+		MaxAge: func(ctx context.Context) time.Duration {
+			return time.Duration(values.Get(ctx).Of(settings.SourceListSeconds)) * time.Second
+		},
+		Kept: func(ctx context.Context, l bumblebee.List, at time.Time) error {
+			return sources.Mirror(ctx, pool, l, at)
+		},
+		Logger: logger,
+	}
+	reading, stopReading := context.WithCancel(ctx)
+	var readers sync.WaitGroup
+	readers.Go(func() { book.Run(reading) })
+	defer readers.Wait()
+	defer stopReading()
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
