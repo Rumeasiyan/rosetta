@@ -50,7 +50,10 @@ var (
 
 	GlossaryImportRows = Int{Name: "glossary_import_rows", Default: 5000, Min: 1, Max: 20000, Word: "settingGlossaryImportRows", Unit: "unitRows", Source: "R-GLO-07"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows}
+	UsageRecordYears = Int{Name: "usage_record_years", Default: 2, Min: 1, Max: 20, Word: "settingUsageYears", Unit: "unitYears", Source: "R-REC-04"}
+	DailyTotalYears  = Int{Name: "daily_total_years", Default: 5, Min: 1, Max: 50, Word: "settingTotalYears", Unit: "unitYears", Source: "R-REC-04"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, UsageRecordYears, DailyTotalYears}
 )
 
 // Find is the setting with this name.

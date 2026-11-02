@@ -163,6 +163,11 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	values := settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
 		return settings.Load(ctx, pool)
 	}, settings.RefreshEvery, logger)
+	// A part missing for this month would lose records, so the months ahead are looked at each
+	// start as well as by PARADOX's job. Failing here stops nothing: the job comes again.
+	if _, err := usage.AddParts(ctx, pool, time.Now()); err != nil {
+		logger.Error("usage parts were not checked", "error", err)
+	}
 	provider := bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}
 	held := &grammar.Held{}
 	book := &sources.Book{
@@ -227,9 +232,13 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	calls.Mount(mux)
 	mux.Handle(health.Path, health.Handler(health.DBCheck(pool), logger))
 	mux.Handle(jobs.Prefix, jobs.Handler(pool, keys, jobs.Set(
-		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03
-		jobs.Job{Name: "partitions", Run: jobs.Nothing}, // E-REC-03
-		jobs.Job{Name: "daily", Run: jobs.Nothing},      // E-CAL-05
+		jobs.Job{Name: "nightly", Run: func(ctx context.Context, tx pgx.Tx, _ string) (int, error) {
+			return usage.Nightly(ctx, tx, values.Get(ctx), logger, time.Now())
+		}},
+		jobs.Job{Name: "partitions", Run: func(ctx context.Context, tx pgx.Tx, _ string) (int, error) {
+			return usage.AddParts(ctx, tx, time.Now())
+		}},
+		jobs.Job{Name: "daily", Run: jobs.Nothing}, // E-CAL-05
 		jobs.Job{Name: "audit-catch-up", Run: func(ctx context.Context, tx pgx.Tx, run string) (int, error) {
 			sent, err := outbox.Job(ctx, tx, run)
 			if err != nil {

@@ -2,7 +2,11 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
-## The usage record
+## Totals and what goes each night
+
+A total is always worked out again from its records and never added to, from the last day held to the end of yesterday in Sri Lanka, so a repeated or retried run comes out the same. A day is Sri Lanka's, as on every screen. All of `nightly` is one transaction: totals, then the months of records, the totals past `daily_total_years`, expired cache, alerts and runs past 90 days, and outbox rows past 30 days. Sent outbox rows already went when sent, so that last is only what never got through, also refused ones. `usage_record_years` and `daily_total_years` are new settings (R-REC-04). A month goes whole only when all of it is past the limit (Annex A.1), so a record may stay up to a month longer than the setting. A part's name carries its month, and only parts named that way are dropped.
+
+`partitions` makes this month's part and the next three, `usage.MonthsAhead`, and the service makes them at each start as well, since with no part for the month a record would fail to write and be lost with only a line in the log.
 
 Every request with a known system leaves one row, written after it is answered, at the end of the request and outside any transaction of its work. A write that fails logs fixed words and changes no answer. A request with no known system (no key, an unknown key, a browser address nobody lists) has no `caller_id` to hang on, so it stays counted in memory by reason, as the entry on keys says, and a restart starts that count again. That falls a little short of R-REC-01's "every request", as Annex A requires a calling system. A refused key that names a system also leaves a record, as well as its denial in PENSIEVE; usage stays here and never goes to PENSIEVE.
 
