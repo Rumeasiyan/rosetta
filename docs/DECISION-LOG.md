@@ -2,6 +2,12 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The score the gate records
+
+`rosetta evaluate -set FILE -source NAME -from X -to Y`, part of the one program as R-NFR-14 asks, so it can run wherever the service's settings are. It prints one line of JSON with what the gate's form takes: `test_set`, `score`, `source_version` and `evaluated_on`; the root filesystem is read-only, so it writes to nothing else, and an administrator still decides. It goes straight to BUMBLEBEE and names the source, as a new version starts closed and the pipeline would refuse it. Numbers are masked and put back like everything leaving the server. A test set is TSV or JSONL with the columns STANDARDS section 7 gives; `dev/test-set/invented.tsv` is ten invented sentences to walk with, its Sinhala and Tamil best effort, so it is no measure of any source. A test set is named by its file and a hash of its bytes, so another version never reads as this one, in the form the gate takes.
+
+For the owner's review: the PRD asks for "the score" and names no measure. This build uses corpus BLEU over whole words, n-grams to 4, one reference each, from 0 to 100, as it is the common measure and comparable with what volunteers publish. Words keep their Sinhala and Tamil vowel signs. BLEU is known to read low for short sets and for languages with free word order, so a threshold, which the PRD leaves to the administrator, should not be read across from English. All sentences must answer: any failure gives no score, naming the row's ID and the reason and no text, since a score on part of a set is not the set's. A busy source is waited for once, up to 2 minutes, and a block is never tried again (R-PRV-05).
+
 ## Alerts
 
 `internal/alerts` looks at the published state on each pass of the source list's timer, the one timer AGENTS C6 allows, and raises one alert when a state changes, kept with the move in one transaction. So many failed requests are one alert, and with `alert_state` (migration 010, an addition Annex A does not list) a restart tells nobody twice. Alerts go through HEDWIG straight after they are raised by a goroutine, and `audit-catch-up` sends what could not go, as the keepers' notices do. A notice holds a kind, a reference and a link, never a name or a word of text, and `alert.subject` (also migration 010) holds a direction, language or opaque person reference. Each kind is a template made at E-ENB-13: the list is `alerts.Kinds`.

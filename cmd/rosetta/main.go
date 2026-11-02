@@ -2,7 +2,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,6 +28,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
+	"github.com/Rumeasiyan/rosetta/internal/evaluate"
 	"github.com/Rumeasiyan/rosetta/internal/flags"
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
@@ -48,6 +51,8 @@ import (
 const usageText = `usage:
   rosetta migrate        bring the schema up to date (MIGRATE_DATABASE_URL)
   rosetta serve          run ROSETTA (settings from the environment; see .env.example)
+  rosetta evaluate       run a test set against a source, and print the score the gate records
+                         -set FILE -source NAME -from si|ta|en -to si|ta|en (BUMBLEBEE's settings)
   rosetta -version       print the version
   rosetta -healthcheck   exit 0 if the running service's database answers
 `
@@ -69,6 +74,8 @@ func run(args []string, stdout, stderr io.Writer, getenv func(string) string) in
 			return report(stderr, migrate(ctx, getenv))
 		case "serve":
 			return report(stderr, serve(ctx, getenv, stderr, nil))
+		case "evaluate":
+			return report(stderr, evaluateSet(ctx, args[1:], stdout, stderr, getenv))
 		}
 	}
 	fs := flag.NewFlagSet("rosetta", flag.ContinueOnError)
@@ -108,6 +115,46 @@ func runHealthcheck(getenv func(string) string) error {
 		return err
 	}
 	return health.Probe(context.Background(), health.LoopbackURL(port))
+}
+
+// evaluateSet is E-GAT-02: a test set and a source in, and on stdout, as one line of JSON, what the
+// administrator enters on the gate. The root filesystem is read-only, so it writes to nothing else.
+func evaluateSet(ctx context.Context, args []string, stdout, stderr io.Writer, getenv func(string) string) error {
+	fs := flag.NewFlagSet("rosetta evaluate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	file := fs.String("set", "", "test set: TSV or JSONL with columns id, en, si, ta")
+	source := fs.String("source", "", "the source's name, as on BUMBLEBEE's list")
+	from := fs.String("from", "", "si, ta or en")
+	to := fs.String("to", "", "si, ta or en")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *file == "" || *source == "" {
+		return errors.New("-set and -source are required")
+	}
+	if _, err := sources.ParseDirection(bumblebee.OpTranslate, *from, *to); err != nil {
+		return errors.New("-from and -to must be two of si, ta and en")
+	}
+	links, err := config.LinksFromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	if links.BumblebeeURL == "" || links.BumblebeeKey == "" {
+		return errors.New("ROSETTA_BUMBLEBEE_URL and ROSETTA_BUMBLEBEE_KEY are not set")
+	}
+	raw, err := os.ReadFile(*file)
+	if err != nil {
+		return errors.New("the test set could not be read")
+	}
+	set, err := evaluate.Read(*file, bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	r, err := evaluate.Run(ctx, bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}, set, evaluate.Name(*file, raw), *source, *from, *to, time.Now())
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(stdout).Encode(r)
 }
 
 func migrate(ctx context.Context, getenv func(string) string) error {

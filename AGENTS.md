@@ -10,7 +10,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `docs/ROSETTA-BACKLOG.md` | **Build order.** Stories citing the PRD. Tick a box when its story is done. |
 | `docs/DECISION-LOG.md` | Build decisions the PRD and backlog do not hold. |
 | `docs/diagrams/` | `build-erd.py` draws Annex A and writes its dictionary into the PRD; a test checks the schema against that dictionary. |
-| `cmd/rosetta/` | The service: `serve`, `migrate`, `-version`, `-healthcheck`. |
+| `cmd/rosetta/` | The service: `serve`, `migrate`, `evaluate`, `-version`, `-healthcheck`. |
 | `cmd/rosetta-paradoxcall/` | Local stand-in for PARADOX. Not in the image. |
 | `cmd/rosetta-standin/`, `internal/standin` | Local stand-ins for BUMBLEBEE, MJOLNIR, CERBERUS, BIFROST, PENSIEVE and HEDWIG, each under its own path prefix; `/control` sets a failure mode and reads back what came. Not in the image. |
 | `internal/db` | PgBouncer-safe pool and migrations (`migrations/NNN-*.sql`, never edited once applied). |
@@ -37,6 +37,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/bifrost`, `internal/posts` | BIFROST's client, and post look-ups: only `found: false` is not found, a failed look-up changes nothing. |
 | `internal/flags` | The job `daily`'s transaction: TVA's copies, each system's flag, roles past their date. |
 | `internal/alerts` | Alerts by email when a state changes (R-ADM-03): looked at on the source list's timer, kept in `alert`, sent through HEDWIG. |
+| `internal/evaluate` | `rosetta evaluate`: a test set against one source, giving the score the gate records. |
 | `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |
 | `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (`how-to-run.md`). |

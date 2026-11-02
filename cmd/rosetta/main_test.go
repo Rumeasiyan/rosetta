@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/standin"
 )
 
 func env(m map[string]string) func(string) string {
@@ -42,6 +44,42 @@ func TestMigrateNeedsItsURL(t *testing.T) {
 	}
 	if !strings.Contains(errs.String(), "MIGRATE_DATABASE_URL") {
 		t.Fatalf("stderr %q", errs.String())
+	}
+}
+
+// A test set against the stand-in gives one line of what the gate records; nothing holds its text.
+func TestEvaluateCommand(t *testing.T) {
+	sd := standin.New(standin.Options{ClientID: "rosetta", ClientSecret: "x"})
+	ts := httptest.NewServer(sd.Handler())
+	t.Cleanup(func() { sd.Close(); ts.Close() })
+	e := env(map[string]string{"ROSETTA_BUMBLEBEE_URL": ts.URL + "/bumblebee", "ROSETTA_BUMBLEBEE_KEY": standin.BumblebeeKey})
+	var out, errs bytes.Buffer
+	code := run([]string{"evaluate", "-set", "../../dev/test-set/invented.tsv", "-source", "standin-translate", "-from", "en", "-to", "ta"}, &out, &errs, e)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errs.String())
+	}
+	for _, want := range []string{`"test_set":"invented:`, `"source":"standin-translate"`, `"source_version":"1"`, `"score":`, `"sentences":10`, `"evaluated_on":`} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("no %s in %s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "office") {
+		t.Fatal(out.String())
+	}
+	for name, args := range map[string][]string{
+		"no set":         {"evaluate", "-source", "standin-translate", "-from", "en", "-to", "ta"},
+		"same languages": {"evaluate", "-set", "../../dev/test-set/invented.tsv", "-source", "standin-translate", "-from", "en", "-to", "en"},
+		"no source":      {"evaluate", "-set", "../../dev/test-set/invented.tsv", "-source", "nothing", "-from", "en", "-to", "ta"},
+	} {
+		out.Reset()
+		errs.Reset()
+		if code := run(args, &out, &errs, e); code == 0 {
+			t.Errorf("%s: passed: %s", name, out.String())
+		}
+	}
+	errs.Reset()
+	if code := run([]string{"evaluate", "-set", "x", "-source", "y", "-from", "en", "-to", "ta"}, &out, &errs, env(nil)); code == 0 || !strings.Contains(errs.String(), "ROSETTA_BUMBLEBEE_URL") {
+		t.Fatalf("%d %s", code, errs.String())
 	}
 }
 
