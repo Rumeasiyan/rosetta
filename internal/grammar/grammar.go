@@ -8,6 +8,7 @@
 package grammar
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -129,6 +130,7 @@ func (s *Service) run(ctx context.Context, q Request) (Answer, *reasons.Failure)
 			return Answer{}, f
 		}
 	}
+	out.Suggestions = inOrder(out.Suggestions)
 	return out, nil
 }
 
@@ -159,7 +161,8 @@ func (s *Service) part(ctx context.Context, q Request, m mask.Masked, sp transla
 		return nil
 	}
 	for _, found := range r.Suggestions {
-		if placed, ok := place(piece, base, found.Start, found.Length); ok {
+		// A message holding a stand-in would show the reader the mask, not their words.
+		if placed, ok := place(piece, base, found.Start, found.Length); ok && mask.WithoutStandIns(found.Message) == found.Message {
 			out.Suggestions = append(out.Suggestions, Suggestion{Offset: placed.offset, Length: placed.length, Message: found.Message,
 				Replacements: replacements(found.Replacements), Category: category(found.Category), Source: r.Source})
 		}
@@ -174,28 +177,63 @@ func (s *Service) part(ctx context.Context, q Request, m mask.Masked, sp transla
 type position struct{ offset, length int }
 
 // place finds a suggestion in the text sent. It says false for one that cannot be placed
-// exactly, which is dropped, never moved (R-GRM-03).
+// exactly, which is dropped, never moved (R-GRM-03): one outside the piece, one with no
+// length, one that begins or ends between the two units of a character, and one touching a
+// stand-in, which is about a number the source never saw.
 func place(piece mask.Masked, base, start, length int) (position, bool) {
-	if start < 0 || length <= 0 || start+length > mask.Units(piece.Text) {
+	end := start + length
+	sent := utf16.Encode([]rune(piece.Text))
+	if start < 0 || length <= 0 || end > len(sent) || betweenUnits(sent, start) || betweenUnits(sent, end) {
 		return position{}, false
+	}
+	for _, it := range piece.Items {
+		from := mask.Units(piece.Text[:it.Start])
+		if start < from+mask.Units(it.Token) && from < end {
+			return position{}, false
+		}
 	}
 	from, ok := piece.ToOriginal(start)
 	if !ok {
 		return position{}, false
 	}
-	to, ok := piece.ToOriginal(start + length)
+	to, ok := piece.ToOriginal(end)
 	if !ok {
 		return position{}, false
 	}
 	return position{base + from, to - from}, true
 }
 
-// replacements is at most three, as a list and never nil, as the plug-in slices it.
+// betweenUnits says a position falls inside a character of two units.
+func betweenUnits(text []uint16, at int) bool {
+	return at > 0 && at < len(text) && lowSurrogate(text[at]) && highSurrogate(text[at-1])
+}
+
+func highSurrogate(u uint16) bool { return u >= 0xD800 && u < 0xDC00 }
+func lowSurrogate(u uint16) bool  { return u >= 0xDC00 && u < 0xE000 }
+
+// replacements is at most three, as a list and never nil, as the plug-in slices it. A
+// replacement holding a stand-in would write the mask into the letter, so it goes.
 func replacements(list []string) []string {
 	out := make([]string, 0, min(len(list), maxReplacements))
 	for _, r := range list {
-		if len(out) < maxReplacements {
+		if len(out) < maxReplacements && mask.WithoutStandIns(r) == r {
 			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// inOrder is the suggestions by place in the text, each kept only if it does not overlap one
+// before it. The plug-in marks them one after another in the text, so one overlapping another
+// could only be shown in the wrong place: it is dropped, never moved.
+func inOrder(list []Suggestion) []Suggestion {
+	slices.SortStableFunc(list, func(a, b Suggestion) int { return cmp.Compare(a.Offset, b.Offset) })
+	out := list[:0]
+	end := 0
+	for _, s := range list {
+		if s.Offset >= end {
+			out = append(out, s)
+			end = s.Offset + s.Length
 		}
 	}
 	return out
@@ -262,11 +300,11 @@ func Encode(text string) Encoded { return utf16.Encode([]rune(text)) }
 // made of two units.
 func (e Encoded) ContextOf(s Suggestion) Context {
 	from := max(s.Offset-contextReach, 0)
-	if from > 0 && utf16.IsSurrogate(rune(e[from])) && e[from] >= 0xDC00 {
+	if from > 0 && lowSurrogate(e[from]) {
 		from--
 	}
 	to := min(s.Offset+s.Length+contextReach, len(e))
-	if to < len(e) && utf16.IsSurrogate(rune(e[to])) && e[to] >= 0xDC00 {
+	if to < len(e) && lowSurrogate(e[to]) {
 		to++
 	}
 	return Context{Text: string(utf16.Decode(e[from:to])), Offset: s.Offset - from, Length: s.Length}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
@@ -305,4 +306,164 @@ func TestContext(t *testing.T) {
 	if got := string(utf16.Decode(utf16.Encode([]rune(x.Text))[x.Offset : x.Offset+x.Length])); !strings.HasPrefix(got, "ecieve") {
 		t.Fatalf("%q", got)
 	}
+}
+
+// ---- positions (R-GRM-03, E-GRM-04) --------------------------------------------
+
+// Text outside the Basic Multilingual Plane before and after a masked value, and across a
+// split: each suggestion marks what it was made for, in the text the caller sent.
+func TestPositionsAreTrueToTheTextSent(t *testing.T) {
+	for name, c := range map[string]struct {
+		text  string
+		limit int
+		want  int
+	}{
+		"plain":                  {"We recieve letters.", 0, 1},
+		"emoji before":           {"😀😀 We recieve letters.", 0, 1},
+		"emoji after":            {"We recieve 😀 letters. 😀 recieve", 0, 2},
+		"value before":           {"Call 0771234567 and recieve it.", 0, 1},
+		"value after":            {"We recieve at 0771234567 today.", 0, 1},
+		"emoji and values":       {"😀 Card 123456789V 😀 and recieve 😀 at 0771234567 😀 recieve.", 0, 2},
+		"Tamil and Sinhala":      {"வணக்கம் 😀 recieve ආයුබෝවන් 0771234567 recieve", 0, 2},
+		"values of other length": {"Call +94 77 123 4567 or 077-123-4567 and recieve. Card 1990-1234-5678 recieve.", 0, 2},
+		"across a split":         {strings.Repeat("😀 We recieve at 0771234567 today. ", 6), 40, 6},
+		"split at a line":        {"😀 We recieve one.\n\n😀 0771234567 recieve two.\n\nAnd recieve three 😀.", 25, 3},
+		"many values in a piece": {strings.Repeat("0771234567 ", 12) + "recieve " + strings.Repeat("123456789V ", 12) + "recieve", 0, 2},
+		"many values, split":     {strings.Repeat("0771234567 recieve. ", 15), 30, 15},
+		"a stand-in as written":  {"The form ⟦M1⟧ and 0771234567 recieve.", 0, 1},
+	} {
+		f := &fake{limit: c.limit}
+		a, fail := service(f).Check(context.Background(), Request{Language: "en", Text: c.text})
+		if fail != nil {
+			t.Errorf("%s: %v", name, fail)
+			continue
+		}
+		if len(a.Suggestions) != c.want {
+			t.Errorf("%s: %d suggestions, sent %q", name, len(a.Suggestions), f.sent)
+		}
+		for _, s := range a.Suggestions {
+			if got := at(c.text, s); got != "recieve" {
+				t.Errorf("%s: %+v marks %q", name, s, got)
+			}
+		}
+		for _, sent := range f.sent {
+			if strings.Contains(sent, "0771234567") || strings.Contains(sent, "123456789V") {
+				t.Errorf("%s: a value left the server: %q", name, sent)
+			}
+		}
+	}
+}
+
+// A hand count, so the helper above is not the only witness.
+func TestPositionsByHand(t *testing.T) {
+	const text = "😀 0771234567 😀 recieve"
+	a, fail := service(&fake{}).Check(context.Background(), Request{Language: "en", Text: text})
+	if fail != nil {
+		t.Fatal(fail)
+	}
+	// 😀 2, space 1, the number 10, space 1, 😀 2, space 1: 17.
+	if len(a.Suggestions) != 1 || a.Suggestions[0].Offset != 17 || a.Suggestions[0].Length != 7 {
+		t.Fatalf("%+v", a.Suggestions)
+	}
+}
+
+func TestWhatCannotBePlacedIsDropped(t *testing.T) {
+	const text = "😀 Call 0771234567 now."
+	// In what is sent: 😀 is 0 and 1, the stand-in ⟦M1⟧ is 8 to 11, "now" is 13.
+	good := bumblebee.Suggestion{Start: 13, Length: 3, Message: "good", Replacements: []string{"then"}}
+	for name, bad := range map[string]bumblebee.Suggestion{
+		"negative":              {Start: -1, Length: 3, Message: "x"},
+		"no length":             {Start: 13, Length: 0, Message: "x"},
+		"negative length":       {Start: 13, Length: -3, Message: "x"},
+		"past the end":          {Start: 13, Length: 100, Message: "x"},
+		"starts past the end":   {Start: 100, Length: 1, Message: "x"},
+		"inside a stand-in":     {Start: 9, Length: 1, Message: "x"},
+		"starts in a stand-in":  {Start: 10, Length: 5, Message: "x"},
+		"ends in a stand-in":    {Start: 3, Length: 7, Message: "x"},
+		"the stand-in exactly":  {Start: 8, Length: 4, Message: "x"},
+		"around a stand-in":     {Start: 3, Length: 12, Message: "x"},
+		"starts inside a pair":  {Start: 1, Length: 2, Message: "x"},
+		"ends inside a pair":    {Start: 0, Length: 1, Message: "x"},
+		"its message is masked": {Start: 3, Length: 4, Message: "Did you mean ⟦M1⟧?"},
+	} {
+		f := &fake{answer: func(string) ([]bumblebee.Suggestion, error) { return []bumblebee.Suggestion{bad, good}, nil }}
+		a, fail := service(f).Check(context.Background(), Request{Language: "en", Text: text})
+		if fail != nil {
+			t.Errorf("%s: %v", name, fail)
+			continue
+		}
+		if len(a.Suggestions) != 1 || a.Suggestions[0].Message != "good" || at(text, a.Suggestions[0]) != "now" {
+			t.Errorf("%s: %+v", name, a.Suggestions)
+		}
+	}
+	// Right next to a stand-in is not touching it.
+	for name, near := range map[string]bumblebee.Suggestion{
+		"ends where it begins": {Start: 3, Length: 5, Message: "near"},
+		"begins where it ends": {Start: 12, Length: 1, Message: "near"},
+		"the whole pair":       {Start: 0, Length: 2, Message: "near"},
+	} {
+		f := &fake{answer: func(string) ([]bumblebee.Suggestion, error) { return []bumblebee.Suggestion{near}, nil }}
+		a, fail := service(f).Check(context.Background(), Request{Language: "en", Text: text})
+		if fail != nil || len(a.Suggestions) != 1 {
+			t.Errorf("%s: %+v %v", name, a.Suggestions, fail)
+		}
+	}
+}
+
+func TestAReplacementHoldingAStandInGoes(t *testing.T) {
+	f := &fake{answer: func(string) ([]bumblebee.Suggestion, error) {
+		return []bumblebee.Suggestion{{Start: 0, Length: 4, Message: "m", Replacements: []string{"⟦M1⟧", "Ring", "Dial ⟦M2⟧", "Phone", "Buzz"}}}, nil
+	}}
+	a, fail := service(f).Check(context.Background(), Request{Language: "en", Text: "Call 0771234567 now."})
+	if fail != nil {
+		t.Fatal(fail)
+	}
+	got := a.Suggestions[0].Replacements
+	if len(got) != 3 || got[0] != "Ring" || got[1] != "Phone" || got[2] != "Buzz" {
+		t.Fatalf("%q", got)
+	}
+}
+
+func TestSuggestionsComeInOrderWithNoOverlap(t *testing.T) {
+	f := &fake{answer: func(string) ([]bumblebee.Suggestion, error) {
+		return []bumblebee.Suggestion{
+			{Start: 10, Length: 3, Message: "third"},
+			{Start: 0, Length: 4, Message: "first"},
+			{Start: 2, Length: 4, Message: "overlaps the first"},
+			{Start: 5, Length: 4, Message: "second"},
+		}, nil
+	}}
+	a, fail := service(f).Check(context.Background(), Request{Language: "en", Text: "Some text with many words."})
+	if fail != nil {
+		t.Fatal(fail)
+	}
+	var got []string
+	for _, s := range a.Suggestions {
+		got = append(got, s.Message)
+	}
+	if strings.Join(got, ",") != "first,second,third" {
+		t.Fatalf("%v", got)
+	}
+}
+
+// Fuzzing the mapping: whatever the text, what a suggestion marks is what the source marked.
+func FuzzPlacedSuggestionsMarkTheSameWord(f *testing.F) {
+	f.Add("😀 0771234567 recieve 123456789V", 12)
+	f.Add("recieve\n\n😀 recieve. recieve", 7)
+	f.Add("⟦M1⟧ 0771234567 ⟦M2⟧ recieve", 9)
+	f.Fuzz(func(t *testing.T, text string, limit int) {
+		if !utf8.ValidString(text) || limit < 8 || limit > 2000 || len(text) > 2000 {
+			t.Skip()
+		}
+		src := &fake{limit: limit}
+		a, fail := service(src).Check(context.Background(), Request{Language: "en", Text: text})
+		if fail != nil {
+			t.Skip()
+		}
+		for _, s := range a.Suggestions {
+			if got := at(text, s); got != "recieve" {
+				t.Fatalf("%+v marks %q in %q, limit %d", s, got, text, limit)
+			}
+		}
+	})
 }
