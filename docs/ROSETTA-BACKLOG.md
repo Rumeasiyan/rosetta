@@ -130,7 +130,7 @@ Notes:
 | 34 | [x] | Wave 7 | E-MEM-01 | Add approved text to the memory; refuse what may not be kept | R-MEM-01, R-MEM-02, R-MEM-03; B 3 | Must | 29 |
 | 35 | [x] | Wave 8 | E-MEM-02 | Serve from memory, marked as checked by a person | R-TRN-04, R-TRN-07, R-MEM-02, R-GAT-02 | Must | 34 |
 | 36 | [x] | Wave 8 | E-MEM-03 | Find, recheck, correct and remove memory entries | R-MEM-04, R-MEM-05 | Must | 34 |
-| 37 | [ ] | Wave 9 | E-GLO-06 | A published change clears cached pieces and marks memory for recheck | R-GLO-06, R-TRN-08, R-MEM-04 | Must | 32, 36 |
+| 37 | [x] | Wave 9 | E-GLO-06 | A published change clears cached pieces and marks memory for recheck | R-GLO-06, R-TRN-08, R-MEM-04 | Must | 32, 36 |
 
 Notes:
 
@@ -138,6 +138,16 @@ Notes:
 - **E-GLO-02:** The notice to keepers goes through HEDWIG's stand-in.
 - **E-GLO-04:** Protect terms with placeholders of the same family as masking stand-ins, so one check covers both. A term that cannot be placed is flagged on the passage, not failed.
 - **E-GLO-06:** Runs in the publishing transaction for memory marks; `pg_trgm` finds the pieces, so test it at 500,000 memory pieces (R-NFR-01).
+
+**Still to run for R4.** Every R4 story is built, and its tests have passed with the database. Scripted walks in headless Chrome passed against the service and the stand-ins from source, as keepers, an officer with no role, memory reviewers, the administrator and a calling system, at 1280 and a true emulated 360 pixels in three languages, with no screen running wider than its window; each screen was looked at by eye on at least one width and language. E-MEM-01 and E-MEM-02 add no screen, so their walks were the calling system's calls alone. Nothing of a term or of caller text was found in the log, the outbox or at PENSIEVE's stand-in. What follows has not run:
+
+- **The plug-in with terms:** E-GLO-05 was walked by sending the plug-in's calls, with no Document Server. E-GRM-07 stays open as R3 left it.
+- **Real services:** HEDWIG's notices reached only its stand-in; the templates `glossary_proposal` and `glossary_import` wait for E-ENB-13. A source keeping `⟦G1⟧` is as unverified as `⟦M1⟧` until E-ENB-18.
+- **Spreadsheet programs:** files from openpyxl were read, and the export was opened by openpyxl and LibreOffice. Microsoft Excel has not been tried.
+- **Best effort words:** every Sinhala and Tamil message R4 adds wants a native reader before Go live. R-ERR-02's approved texts are not seeded into the memory, as E-ERR-01 still waits for that reader.
+- **The real machine's figures:** the 500,000 pieces were measured on the local stack (`docs/DECISION-LOG.md`); E-NFR-01 measures under load.
+
+<!-- r4-still -->
 
 ## R5 Records, alerts and readiness
 

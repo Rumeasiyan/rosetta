@@ -71,6 +71,7 @@ var (
 	ErrAlreadyChecked  = errors.New("glossary: this language is already checked")
 	ErrBadLanguage     = errors.New("glossary: not a language")
 	ErrNoOutcomeNote   = errors.New("glossary: a refusal says why")
+	ErrTooCommon       = errors.New("glossary: more memory entries hold this term than one publication may mark")
 	ErrNoVersion       = errors.New("glossary: no such version")
 )
 
@@ -347,7 +348,7 @@ type Checked struct {
 	Published bool
 	Version   int
 	Replaced  *int64
-	Texts     []string // every text of the published entry and any it replaced, for E-GLO-06
+	Change    Change
 }
 
 // Check is a keeper's check of their own language, with their words if they corrected it. The
@@ -423,24 +424,14 @@ func publish(ctx context.Context, tx pgx.Tx, id int64, replaces *int64, by int64
 		return out, err
 	}
 	// What was free when it was proposed may have been published since.
-	rows, err := tx.Query(ctx, `SELECT language, text FROM glossary_term WHERE glossary_entry_id = $1`, id)
+	now, err := wordsOf(ctx, tx, id)
 	if err != nil {
 		return out, err
 	}
-	type lt struct{ lang, text string }
-	terms, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (lt, error) {
-		var x lt
-		err := r.Scan(&x.lang, &x.text)
-		return x, err
-	})
-	if err != nil {
-		return out, err
-	}
-	for _, t := range terms {
-		if err := notTaken(ctx, tx, i18n.Lang(t.lang), t.text, id, replaces); err != nil {
+	for l, t := range now {
+		if err := notTaken(ctx, tx, l, t, id, replaces); err != nil {
 			return out, err
 		}
-		out.Texts = append(out.Texts, t.text)
 	}
 	var version int
 	if err := tx.QueryRow(ctx, `SELECT max(number) + 1 FROM glossary_version`).Scan(&version); err != nil {
@@ -456,23 +447,17 @@ func publish(ctx context.Context, tx pgx.Tx, id int64, replaces *int64, by int64
 	if _, err := tx.Exec(ctx, `UPDATE glossary_entry SET status = 'published', published_in = $2 WHERE id = $1`, id, version); err != nil {
 		return out, err
 	}
+	was := termsByLanguage{}
 	if replaces != nil {
 		if _, err := tx.Exec(ctx, `UPDATE glossary_entry SET status = 'replaced', replaced_in = $2 WHERE id = $1`, *replaces, version); err != nil {
 			return out, err
 		}
-		rows, err := tx.Query(ctx, `SELECT text FROM glossary_term WHERE glossary_entry_id = $1`, *replaces)
-		if err != nil {
+		if was, err = wordsOf(ctx, tx, *replaces); err != nil {
 			return out, err
 		}
-		old, err := pgx.CollectRows(rows, pgx.RowTo[string])
-		if err != nil {
-			return out, err
-		}
-		for _, t := range old {
-			if !slices.Contains(out.Texts, t) {
-				out.Texts = append(out.Texts, t)
-			}
-		}
+	}
+	if out.Change, err = applyChange(ctx, tx, id, version, was, now); err != nil {
+		return out, err
 	}
 	out.Published, out.Version, out.Replaced = true, version, replaces
 	return out, nil

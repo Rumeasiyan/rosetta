@@ -72,6 +72,7 @@ func glossaryRefusal(err error) (string, bool) {
 		{glossary.ErrNoText, "glossaryNoText"},
 		{glossary.ErrAlreadyChecked, "glossaryAlreadyChecked"},
 		{glossary.ErrNoOutcomeNote, "glossaryNoOutcomeNote"},
+		{glossary.ErrTooCommon, "glossaryTooCommon"},
 	} {
 		if errors.Is(err, r.err) {
 			return r.word, true
@@ -326,6 +327,7 @@ type glossaryEntryData struct {
 	Entry      glossary.Entry
 	Yours      []glossary.Term // the languages this keeper may check here
 	MayCorrect bool
+	MayHistory bool
 }
 
 func entryID(r *http.Request) (int64, bool) {
@@ -436,7 +438,7 @@ func (a *App) glossaryCheck(w http.ResponseWriter, r *http.Request) {
 		if !done.Published {
 			return nil
 		}
-		details := map[string]any{"entry": ref}
+		details := map[string]any{"entry": ref, "cache_removed": done.Change.CacheRemoved, "memory_marked": done.Change.MemoryMarked}
 		if done.Replaced != nil {
 			details["replaced"] = strconv.FormatInt(*done.Replaced, 10)
 		}
@@ -446,6 +448,9 @@ func (a *App) glossaryCheck(w http.ResponseWriter, r *http.Request) {
 	word := "glossaryChecked"
 	if done.Published {
 		word = "glossaryPublished"
+		if done.Change.MemoryMarked > 0 {
+			word = "glossaryPublishedMarks"
+		}
 	}
 	a.afterKeeper(w, r, id, err, word)
 }

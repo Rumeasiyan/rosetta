@@ -299,6 +299,8 @@ var messages = map[string]text{
 	"memoryStateRecheck":        {"Waiting for a recheck, not served", "නැවත පරීක්ෂාව බලා සිටියි, සේවය නොකෙරේ", "மீள் சரிபார்ப்புக்குக் காத்திருக்கிறது, வழங்கப்படவில்லை"},
 	"memoryStateRemoved":        {"Removed", "ඉවත් කර ඇත", "நீக்கப்பட்டது"},
 	"memoryStateReplaced":       {"Replaced by a newer approval", "නව අනුමැතියකින් ප්‍රතිස්ථාපිත", "புதிய அங்கீகாரத்தால் மாற்றப்பட்டது"},
+	"glossaryPublishedMarks":    {"All three languages are checked, and the entry is published. Memory entries holding the term wait for a recheck by their reviewers.", "භාෂා තුනම පරීක්ෂා කර ඇත, ඇතුළත් කිරීම ප්‍රකාශිතයි. පදය ඇති මතක ඇතුළත් කිරීම් ඔවුන්ගේ සමාලෝචකයන්ගේ නැවත පරීක්ෂාව බලා සිටියි.", "மூன்று மொழிகளும் சரிபார்க்கப்பட்டன, பதிவு வெளியிடப்பட்டது. சொல்லைக் கொண்ட நினைவகப் பதிவுகள் அவற்றின் சீராய்வாளர்களின் மீள் சரிபார்ப்புக்குக் காத்திருக்கின்றன."},
+	"glossaryTooCommon":         {"Too many memory entries hold this term for it to be published: it is too common a word. Word it more narrowly, or refuse it. Nothing was changed.", "මෙම පදය ප්‍රකාශ කිරීමට තරම් මතක ඇතුළත් කිරීම් ගණනක එය ඇත: එය ඉතා පොදු වචනයකි. වඩා නිශ්චිතව ලියන්න, නැතහොත් ප්‍රතික්ෂේප කරන්න. කිසිවක් වෙනස් කළේ නැත.", "இந்தச் சொல்லை வெளியிட முடியாத அளவுக்கு அதிகமான நினைவகப் பதிவுகளில் அது உள்ளது: இது மிகப் பொதுவான சொல். இன்னும் குறிப்பாக எழுதுங்கள், அல்லது மறுக்கவும். எதுவும் மாற்றப்படவில்லை."},
 	"glossaryNotWritten":        {"Not written yet", "තවම ලියා නැත", "இன்னும் எழுதப்படவில்லை"},
 	"glossaryNotChecked":        {"Not checked yet", "තවම පරීක්ෂා කර නැත", "இன்னும் சரிபார்க்கப்படவில்லை"},
 	"glossaryInVersion":         {"Published in version", "ප්‍රකාශිත අනුවාදය", "வெளியிடப்பட்ட பதிப்பு"},

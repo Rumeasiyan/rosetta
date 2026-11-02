@@ -12,7 +12,7 @@
   <p class="soft">{{t .Lang "glossaryState"}}: {{t .Lang (statusWord $e.Status)}}{{if $e.PublishedIn}}. {{t .Lang "glossaryInVersion"}} {{$e.PublishedIn}}{{end}}{{if $e.ReplacedIn}}. {{t .Lang "glossaryReplacedIn"}} {{$e.ReplacedIn}}{{end}}{{if $e.ProposedBy}}. {{t .Lang "glossaryProposedBy"}} {{$e.ProposedBy}}{{end}}</p>
   {{if $e.OutcomeNote}}<p><strong>{{t .Lang "glossaryOutcome"}}:</strong> {{$e.OutcomeNote}}</p>{{end}}
   <div class="inline row-actions">
-    <a class="pill" href="/glossary/{{$e.ID}}/history">{{t .Lang "history"}}</a>
+    {{if .Data.MayHistory}}<a class="pill" href="/glossary/{{$e.ID}}/history">{{t .Lang "history"}}</a>{{end}}
     {{if .Data.MayCorrect}}<a class="pill solid" href="/glossary/propose?corrects={{$e.ID}}">{{t .Lang "glossaryCorrect"}}</a>{{end}}
     {{if $e.ReplacedByID}}<a class="pill" href="/glossary/{{$e.ReplacedByID}}">{{t .Lang "glossaryNewer"}}</a>{{end}}
   </div>

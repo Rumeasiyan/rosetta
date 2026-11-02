@@ -237,3 +237,47 @@ func TestMemoryScreensInEachLanguage(t *testing.T) {
 		}
 	}
 }
+
+// R-GLO-06 and R-REC-02: the third check publishes and marks at once. The keeper is told, the reviewer
+// sees which entry sent it there, and the audit says how many, with no word of the term or the text.
+func TestAPublicationMarksAndSaysSoWithNoWords(t *testing.T) {
+	w := newWorld(t)
+	w.fresh()
+	w.glossaryClean()
+	c := w.caller()
+	const secret = "Markedtermword"
+	k := w.keepers()
+	reviewer, _ := w.holding("reviewer", "reviewer ta")
+	id := w.remembered(c, "en", "ta", "The "+secret+" came.", "வந்தார்.", memory.StateServed)
+	entry := k[i18n.EN].propose("post", secret, "පදය", "சொல்", "")
+	k[i18n.EN].check(entry, i18n.EN, "")
+	k[i18n.SI].check(entry, i18n.SI, "")
+	says(t, k[i18n.TA].check(entry, i18n.TA, ""), i18n.EN, "glossaryPublishedMarks")
+	if s, _, _ := w.memoryState(id); s != memory.StateRecheck {
+		t.Fatal(s)
+	}
+	if p := reviewer.get(fmt.Sprintf("/memory/%d", id)); !strings.Contains(p.body, fmt.Sprintf(`href="/glossary/%d"`, entry)) {
+		t.Fatal(p.body)
+	}
+	found := false
+	for _, x := range w.outbox() {
+		if strings.Contains(x.Raw, secret) {
+			t.Errorf("in the outbox: %s", x.Raw)
+		}
+		if x.ObjectType == "glossary version" {
+			found = x.Details["memory_marked"] == float64(1) && x.Details["cache_removed"] == float64(0)
+		}
+	}
+	if !found {
+		t.Error("the publication does not say what it marked")
+	}
+	if strings.Contains(w.logs.String(), secret) {
+		t.Error("in the logs")
+	}
+	// A reviewer's confirmation serves it again, and takes the mark away.
+	says(t, reviewer.memoryAct(id, "confirm", nil), i18n.EN, "memoryConfirmed")
+	var mark *int64
+	if err := w.pool.QueryRow(context.Background(), `SELECT recheck_glossary_entry_id FROM memory_entry WHERE id = $1`, id).Scan(&mark); err != nil || mark != nil {
+		t.Fatalf("%v %v", mark, err)
+	}
+}
