@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Keys
+
+A key is `rst_`, twelve hex characters and 256 random bits; the first sixteen characters are the prefix lists show and `keyid` carries. It is stored as SHA-256: with that many random bits there is nothing to guess, so a slow hash would only cost every request. The two-live rule holds the system's row while counting. The refused key's denial names the fixed route `/api/`, the system if the key told which and otherwise the actor `unidentified caller`, with fixed words why. The system and prefix go in `object_ref`, which PENSIEVE does not scan, since a TVA reference could look like anything. Counts by reason are in memory until E-ADM-04 shows them: a request with no known key has no calling system, so a usage record cannot hold it. A request that a database fault stops from being checked answers "no provider", not "no key".
+
+## The signature's form on /api/
+
+PARADOX's profile with one parameter added: `rosetta=("@method" "@path" "content-digest");created=<unix>;keyid="<prefix>";nonce="<nonce>";alg="ed25519";tag="caller-to-rosetta"`, nothing else accepted. The label and tag are this build's choice, so a signature made for PARADOX can never pass here, nor one for here pass there. A nonce is 16 to 128 of `A-Za-z0-9._~-`. Only a verified signature's nonce is remembered, so nobody can fill the memory or spend a caller's nonce without its key. After a restart a request still inside its window could pass once more, which is safe (R-TRN-05). E-CAL-04 publishes this. A key with no public key is not asked to sign, wherever the call came from: nothing here tells whether it arrived through Cloudflare, so a key issued without a public key would also work from outside if it leaked. Issue with a public key for any caller off this server.
+
 ## The masking stand-in's form
 
 `⟦M1⟧`, `⟦M2⟧`: brackets no language here writes, the form BUMBLEBEE's stand-in already looked for, and room for the glossary's `⟦G1⟧` in E-GLO-04. Numbers are counted from one within a piece (`Slice`), so the same sentence with another number in it is the same piece for the cache, and a number the caller wrote as a stand-in is skipped. Restoring is strict: each stand-in exactly once, and any other of that shape the text did not hold is a change, so a source that repeats one fails with "masking lost" rather than guessing. What counts as a number is written in `internal/mask`: digits of any script, single spaces, hyphens or dots between them, a Sinhala or Tamil letter joined to the end does not stop it, a Latin letter does. Twelve digits are a card, ten beginning 0 and the `94` forms a phone. A reference in those shapes gets masked too, which does no harm. Whether the real sites keep `⟦M1⟧` is unverified until E-ENB-18.

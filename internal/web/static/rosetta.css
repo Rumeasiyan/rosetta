@@ -86,10 +86,13 @@ a { color: inherit; }
 .fields { display: grid; gap: 4px; max-width: 480px; }
 .fields label { margin-top: 10px; font-weight: 500; }
 .fields select, .fields input:not([type=hidden]) { font: inherit; width: 100%; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
+.fields textarea, .key-once { font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; width: 100%; padding: 10px 16px; border-radius: 16px; border: 1.5px solid var(--ink); background: transparent; color: inherit; overflow-wrap: anywhere; }
+.fields p { margin: 4px 0 0; font-size: 14px; }
 .fields button { justify-self: start; margin-top: 16px; }
 
 .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline input[type=number] { font: inherit; width: 7em; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
 .row-actions { margin-top: 20px; }
+code { overflow-wrap: anywhere; }
 .stack-label { display: none; color: var(--soft); }
 @container (max-width: 600px) { .stack-label { display: inline; } }

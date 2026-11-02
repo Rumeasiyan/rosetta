@@ -3,10 +3,12 @@ package web
 import (
 	"context"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Rumeasiyan/paradox/sign"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/people"
@@ -218,3 +220,155 @@ func TestOwnerReachesOnlyTheirOwnSystems(t *testing.T) {
 }
 
 func sysPath(id int64) string { return "/systems/" + itoa(id) }
+
+// ---- keys ---------------------------------------------------------------------
+
+func TestSystemScreenListsKeysNeverShowingOne(t *testing.T) {
+	at := time.Date(2030, 1, 1, 4, 30, 0, 0, time.UTC)
+	keys := []callers.Key{
+		{ID: 3, Prefix: "rst_0123456789ab", Signs: true, CreatedAt: at, CreatedBy: "Test Owner", LastUsedAt: &at},
+		{ID: 2, Prefix: "rst_ba9876543210", CreatedAt: at, TurnedOffAt: &at},
+	}
+	for _, l := range i18n.Langs {
+		body := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", CSRF: "form-token", Viewer: &Viewer{Name: "Test"},
+			Data: systemData{System: someSystems()[0], Keys: keys}})
+		for _, want := range []string{"rst_0123456789ab", i18n.T(l, "keySigns"), i18n.T(l, "keyOnThisServer"), i18n.T(l, "keyOff"), `action="/systems/7/keys/3/off"`, `action="/systems/7/keys"`, `<label for="public_key">`, "Test Owner"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: no %q", l, want)
+			}
+		}
+		if strings.Contains(body, `action="/systems/7/keys/2/off"`) {
+			t.Errorf("%s: a key already off offers turning off", l)
+		}
+		shown := render(t, "key-issued", Page{Lang: l, Path: "/systems/7/keys", Title: "keyIssued", Viewer: &Viewer{Name: "Test"},
+			Data: keyShown{System: someSystems()[0], Key: "rst_thewholekey", Prefix: "rst_", Signs: true}})
+		if !strings.Contains(shown, "rst_thewholekey") || !strings.Contains(shown, esc(i18n.T(l, "keyOnce"))) || !strings.Contains(shown, i18n.T(l, "keySignsNote")) {
+			t.Errorf("%s: %s", l, shown)
+		}
+	}
+}
+
+// keyOf reads the one key from the screen that shows it.
+func keyOf(t *testing.T, p page) string {
+	t.Helper()
+	m := keyOnPage.FindStringSubmatch(p.body)
+	if m == nil {
+		t.Fatalf("no key on the page: %d %s", p.status, p.body)
+	}
+	return m[1]
+}
+
+var keyOnPage = regexp.MustCompile(`readonly spellcheck="false">(rst_[^<]+)</textarea>`)
+
+func TestKeysAreShownOnceTwoLiveAndTurnedOffAtOnce(t *testing.T) {
+	w := newWorld(t)
+	admin, who := w.signedInAdmin()
+	w.freshSystems()
+	t.Cleanup(w.freshSystems)
+	w.exec(`DELETE FROM audit_outbox`)
+	var id int64
+	if err := w.pool.QueryRow(context.Background(), `INSERT INTO caller (tva_reference, name, tva_status, tva_checked_at) VALUES ('KEY-1', 'Invented', 'live', now()) RETURNING id`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	token := admin.csrf()
+	path := sysPath(id)
+	first := keyOf(t, admin.post(path+"/keys", url.Values{"csrf": {token}}))
+	pub, priv, err := sign.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := keyOf(t, admin.post(path+"/keys", url.Values{"csrf": {token}, "public_key": {pub}}))
+	if first == second {
+		t.Fatal("the same key twice")
+	}
+	// A third is refused until one is turned off.
+	if p := admin.post(path+"/keys", url.Values{"csrf": {token}}); !strings.Contains(p.body, "two live keys") {
+		t.Fatalf("%d %s", p.status, p.body)
+	}
+	// A private key pasted by mistake is refused, and not repeated.
+	if p := admin.post(path+"/keys", url.Values{"csrf": {token}, "public_key": {priv}}); !strings.Contains(p.body, "not a public key") || strings.Contains(p.body, priv) {
+		t.Fatalf("%d %s", p.status, p.body)
+	}
+	// The list shows prefixes, never a key; the table holds only its hash.
+	list := admin.get(path)
+	if strings.Contains(list.body, first) || strings.Contains(list.body, second) || !strings.Contains(list.body, first[:16]) {
+		t.Fatal(list.body)
+	}
+	var kept int
+	w.pool.QueryRow(context.Background(), `SELECT count(*) FROM caller_key WHERE key_hash = $1 AND public_key IS NULL`, callers.HashKey(first)).Scan(&kept)
+	if kept != 1 {
+		t.Fatalf("%d", kept)
+	}
+	w.pool.QueryRow(context.Background(), `SELECT count(*) FROM caller_key WHERE key_hash = $1 OR prefix = $1`, first).Scan(&kept)
+	if kept != 0 {
+		t.Fatal("the key itself is stored")
+	}
+	// Turned off, it stops at once, and the room comes back.
+	h, err := callers.FindKey(context.Background(), w.pool, callers.HashKey(first))
+	if err != nil || h.TurnedOff || h.Caller.Reference != "KEY-1" {
+		t.Fatal(h, err)
+	}
+	if p := admin.post(path+"/keys/"+itoa(h.KeyID)+"/off", url.Values{"csrf": {token}}); !strings.Contains(p.body, "turned off") {
+		t.Fatal(p.body)
+	}
+	if h, err = callers.FindKey(context.Background(), w.pool, callers.HashKey(first)); err != nil || !h.TurnedOff {
+		t.Fatal(h, err)
+	}
+	if p := admin.post(path+"/keys/"+itoa(h.KeyID)+"/off", url.Values{"csrf": {token}}); !strings.Contains(p.body, "not live") {
+		t.Fatal("twice", p.body)
+	}
+	keyOf(t, admin.post(path+"/keys", url.Values{"csrf": {token}}))
+	// Each issue and turn-off is an entry, with neither key nor hash in it.
+	got := w.outbox()
+	if len(got) != 4 || got[0].Action != "key change" || got[0].Actor != who || got[0].ObjectType != "caller key" || !strings.HasPrefix(got[0].ObjectRef, "KEY-1 rst_") || got[2].Details["change"] != "turned off" {
+		t.Fatalf("%+v", got)
+	}
+	for _, e := range got {
+		for _, secret := range []string{first, second, callers.HashKey(first), priv} {
+			if strings.Contains(e.Raw, secret) {
+				t.Fatal(e.Raw)
+			}
+		}
+	}
+	for _, secret := range []string{first, second, priv} {
+		if strings.Contains(w.logs.String(), secret) {
+			t.Fatal("a log holds a key")
+		}
+	}
+}
+
+func TestKeysBelongToTheirOwnerAlone(t *testing.T) {
+	w := newWorld(t)
+	w.signedInAdmin()
+	w.freshSystems()
+	t.Cleanup(w.freshSystems)
+	mine := subject("owner")
+	var own, other int64
+	ctx := context.Background()
+	w.pool.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_subject, tva_status, tva_checked_at) VALUES ('OWN-2', 'Invented', $1, 'live', now()) RETURNING id`, mine).Scan(&own)
+	w.pool.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_subject, tva_status, tva_checked_at) VALUES ('OTHER-2', 'Invented', 'someone-else', 'live', now()) RETURNING id`).Scan(&other)
+	owner := w.browser()
+	owner.signIn(mine)
+	token := owner.csrf()
+	key := keyOf(t, owner.post(sysPath(own)+"/keys", url.Values{"csrf": {token}}))
+	if key == "" {
+		t.Fatal("no key")
+	}
+	if p := owner.post(sysPath(other)+"/keys", url.Values{"csrf": {token}}); p.status != 403 {
+		t.Fatalf("another's system: %d", p.status)
+	}
+	// A key of another system cannot be reached through one's own address.
+	var theirs int64
+	w.pool.QueryRow(ctx, `INSERT INTO caller_key (caller_id, key_hash, prefix) VALUES ($1, 'h', 'rst_other') RETURNING id`, other).Scan(&theirs)
+	if p := owner.post(sysPath(own)+"/keys/"+itoa(theirs)+"/off", url.Values{"csrf": {token}}); !strings.Contains(p.body, "not live") {
+		t.Fatal(p.body)
+	}
+	var off bool
+	w.pool.QueryRow(ctx, `SELECT turned_off_at IS NOT NULL FROM caller_key WHERE id = $1`, theirs).Scan(&off)
+	if off {
+		t.Fatal("turned off another's key")
+	}
+	if p := owner.post(sysPath(other)+"/keys/"+itoa(theirs)+"/off", url.Values{"csrf": {token}}); p.status != 403 {
+		t.Fatalf("%d", p.status)
+	}
+}

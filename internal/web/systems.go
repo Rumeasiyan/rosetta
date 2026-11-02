@@ -20,6 +20,8 @@ func (a *App) mountSystems(mux *http.ServeMux) {
 	mux.Handle("GET /systems", a.signedIn(a.only(seesSystems, a.systemsPage)))
 	mux.Handle("POST /systems/register", a.signedIn(a.only(isAdmin, a.post(a.registerSystem))))
 	mux.Handle("GET /systems/{id}", a.signedIn(a.forSystem(a.systemPage)))
+	mux.Handle("POST /systems/{id}/keys", a.signedIn(a.post(a.forSystem(a.issueKey))))
+	mux.Handle("POST /systems/{id}/keys/{key}/off", a.signedIn(a.post(a.forSystem(a.turnOffKey))))
 }
 
 // seesSystems is who the screen opens for: the administrator, and a system owner
@@ -97,12 +99,95 @@ func (a *App) systemsPage(w http.ResponseWriter, r *http.Request) {
 // systemData is one system's screen.
 type systemData struct {
 	System callers.Caller
+	Keys   []callers.Key
+	Admin  bool
 }
 
 func (a *App) systemPage(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	keys, err := callers.Keys(r.Context(), a.deps.Pool, s.ID)
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
 	p := a.page(r, "systems", "systems")
-	p.Data = systemData{System: s}
+	p.Data = systemData{System: s, Keys: keys, Admin: isAdmin(fromCtx(r))}
 	a.Render(w, r, http.StatusOK, "system", p)
+}
+
+func systemPath(s callers.Caller) string { return "/systems/" + strconv.FormatInt(s.ID, 10) }
+
+// keyShown is the one screen that holds a key, once. It is not a redirect: the key
+// goes in no address and is not kept (R-CAL-03; Render sends no-store).
+type keyShown struct {
+	System callers.Caller
+	Key    string
+	Prefix string
+	Signs  bool
+}
+
+// keyEvent is the audit entry for a key: the system and the prefix are in object_ref,
+// which PENSIEVE does not scan, as TVA's references are opaque and could look like
+// anything. Never the key, its hash or its public key.
+func keyEvent(c *current, r *http.Request, s callers.Caller, k callers.Key, change string) audit.Event {
+	return audit.Event{Actor: c.actor(), Action: audit.ActionKeyChange, ObjectType: "caller key",
+		ObjectRef: s.Reference + " " + k.Prefix, Result: audit.ResultDone, Visitor: audit.Visitor(r),
+		Details: map[string]any{"change": change, "signed": k.Signs}}
+}
+
+// issueKey makes a key with its audit entry in one transaction, and shows it once.
+func (a *App) issueKey(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	public, err := callers.ParsePublicKey(r.PostForm.Get("public_key"))
+	if err != nil {
+		back(w, r, systemPath(s), "keyBadPublic", "bad")
+		return
+	}
+	var key string
+	var made callers.Key
+	err = a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		var err error
+		if key, made, err = callers.Issue(ctx, tx, s.ID, c.sess.personID, public); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, keyEvent(c, r, s, made, "issued"), now)
+	})
+	switch {
+	case errors.Is(err, callers.ErrTooManyKeys):
+		back(w, r, systemPath(s), "keyTooMany", "bad")
+	case err != nil:
+		a.fail(w, r, err)
+	default:
+		p := a.page(r, "keyIssued", "systems")
+		p.Data = keyShown{System: s, Key: key, Prefix: made.Prefix, Signs: made.Signs}
+		a.Render(w, r, http.StatusOK, "key-issued", p)
+	}
+}
+
+// turnOffKey ends a key at once. Only a key of this system: the address cannot reach
+// another's.
+func (a *App) turnOffKey(w http.ResponseWriter, r *http.Request, s callers.Caller) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	keyID, perr := strconv.ParseInt(r.PathValue("key"), 10, 64)
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		if perr != nil {
+			return callers.ErrNoSuchKey
+		}
+		k, err := callers.TurnOff(ctx, tx, s.ID, keyID, c.sess.personID)
+		if err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, keyEvent(c, r, s, k, "turned off"), now)
+	})
+	switch {
+	case errors.Is(err, callers.ErrNoSuchKey):
+		back(w, r, systemPath(s), "keyNoSuch", "bad")
+	case err != nil:
+		a.fail(w, r, err)
+	default:
+		back(w, r, systemPath(s), "keyTurnedOff", "good")
+	}
 }
 
 // registerRefusal is the message for each refusal. What was typed is never repeated.

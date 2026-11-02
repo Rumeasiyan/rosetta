@@ -99,6 +99,7 @@ Notes:
 - **E-ERR-01:** nothing needs the database. Read each reason's three messages with a native reader before Go live (they are best effort); walk them through E-TRN-01's answers.
 - **E-PRV-01:** first run of `internal/sources/store_db_test.go` and `TestSourcesScreenOpensForAdministratorAndOwnerOnly`. Walk: `/sources` as the administrator and as `dev-owner`, the outside-website words beside each source; set BUMBLEBEE's stand-in to `blocked`, `changed`, `source-off` and `silent` through `/control` and see each state, and the warning once the list is older than its setting; read the `source` and `source_offer` rows back.
 - **E-MSK-01:** its tests need no database and pass, against BUMBLEBEE's stand-in too. Walk with E-TRN-01: send a passage holding invented card and phone numbers, read back from `/control/bumblebee/received` that none reached the stand-in, and see them back in the answer. Whether `⟦M1⟧` survives on the real sites can only be seen at E-ENB-18.
+- **E-CAL-02:** first run of the key tests in `internal/web/systems_test.go` and of `internal/api/store_db_test.go`. Walk: issue a key as the administrator and as `dev-owner`, see it once, a third refused, turn one off and call `/api/` with it; send a signed call and each refusal (no signature, a query, an old time, a nonce again, another body); read the denials back from PENSIEVE's stand-in. The signature is checked for real at E-ENB-19.
 <!-- r2-still -->
 
 ## R3 Grammar

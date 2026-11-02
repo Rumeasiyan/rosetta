@@ -1,0 +1,11 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "keyIssued"}}</h1><p class="hero-line">{{.Data.System.Name}}</p></div>
+<div class="content">
+  <p class="note warn" role="status">{{t .Lang "keyOnce"}}</p>
+  <p><label for="the-key">{{t .Lang "keyTheKey"}}</label></p>
+  <p><textarea id="the-key" class="key-once" rows="3" readonly spellcheck="false">{{.Data.Key}}</textarea></p>
+  {{if .Data.Signs}}<p>{{t .Lang "keySignsNote"}}</p>{{end}}
+  <p class="row-actions"><a class="pill" href="/systems/{{.Data.System.ID}}">{{t .Lang "backToSystem"}}</a></p>
+</div>
+{{end}}

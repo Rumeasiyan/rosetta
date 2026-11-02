@@ -12,6 +12,28 @@
       <td><span class="stack-label">{{t .Lang "lastRequest"}}: </span>{{if .Data.System.LastRequestAt}}{{when .Data.System.LastRequestAt}}{{else}}{{t .Lang "never"}}{{end}}</td>
     </tr></tbody>
   </table></div>
+
+  <h2 class="fat section">{{t .Lang "keys"}}</h2>
+  <p class="soft">{{t .Lang "keysNote"}}</p>
+  {{if .Data.Keys}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "keyPrefix"}}</th><th scope="col">{{t .Lang "keyKind"}}</th><th scope="col">{{t .Lang "keyMade"}}</th><th scope="col">{{t .Lang "keyLastUsed"}}</th><th scope="col">{{t .Lang "keyState"}}</th></tr></thead>
+    <tbody>{{range .Data.Keys}}<tr>
+      <td><code>{{.Prefix}}</code></td>
+      <td><span class="stack-label">{{t $.Lang "keyKind"}}: </span>{{if .Signs}}{{t $.Lang "keySigns"}}{{else}}{{t $.Lang "keyOnThisServer"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "keyMade"}}: </span>{{when .CreatedAt}}{{if .CreatedBy}}<br><span class="soft">{{.CreatedBy}}</span>{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "keyLastUsed"}}: </span>{{if .LastUsedAt}}{{when .LastUsedAt}}{{else}}{{t $.Lang "never"}}{{end}}</td>
+      <td>{{if .Live}}<form method="post" action="/systems/{{$.Data.System.ID}}/keys/{{.ID}}/off"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "keyTurnOff"}}<span class="hidden-label">: {{.Prefix}}</span></button></form>{{else}}{{t $.Lang "keyOff"}}: {{when .TurnedOffAt}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noKeys"}}</p>{{end}}
+
+  <h2 class="fat section">{{t .Lang "keyIssue"}}</h2>
+  <form class="fields" method="post" action="/systems/{{.Data.System.ID}}/keys">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="public_key">{{t .Lang "keyPublic"}}</label>
+    <textarea id="public_key" name="public_key" rows="2" autocomplete="off" spellcheck="false"></textarea>
+    <p class="soft">{{t .Lang "keyPublicNote"}}</p>
+    <button class="pill solid" type="submit">{{t .Lang "keyIssue"}}</button>
+  </form>
   <p class="row-actions"><a class="pill" href="/systems">{{t .Lang "backToSystems"}}</a></p>
 </div>
 {{end}}

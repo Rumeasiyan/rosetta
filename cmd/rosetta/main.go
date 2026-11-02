@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/api"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
@@ -173,8 +174,11 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		return err
 	}
 
+	calls := api.New(api.Deps{Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger})
+
 	mux := http.NewServeMux()
 	screens.Mount(mux)
+	calls.Mount(mux)
 	mux.Handle(health.Path, health.Handler(health.DBCheck(pool), logger))
 	mux.Handle(jobs.Prefix, jobs.Handler(pool, keys, jobs.Set(
 		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03
