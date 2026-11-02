@@ -194,10 +194,6 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	}
 	defer notices.Wait()
 	noSystem := api.NewCounts(time.Now)
-	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
-	if err != nil {
-		return err
-	}
 
 	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
 	// use like the settings, with the last good values kept if a read fails.
@@ -216,9 +212,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Settings: values.Get,
 		Logger:   logger,
 	}
+	forTests := *pipeline
+	forTests.Keeper = nil
 	calls := api.New(api.Deps{
-		Counts: noSystem,
-		Keys:   api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
+		TestTranslator: &forTests,
+		Counts:         noSystem,
+		Keys:           api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
 		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
 		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
@@ -228,6 +227,11 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Memory:  &memory.Service{Pool: pool, Settings: values.Get, Kick: outbox.Kick, Logger: logger},
 		Usage:   func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 	})
+
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, Tester: calls, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	if err != nil {
+		return err
+	}
 
 	mux := http.NewServeMux()
 	screens.Mount(mux)

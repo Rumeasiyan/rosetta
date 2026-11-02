@@ -54,6 +54,8 @@ type Deps struct {
 	TVA tva.Reader
 	// Sources is BUMBLEBEE's source list. Nil shows it as never read.
 	Sources SourceList
+	// Tester sends test requests from the screens (R-ADM-04). Nil refuses them.
+	Tester Tester
 	// NoSystem is today's refusals of requests with no known system (R-CAL-04). Nil counts none.
 	NoSystem func() map[reasons.Reason]int
 	Logger   *slog.Logger
@@ -115,6 +117,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountMemory(mux)
 	a.mountUsage(mux)
 	a.mountStatus(mux)
+	a.mountTest(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 

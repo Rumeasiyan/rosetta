@@ -124,3 +124,4 @@ details.row-actions { margin-top: 12px; }
 .view-field label { margin-top: 0; }
 .view-form button { margin-top: 0; }
 .section-gap { margin-top: 16px; }
+.answer { font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; background: #fff; border: 1px solid var(--stone); padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60vh; overflow: auto; }

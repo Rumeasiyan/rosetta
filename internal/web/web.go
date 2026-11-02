@@ -175,6 +175,8 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"memoryArgs":      memoryTableArgs,
 		"memoryStateWord": memoryStateWord,
 		"opWord":          opWord,
+		"sensitivities":   func() []string { return testSensitivities },
+		"sensitivityWord": sensitivityWord,
 		"whyWord":         whyWord,
 		"timeWord":        timeWord,
 		"groupWord":       groupWord,

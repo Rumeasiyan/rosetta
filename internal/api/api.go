@@ -63,6 +63,9 @@ type Deps struct {
 	Policy   func(ctx context.Context) sources.Policy
 	// Translator answers translation requests. Nil answers "no provider".
 	Translator Translator
+	// TestTranslator answers tests from the screens: the same pipeline as Translator, keeping
+	// nothing (Annex A). Nil answers "no provider".
+	TestTranslator Translator
 	// Memory keeps approved text. Nil answers "no provider".
 	Memory MemoryAdder
 	// Grammar answers grammar checks. Nil answers "no provider".
