@@ -249,7 +249,7 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
   }
 
   if (run === 'edge') {
-    // Type into the panel's own field, as its README allows.
+    // Type into the panel's own field, as how-to-run.md allows.
     const type = async (text) => {
       await plugin.evaluate((t) => {
         document.getElementById('textarea').innerText = t;
