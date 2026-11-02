@@ -60,6 +60,9 @@ const usageText = `usage:
 // ShutdownGrace is how long requests in flight may finish after a stop signal.
 const ShutdownGrace = 10 * time.Second
 
+// AnswerMargin is what is left of the grace for a request given up on to answer with its reason.
+const AnswerMargin = 2 * time.Second
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, os.Getenv))
 }
@@ -342,7 +345,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if ready != nil {
 		ready <- ln.Addr().String()
 	}
-	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	// Every request's context ends a little before the grace does, so one still waiting on a source
+	// when ROSETTA stops fails with a reason rather than a cut connection, and may be sent again
+	// (R-NFR-08; R-TRN-05).
+	requests, endRequests := context.WithCancel(context.Background())
+	defer endRequests()
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second, BaseContext: func(net.Listener) context.Context { return requests }}
 	done := make(chan error, 1)
 	go func() { done <- srv.Serve(ln) }()
 	logger.Info("rosetta listening", "listen", cfg.Listen, "version", rosetta.Version)
@@ -352,6 +360,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	case <-ctx.Done():
 		sctx, cancel := context.WithTimeout(context.Background(), ShutdownGrace)
 		defer cancel()
+		time.AfterFunc(ShutdownGrace-AnswerMargin, endRequests)
 		return srv.Shutdown(sctx)
 	}
 }

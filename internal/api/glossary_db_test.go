@@ -41,6 +41,8 @@ type pathWorld struct {
 	logs   *bytes.Buffer
 	key    string
 	person int64
+	maxAge time.Duration // how old the source list may be
+	book   *sources.Book
 }
 
 func newPathWorld(t *testing.T) *pathWorld {
@@ -60,7 +62,7 @@ func newPathWorld(t *testing.T) *pathWorld {
 			pool.Exec(context.Background(), sql)
 		}
 	})
-	w := &pathWorld{t: t, pool: pool, logs: &bytes.Buffer{}}
+	w := &pathWorld{t: t, pool: pool, logs: &bytes.Buffer{}, maxAge: time.Minute}
 	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var err error
 		w.key, _, err = issueByTestPerson(ctx, tx, id)
@@ -77,13 +79,14 @@ func newPathWorld(t *testing.T) *pathWorld {
 	logger := slog.New(slog.NewJSONHandler(w.logs, nil))
 	values := func(context.Context) settings.Values { return settings.Defaults() }
 	client := bumblebee.Client{URL: w.stand.URL + "/bumblebee", Key: standin.BumblebeeKey}
-	book := &sources.Book{Read: client.Sources, Logger: logger, MaxAge: func(context.Context) time.Duration { return time.Minute },
+	book := &sources.Book{Read: client.Sources, Logger: logger, MaxAge: func(context.Context) time.Duration { return w.maxAge },
 		Kept: func(ctx context.Context, l bumblebee.List, at time.Time) error {
 			return sources.Mirror(ctx, pool, l, at)
 		}}
 	if err := book.Refresh(ctx); err != nil {
 		t.Fatal(err)
 	}
+	w.book = book
 	policy := func(ctx context.Context) sources.Policy {
 		p, err := sources.LoadPolicy(ctx, pool)
 		if err != nil {
