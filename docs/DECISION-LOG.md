@@ -34,7 +34,16 @@ Every request was answered, none refused. ROSETTA's own part of a source's time 
 
 Memory, from macOS's `footprint` of the native process, as `ps` understates it once pages are compressed: 12 MB at the start, 65 MB with all six directions of 20,000 terms built, 78 MB with 120 large checks held, 79 MB after the burst. So `HeldBytes` and the glossary fit with room to spare here.
 
-Not shown, so E-NFR-01 stays open: `docker stats` and the 250 MB cap on a container, as this machine's limits allowed only PostgreSQL and PgBouncer in Docker; 3,000 requests an hour for a whole hour; `usage_record` at its 50 million rows (about 20 GB), which the shared disk and this PostgreSQL cap would not bear; the real server's disk and CPU; BUMBLEBEE's real sources, and so R-NFR-02's 2 to 6 seconds; and `glossary.MaxMarks` again, which waits for the real machine.
+The image itself, on this same machine: `docker compose -f dev/compose.yaml up -d --build`, 26.9 MB, as `nonroot` on a read-only root, under `mem_limit: 250m`, one CPU and `GOMEMLIMIT=200MiB`, with the same data and PostgreSQL's 256 MB cap, the stand-ins in their own container. Load peaked at 11 during the run. Memory is the container's cgroup `memory.peak`, which misses nothing between samples; `docker stats` read a little less.
+
+| Run | Answered | Fastest kinds at 95 percent | Through a 2-second source at 95 percent | Peak |
+|---|---|---|---|---|
+| 3,000 an hour, 5 minutes, then five times that, 1 minute, one direction built, 120 large checks held | 499 of 499 | 22 to 74 ms | 2.06 s, 2.04 s | 82.4 MiB |
+| Restarted, all six directions built, 120 large checks held, then five times the rate, 1 minute, source not slowed | 250 of 250 | 9 to 13 ms | not slowed | 82.2 MiB |
+
+A fresh container peaked at 15.4 MiB, and at 51.7 MiB with all six directions built. No out-of-memory kill and no restart in either run; the health check read healthy at the end of each. So the 250 MB cap holds at these rates, with room to spare. The run does not show the cap under a longer or heavier load. The data was opened by writing `gate_decision` directly, and directions answered `human translation required` for some seconds after that until ROSETTA read them again; this was seen only on that shortcut and is not a measure of the screen.
+
+Not shown, so E-NFR-01 stays open: 3,000 requests an hour for a whole hour; `usage_record` at its 50 million rows (about 20 GB), which the shared disk and this PostgreSQL cap would not bear; the real server's disk and CPU; BUMBLEBEE's real sources, and so R-NFR-02's 2 to 6 seconds; and `glossary.MaxMarks` again, which waits for the real machine.
 
 For the owner's review, a limit R-TRN-01 and R-ERR-03 do not agree on. Pieces go to a source one at a time, so a request of 40 new sentences through a 2-second source stopped as `timed out` at 58.9 seconds; sent again it answered in 23.9 seconds, 29 pieces from the cache and 11 from the source. So a request at the full 20,000 characters, which can be hundreds of sentences, cannot finish in 60 seconds through any browser source on its first send, and BUMBLEBEE's own rate (its `docs/CALLERS.md`) holds it back further. A caller retrying ordinary text gets there, as the cache keeps what was done; personal text is never cached, so it starts again every time and may never finish. Nothing was changed: the first thing to try is sending some at once, as the entry on the piece pipeline says, or a lower request limit in R-TRN-01, and that is the owner's to choose.
 
