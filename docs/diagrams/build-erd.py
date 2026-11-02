@@ -62,17 +62,14 @@ ENTITIES = {
     ),
     "role_grant": (
         "people",
-        [("PK", "id"), ("FK", "person_id"), ("FK", "caller_id"), ("FK", "granted_by")],
+        [("PK", "id"), ("FK", "person_id"), ("FK", "granted_by")],
         [
             (
                 "role",
-                "administrator, glossary keeper, memory reviewer or system owner (R-ADM-06)",
+                "administrator, glossary keeper or memory reviewer (R-ADM-06); system owner comes from TVA",
             ),
             ("language", f"{LANG}; glossary keeper and memory reviewer only"),
-            (
-                "caller_id",
-                "system owner only; at most one live system owner per caller (R-CAL-02)",
-            ),
+            ("post_ref", "text; the post held at the grant, from TVA; the role ends when the person stops holding it"),
             ("starts_at, ends_on", "time (UTC); date or empty for no end date"),
             ("ended_at, ended_by", "time (UTC); person; ending takes effect at once"),
         ],
@@ -114,13 +111,14 @@ ENTITIES = {
         [
             ("tva_reference", "text, unique; the system's entry in TVA (R-CAL-01)"),
             ("name", "text (max 200); display copy, refreshed daily from TVA's published file"),
-            ("tva_live, tva_checked_at", "yes/no; time (UTC); a caller not live is refused"),
+            ("owner_post_ref, owner_subject", "copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02)"),
+            ("tva_status, tva_checked_at", "as TVA gives it; time (UTC); a caller neither live nor may join is refused"),
             ("requests_per_minute", "number (default: 60) (R-CAL-07)"),
             ("requests_at_once", "number (default: 5)"),
             ("registered_at, last_request_at", "time (UTC)"),
             (
                 "flag",
-                "none, no owner, idle 90 days or not live in TVA (R-CAL-02, R-CAL-05)",
+                "none, no owner, idle 90 days or neither live nor may join in TVA (R-CAL-02, R-CAL-05)",
             ),
         ],
     ),
@@ -370,7 +368,6 @@ ENTITIES = {
 # Links: (child, foreign key, parent, optional, one_to_one).
 LINKS = [
     ("role_grant", "person_id", "person", False, False),
-    ("role_grant", "caller_id", "caller", True, False),
     ("change_history", "changed_by", "person", False, False),
     ("audit_outbox", "actor_id", "person", True, False),
     ("caller_key", "caller_id", "caller", False, False),
