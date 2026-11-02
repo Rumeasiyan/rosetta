@@ -456,7 +456,7 @@ func TestSuggestionsComeInOrderWithNoOverlap(t *testing.T) {
 // Fuzzing the mapping: whatever the text, what a suggestion marks is what the source marked.
 func FuzzPlacedSuggestionsMarkTheSameWord(f *testing.F) {
 	f.Add("😀 0771234567 recieve 123456789V", 12)
-	f.Add("recieve\n\n😀 recieve. recieve", 7)
+	f.Add("recieve\n\n😀 recieve. recieve", 8)
 	f.Add("⟦M1⟧ 0771234567 ⟦M2⟧ recieve", 9)
 	f.Fuzz(func(t *testing.T, text string, limit int) {
 		if !utf8.ValidString(text) || limit < 8 || limit > 2000 || len(text) > 2000 {
