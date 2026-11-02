@@ -1,0 +1,23 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "settings"}}</h1><p class="hero-line">{{t .Lang "settingsNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "setting"}}</th><th scope="col">{{t .Lang "value"}}</th><th scope="col">{{t .Lang "inForce"}}</th><th scope="col">{{t .Lang "defaultValue"}}</th><th scope="col">{{t .Lang "allowed"}}</th></tr></thead>
+    <tbody>{{range .Data}}<tr>
+      <td><strong>{{t $.Lang .Word}}</strong><br><span class="soft">{{.Source}}</span></td>
+      <td><form class="inline" method="post" action="/settings/{{.Name}}">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <label class="hidden-label" for="v-{{.Name}}">{{t $.Lang .Word}} ({{t $.Lang .Unit}})</label>
+        <input id="v-{{.Name}}" name="value" type="number" inputmode="numeric" min="{{.Min}}" max="{{.Max}}" value="{{.Saved}}" required>
+        <button class="pill" type="submit">{{t $.Lang "save"}}</button>
+      </form></td>
+      <td><span class="stack-label">{{t $.Lang "inForce"}}: </span>{{.InForce}} {{t $.Lang .Unit}}</td>
+      <td><span class="stack-label">{{t $.Lang "defaultValue"}}: </span>{{.Default}} {{t $.Lang .Unit}}</td>
+      <td><span class="stack-label">{{t $.Lang "allowed"}}: </span>{{.Min}} - {{.Max}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>
+  <p class="row-actions"><a class="pill" href="/settings/history">{{t .Lang "history"}}</a></p>
+</div>
+{{end}}

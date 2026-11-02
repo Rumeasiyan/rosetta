@@ -15,6 +15,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -47,6 +48,7 @@ type App struct {
 	deps     Deps
 	sessions *sessions
 	secure   bool
+	settings *settings.Cached[settings.Values]
 }
 
 // New makes the screens.
@@ -58,7 +60,11 @@ func New(deps Deps) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{Renderer: r, deps: deps, sessions: newSessions(), secure: strings.HasPrefix(deps.PublicURL, "https://")}, nil
+	a := &App{Renderer: r, deps: deps, sessions: newSessions(), secure: strings.HasPrefix(deps.PublicURL, "https://")}
+	a.settings = settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
+		return settings.Load(ctx, deps.Pool)
+	}, settings.RefreshEvery, deps.Logger)
+	return a, nil
 }
 
 // Mount adds sign-in and every screen to mux.
@@ -74,6 +80,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /lang/{lang}", a.setLanguage)
 	mux.Handle("GET /{$}", a.signedIn(a.home))
 	a.mountPeople(mux)
+	a.mountSettings(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -123,7 +130,10 @@ func nav(c *current) []NavItem {
 	if !isAdmin(c) {
 		return nil
 	}
-	return []NavItem{{ID: "people", Word: "people", Href: "/people"}}
+	return []NavItem{
+		{ID: "people", Word: "people", Href: "/people"},
+		{ID: "settings", Word: "settings", Href: "/settings"},
+	}
 }
 
 type currentKey struct{}

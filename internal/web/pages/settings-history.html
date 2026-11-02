@@ -1,0 +1,17 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "settingsHistory"}}</h1></div>
+<div class="content wide">
+  {{if .Data}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "setting"}}</th><th scope="col">{{t .Lang "oldValue"}}</th><th scope="col">{{t .Lang "newValue"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "when"}}</th></tr></thead>
+    <tbody>{{range .Data}}<tr>
+      <td><strong>{{if .Word}}{{t $.Lang .Word}}{{else}}{{.Name}}{{end}}</strong></td>
+      <td><span class="stack-label">{{t $.Lang "oldValue"}}: </span>{{.Old}}{{if .Unit}} {{t $.Lang .Unit}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "newValue"}}: </span>{{.New}}{{if .Unit}} {{t $.Lang .Unit}}{{end}}</td>
+      <td>{{.By}}</td>
+      <td>{{when .ChangedAt}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noHistory"}}</p>{{end}}
+  <p class="row-actions"><a class="pill" href="/settings">{{t .Lang "backToSettings"}}</a></p>
+</div>
+{{end}}

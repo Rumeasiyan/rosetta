@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Which settings exist in R1
+
+E-ADM-03 registers three: `request_limit_seconds` (R-ERR-03), `caller_idle_days` (R-CAL-05) and `failure_alert_percent` (R-ADM-03), so the screen, history and refresh have something real to work on. Nothing reads them yet: their stories do, and add the rest as they need them. Defaults are the PRD's; the allowed ranges are this build's own choice. A setting at its default has no row. A change is in force on the first use after 30 seconds, read on use with no timer, and the last good values stay if a read fails. The screen shows both the saved value and the one in force. A refused value is never repeated, kept or logged.
+
 ## Roles
 
 The administrator names a person by the email they last signed in with, rather than picking from a list: every officer who ever signed in could otherwise outgrow a page (R-NFR-03). The role is still held by their account. The last administrator cannot be ended, since nobody could then grant anything. An end date counts through its whole day in Sri Lanka. A role reaching its end date stops being live with no audit entry until E-CAL-05 adds a daily pass. If every administrator's end date passes, the bootstrap setting works again, as it only asks whether one exists.

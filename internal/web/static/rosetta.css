@@ -87,3 +87,9 @@ a { color: inherit; }
 .fields label { margin-top: 10px; font-weight: 500; }
 .fields select, .fields input:not([type=hidden]) { font: inherit; width: 100%; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
 .fields button { justify-self: start; margin-top: 16px; }
+
+.inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.inline input[type=number] { font: inherit; width: 7em; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
+.row-actions { margin-top: 20px; }
+.stack-label { display: none; color: var(--soft); }
+@container (max-width: 600px) { .stack-label { display: inline; } }
