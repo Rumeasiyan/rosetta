@@ -215,7 +215,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 | Entity | Fields |
 |---|---|
 | `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; `name, email`: text, as MJOLNIR sent them at the last sign-in; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC) |
-| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); system owner comes from TVA; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; the post held at the grant, from TVA; the role ends when the person stops holding it; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
+| `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post held at the grant, from TVA; the role ends when it is no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
 | `setting` | `value`: text; every "(default: ...)" value in the PRD; `updated_at`: time (UTC); takes effect within 60 seconds (R-ADM-05) |
 | `change_history` | `subject`: setting, source order or source switch (R-ADM-05); `subject_ref`: text; the setting name, or the operation and direction; `old_value, new_value`: text; never text sent by a caller; `changed_at`: time (UTC) |
 | `paradox_run` | `job`: nightly totals and removals, monthly record parts, daily flags, TVA refresh or audit catch-up; `started_at, finished_at`: time (UTC); a run_id already here is skipped; `kept`: 90 days |
@@ -224,7 +224,7 @@ Everything is kept in the database `rosetta` on the shared server and backed up 
 
 | Entity | Fields |
 |---|---|
-| `caller` | `tva_reference`: text, unique; the system's entry in TVA (R-CAL-01); `name`: text (max 200); display copy, refreshed daily from TVA's published file; `owner_post_ref, owner_subject`: copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02); `tva_status, tva_checked_at`: as TVA gives it; time (UTC); a caller neither live nor may join is refused; `requests_per_minute`: number (default: 60) (R-CAL-07); `requests_at_once`: number (default: 5); `registered_at, last_request_at`: time (UTC); `flag`: none, no owner, idle 90 days or neither live nor may join in TVA (R-CAL-02, R-CAL-05) |
+| `caller` | `tva_reference`: text, unique; the system's entry in TVA (R-CAL-01); `name`: text (max 200); display copy, refreshed daily from TVA's published file; `owner_post_ref, owner_subject`: copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02); `tva_status, tva_checked_at`: as TVA gives it; time (UTC); a caller neither live nor may join is refused; `requests_per_minute`: number (default: 60) (R-CAL-07); `requests_at_once`: number (default: 5); `registered_at, last_request_at`: time (UTC); `flag`: none, no owner, idle 90 days or not live or may join (R-CAL-02, R-CAL-05) |
 | `caller_key` | `key_hash`: one-way hash; the key itself is shown once (R-CAL-03); `prefix`: first characters, shown in lists; `created_at, last_used_at`: time (UTC); `turned_off_at`: time (UTC); empty while live; at most 2 live per caller |
 | `caller_origin` | `origin`: browser address allowed to call the grammar check, for example the letter editor's (R-CAL-06); `added_at`: time (UTC) |
 

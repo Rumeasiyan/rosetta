@@ -66,10 +66,13 @@ ENTITIES = {
         [
             (
                 "role",
-                "administrator, glossary keeper or memory reviewer (R-ADM-06); system owner comes from TVA",
+                "administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner",
             ),
             ("language", f"{LANG}; glossary keeper and memory reviewer only"),
-            ("post_ref", "text; the post held at the grant, from TVA; the role ends when the person stops holding it"),
+            (
+                "post_ref",
+                "text; post held at the grant, from TVA; the role ends when it is no longer held",
+            ),
             ("starts_at, ends_on", "time (UTC); date or empty for no end date"),
             ("ended_at, ended_by", "time (UTC); person; ending takes effect at once"),
         ],
@@ -111,14 +114,20 @@ ENTITIES = {
         [
             ("tva_reference", "text, unique; the system's entry in TVA (R-CAL-01)"),
             ("name", "text (max 200); display copy, refreshed daily from TVA's published file"),
-            ("owner_post_ref, owner_subject", "copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02)"),
-            ("tva_status, tva_checked_at", "as TVA gives it; time (UTC); a caller neither live nor may join is refused"),
+            (
+                "owner_post_ref, owner_subject",
+                "copies from TVA's file; subject empty if vacant or no linked sign-in (R-CAL-02)",
+            ),
+            (
+                "tva_status, tva_checked_at",
+                "as TVA gives it; time (UTC); a caller neither live nor may join is refused",
+            ),
             ("requests_per_minute", "number (default: 60) (R-CAL-07)"),
             ("requests_at_once", "number (default: 5)"),
             ("registered_at, last_request_at", "time (UTC)"),
             (
                 "flag",
-                "none, no owner, idle 90 days or neither live nor may join in TVA (R-CAL-02, R-CAL-05)",
+                "none, no owner, idle 90 days or not live or may join (R-CAL-02, R-CAL-05)",
             ),
         ],
     ),
