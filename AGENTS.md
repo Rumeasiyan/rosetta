@@ -40,7 +40,7 @@ go test -p 1 ./...
 docker compose -f dev/compose.yaml down
 ```
 
-To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`.
+To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`.
 
 ## Constraints
 

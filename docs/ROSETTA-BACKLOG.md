@@ -93,6 +93,7 @@ Notes:
 - **E-TRN-01:** Walk: with a key, a signed key and the stand-ins from source, send a list of invented passages with line breaks, edge spacing and long sentences in each script; read the answer and `/control/bumblebee/received`; fail one passage and read the one failure with its position. A long request against BUMBLEBEE's real rate is E-NFR-01's to measure.
 - **E-MSK-02:** Walk: send ordinary, personal and confidential requests with invented text; a confidential one reaches nothing at BUMBLEBEE's stand-in; ordinary text holding a card comes back as personal with the mismatch said, and neither that nor personal text is in `cache_piece` afterwards.
 - **E-TRN-02:** Walk: read every field of an answer as the calling system, with one passage through a source and with fallback used; the wholly-people case waits for R4.
+- **E-TRN-03:** Walk: send the same invented request twice, read that the second is from the cache with nothing new at BUMBLEBEE's stand-in; read `cache_piece` for stand-ins and no numbers; set the source down and see cached pieces still answer.
 <!-- r2-still -->
 
 ## R3 Grammar

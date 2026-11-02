@@ -205,4 +205,6 @@ var messages = map[string]text{
 	"unitPassages":        {"passages", "ඡේද", "பத்திகள்"},
 
 	"machineLabel": {"Machine translation, check before issue", "යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
+
+	"settingCacheDays": {"Keep translated pieces of ordinary text for", "සාමාන්‍ය පාඨයේ පරිවර්තිත කොටස් තබා ගන්නා කාලය", "சாதாரண உரையின் மொழிபெயர்த்த துண்டுகளை வைத்திருக்கும் காலம்"},
 }

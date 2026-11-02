@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The cache
+
+It holds pieces as they went to the source, stand-ins and all, so no card or phone number is ever in the table, and the same sentence with another number answers from one row. A machine's answer stays under the gate: only a source the piece could go to now answers from the cache, on the version it runs now, so a source turned off, closed or on a new version gives no cached answer either (R-GAT-02 exempts only the glossary and memory). A resting source does, as nothing goes to it. So, with BUMBLEBEE down and the list stale, cached pieces still answer as the last known list and the gate allow; R-NFR-09 names only the glossary and memory, and this goes a little further, which seemed right for callers. A piece is kept as soon as the source answers and its stand-ins come back whole, so a request that later fails need not pay again when sent again (R-TRN-05). A piece split again is kept whole when one source made all of it. Failing to read or write the cache costs a source call and logs fixed words, never the answer. `cache_days` is the setting; E-REC-03 removes expired rows.
+
 ## The answer's shape
 
 Each passage gives `text`, `language`, `origins` (a count for each of the four), `pieces` (each piece's origin, source and version, and whether it used fallback), `sources` (each once), `machine`, `checked_by_person`, `label` in three languages only where a machine made any of it, `fallback_used` and `glossary_version`; the answer repeats those last two and adds `request_ref`, `from`, `to`, `sensitivity` and `sensitivity_mismatch`. A piece from the cache counts as a machine's, naming the source that made it. A passage with nothing in it is neither a machine's nor a person's. Because every answer must state the glossary version, being unable to read it fails the request as "no provider". The label's Sinhala and Tamil are best effort like the other messages. E-CAL-04 publishes all this.

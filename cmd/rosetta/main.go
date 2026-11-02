@@ -180,10 +180,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
 		return sources.LoadPolicy(ctx, pool)
 	}, settings.RefreshEvery, logger)
+	cache := translate.Cache{Q: pool, Settings: values.Get}
 	pipeline := &translate.Service{
 		Glossary: translate.None{}, // E-GLO-04
 		Memory:   translate.None{}, // E-MEM-02
-		Cache:    translate.None{}, // E-TRN-03
+		Cache:    cache,
+		Keeper:   cache,
 		Sources:  &sources.Fallback{Book: book, Provider: provider, Policy: policy.Get, Logger: logger},
 		Settings: values.Get,
 		Version:  translate.GlossaryVersion(pool),

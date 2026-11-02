@@ -73,6 +73,12 @@ type None struct{}
 // Answer knows nothing.
 func (None) Answer(context.Context, Lookup) (Hit, bool, error) { return Hit{}, false, nil }
 
+// Keeper holds a translated piece of ordinary text (R-TRN-08). A failure is logged as
+// fixed words and changes no answer.
+type Keeper interface {
+	Keep(ctx context.Context, k Keep) error
+}
+
 // Terms finds glossary terms in a text, to help the translator when a request needs a
 // person (R-GAT-03). E-GLO-04 gives the real one.
 type Terms func(ctx context.Context, from string, passages []string) []string
@@ -89,6 +95,8 @@ type Service struct {
 	Glossary Answerer
 	Memory   Answerer
 	Cache    Answerer
+	// Keeper holds what a source answered for ordinary text; nil keeps nothing.
+	Keeper   Keeper
 	Terms    Terms
 	Sources  Sources
 	Settings func(ctx context.Context) settings.Values
@@ -240,7 +248,7 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	// each restores its own values. It lasts only as long as this request.
 	done := map[string]*sourceAnswer{}
 	for _, p := range need {
-		if f := s.fromSource(ctx, q, p, done); f != nil {
+		if f := s.fromSource(ctx, q, p, version, done); f != nil {
 			return Answer{}, f.At(p.passage)
 		}
 	}
@@ -291,9 +299,9 @@ type sourceAnswer struct {
 // fromSource translates one piece. On "too long" the list has been read again: the piece
 // is split to the new size, and each part sent (R-PRV-04). A part too long again is a
 // failure, since the list keeps changing under it.
-func (s *Service) fromSource(ctx context.Context, q Request, p *piece, done map[string]*sourceAnswer) *reasons.Failure {
-	got, ok := done[p.masked.Text]
-	if !ok {
+func (s *Service) fromSource(ctx context.Context, q Request, p *piece, version int, done map[string]*sourceAnswer) *reasons.Failure {
+	got, seen := done[p.masked.Text]
+	if !seen {
 		send := func(text string) (sources.Result, error) {
 			return s.Sources.Translate(ctx, sources.Piece{Ref: q.Ref, From: q.From, To: q.To, Sensitivity: q.Sensitivity, Text: text})
 		}
@@ -323,10 +331,14 @@ func (s *Service) fromSource(ctx context.Context, q Request, p *piece, done map[
 		}
 		p.text = text
 		p.info = PieceInfo{Origin: OriginSource, Source: got.result.Source, Version: got.result.Version, Fallback: got.result.Fallback}
+		if !seen {
+			s.keep(ctx, q, p, got.result.Text, got.result, version)
+		}
 		return nil
 	}
-	var b strings.Builder
+	var b, kept strings.Builder
 	last := 0
+	sameSource := true
 	for i, sp := range got.spans {
 		text, err := p.masked.Slice(sp.Start, sp.End).Restore(got.parts[i].Text)
 		if err != nil {
@@ -334,13 +346,49 @@ func (s *Service) fromSource(ctx context.Context, q Request, p *piece, done map[
 		}
 		b.WriteString(p.masked.Text[last:sp.Start])
 		b.WriteString(text)
+		kept.WriteString(p.masked.Text[last:sp.Start])
+		kept.WriteString(renumbered(p.masked, sp, got.parts[i].Text))
 		last = sp.End
 		r := got.parts[i]
+		sameSource = sameSource && r.Source == got.parts[0].Source && r.Version == got.parts[0].Version
 		p.info = PieceInfo{Origin: OriginSource, Source: r.Source, Version: r.Version, Fallback: p.info.Fallback || r.Fallback}
 	}
 	b.WriteString(p.masked.Text[last:])
+	kept.WriteString(p.masked.Text[last:])
 	p.text = b.String()
+	// Kept by source: a piece two sources made between them is not one source's.
+	if !seen && sameSource {
+		s.keep(ctx, q, p, kept.String(), got.parts[0], version)
+	}
 	return nil
+}
+
+// renumbered gives a part's answer the stand-in numbers of the whole piece, so it can be
+// kept and restored with the piece. A part numbers its own from one; the piece's differ.
+func renumbered(whole mask.Masked, sp Span, answer string) string {
+	part := whole.Slice(sp.Start, sp.End)
+	var pairs []string
+	i := 0
+	for _, it := range whole.Items {
+		if it.Start >= sp.Start && it.End <= sp.End {
+			pairs = append(pairs, part.Items[i].Token, it.Token)
+			i++
+		}
+	}
+	return strings.NewReplacer(pairs...).Replace(answer)
+}
+
+// keep holds a piece of ordinary text for the next time (R-TRN-08). Personal text never
+// comes here; that includes ordinary text found to hold a card (R-MSK-04), as q's
+// sensitivity has changed by now. A value is never in what is kept: only the stand-in.
+func (s *Service) keep(ctx context.Context, q Request, p *piece, translation string, r sources.Result, version int) {
+	if s.Keeper == nil || q.Sensitivity != sources.Ordinary {
+		return
+	}
+	k := Keep{From: q.From, To: q.To, Normal: Normalise(p.masked.Text), Translation: translation, Source: r.Source, Version: r.Version, GlossaryVersion: version}
+	if err := s.Keeper.Keep(ctx, k); err != nil {
+		s.log().Error("a piece was not kept in the cache", "request_ref", q.Ref)
+	}
 }
 
 func (s *Service) lost(q Request) *reasons.Failure {
