@@ -29,7 +29,6 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
 | `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
-| `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 
 ## Commands

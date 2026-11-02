@@ -48,8 +48,10 @@ type passageAnswer struct {
 
 // translateAnswer is the answer to a request (R-TRN-01, R-TRN-06).
 type translateAnswer struct {
-	RequestRef string          `json:"request_ref"`
-	Passages   []passageAnswer `json:"passages"`
+	RequestRef  string          `json:"request_ref"`
+	Sensitivity string          `json:"sensitivity"`
+	Mismatch    bool            `json:"sensitivity_mismatch"`
+	Passages    []passageAnswer `json:"passages"`
 }
 
 func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +64,10 @@ func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
 	if fail == nil {
 		var a translate.Answer
 		if a, fail = s.deps.Translator.Translate(r.Context(), req); fail == nil {
-			out := translateAnswer{RequestRef: q.Ref, Passages: make([]passageAnswer, len(a.Passages))}
+			if a.Mismatch {
+				s.counts.AddMismatch(q.Caller.Reference)
+			}
+			out := translateAnswer{RequestRef: q.Ref, Sensitivity: a.Sensitivity, Mismatch: a.Mismatch, Passages: make([]passageAnswer, len(a.Passages))}
 			for i, p := range a.Passages {
 				out.Passages[i] = passageAnswer{Text: p.Text}
 			}

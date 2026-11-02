@@ -2,13 +2,9 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
-## What counts as returning the original (R-TRN-09)
+## Sensitivity
 
-A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. This means a piece that truly stays the same, such as a system's name alone, fails until the glossary's "keep as written" answers it in R4. That was chosen over ever passing an echo off as a translation.
-
-## The piece pipeline
-
-A passage is masked before it is split, so a number written with spaces can never be broken up and sent in parts, and the splitter sees no dots inside numbers. Pieces go to a source one at a time, in order: simple, fair to BUMBLEBEE's queue, and the first failure stops the rest. A piece repeated in one request goes once. A long request can run into R-ERR-03 under BUMBLEBEE's rate, in which case the caller may send it again and ordinary text picks up from the cache; E-NFR-01 must measure this, and sending some at once is the first thing to try if it matters. `too long` for characters, passages or body says so with a position when one passage is at fault. The 5,000 characters of a passage is a setting too, though R-TRN-01 marks only its neighbours. Only the first `too long` from a source re-splits; a part too long again fails, as the list keeps changing under it.
+Confidential is refused first and goes nowhere, not even the glossary's look-up, since R-MSK-01 says refused. A card number in ordinary text makes the whole request personal, as another passage may well name the same person, and the answer says so in `sensitivity` and `sensitivity_mismatch`, which R-MSK-04 does not ask for but costs a caller nothing. A phone number alone is no mismatch: R-MSK-04 names only the card. Personal text is not looked for in the cache either, so even its hash stays out of the database; the glossary and memory are still asked, as they hold people's work and keep nothing of the text. Mismatches are counted in memory by system until E-REC-02 writes `usage_record.mismatch`, so today's counts go at a restart.
 
 ## What counts as returning the original (R-TRN-09)
 

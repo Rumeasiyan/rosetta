@@ -218,15 +218,16 @@ func (s *Server) refuse(w http.ResponseWriter, r *http.Request, f *reasons.Failu
 // Counts holds how many of each reason today, in memory. A request with no known key
 // has no calling system, so no usage record (Annex A) can hold it; E-ADM-04 shows these.
 type Counts struct {
-	mu  sync.Mutex
-	now func() time.Time
-	day string
-	by  map[reasons.Reason]int
+	mu         sync.Mutex
+	now        func() time.Time
+	day        string
+	by         map[reasons.Reason]int
+	mismatches map[string]int // by system (R-MSK-04), until E-REC-02 keeps them in usage records
 }
 
 // NewCounts starts counting.
 func NewCounts(now func() time.Time) *Counts {
-	return &Counts{now: now, by: map[reasons.Reason]int{}}
+	return &Counts{now: now, by: map[reasons.Reason]int{}, mismatches: map[string]int{}}
 }
 
 var colombo = func() *time.Location {
@@ -240,7 +241,7 @@ var colombo = func() *time.Location {
 // roll starts a new count when the day in Sri Lanka has changed. Called under mu.
 func (c *Counts) roll() {
 	if d := c.now().In(colombo).Format(time.DateOnly); d != c.day {
-		c.day, c.by = d, map[reasons.Reason]int{}
+		c.day, c.by, c.mismatches = d, map[reasons.Reason]int{}, map[string]int{}
 	}
 }
 
@@ -250,6 +251,26 @@ func (c *Counts) Add(r reasons.Reason) {
 	defer c.mu.Unlock()
 	c.roll()
 	c.by[r]++
+}
+
+// AddMismatch counts one request of ordinary text holding an identity card number.
+func (c *Counts) AddMismatch(system string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.roll()
+	c.mismatches[system]++
+}
+
+// Mismatches is a copy of today's mismatches, by system.
+func (c *Counts) Mismatches() map[string]int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.roll()
+	out := make(map[string]int, len(c.mismatches))
+	for k, v := range c.mismatches {
+		out[k] = v
+	}
+	return out
 }
 
 // Today is a copy of today's counts.

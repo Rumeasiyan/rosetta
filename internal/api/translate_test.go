@@ -125,3 +125,30 @@ func TestASignedTranslation(t *testing.T) {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
 }
+
+func TestSensitivityInTheAnswer(t *testing.T) {
+	b := newBench(t)
+	withPipeline(t, b)
+	send := func(sensitivity string, passages ...string) *httptest.ResponseRecorder {
+		raw, _ := json.Marshal(map[string]any{"from": "en", "to": "ta", "sensitivity": sensitivity, "passages": passages})
+		return b.send(request("/api/v1/translate", "rst_here", string(raw)))
+	}
+	rec := send("confidential", marker)
+	if rec.Code != 403 || reasonOf(t, rec) != "no provincial provider" || strings.Contains(rec.Body.String(), marker) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	rec = send("ordinary", "Card 123456789V here.")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"sensitivity":"personal"`) || !strings.Contains(rec.Body.String(), `"sensitivity_mismatch":true`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if b.srv.Counts().Mismatches()["TEST-1"] != 1 {
+		t.Fatal(b.srv.Counts().Mismatches())
+	}
+	if strings.Contains(b.logs.String(), "123456789V") {
+		t.Fatal(b.logs)
+	}
+	rec = send("ordinary", "Call 0771234567 now.")
+	if !strings.Contains(rec.Body.String(), `"sensitivity":"ordinary"`) || !strings.Contains(rec.Body.String(), `"sensitivity_mismatch":false`) {
+		t.Fatal(rec.Body)
+	}
+}

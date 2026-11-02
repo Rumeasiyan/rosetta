@@ -113,6 +113,10 @@ type Passage struct {
 // Answer is every passage, in order.
 type Answer struct {
 	Passages []Passage
+	// Sensitivity is what the text was treated as: what was stated, or personal where
+	// ordinary text held an identity card number (R-MSK-04).
+	Sensitivity string
+	Mismatch    bool
 }
 
 // piece is one piece on its way through.
@@ -167,6 +171,12 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	if f := check(q, v); f != nil {
 		return Answer{}, f
 	}
+	// There are no providers on provincial machines yet, so nothing can be done with
+	// confidential text, whatever it holds (R-MSK-01). It goes nowhere, not even the
+	// glossary's look-up.
+	if q.Sensitivity == sources.Confidential {
+		return Answer{}, reasons.New(reasons.NoProvincial)
+	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
 	defer cancel()
 
@@ -175,8 +185,14 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	limit := s.Sources.MaxText()
 	var all []*piece
 	tails := make([]string, len(q.Passages))
+	mismatch := false
 	for i, text := range q.Passages {
 		m := mask.Mask(text)
+		// Ordinary text holding an identity card number is treated as personal, the
+		// whole request with it: another passage may well name the same person.
+		if q.Sensitivity == sources.Ordinary && m.HasCard() {
+			mismatch = true
+		}
 		last := 0
 		for _, sp := range Split(m.Text, limit) {
 			all = append(all, &piece{passage: i, before: m.Text[last:sp.Start], masked: m.Slice(sp.Start, sp.End)})
@@ -185,6 +201,10 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 		tails[i] = m.Text[last:]
 	}
 
+	if mismatch {
+		q.Sensitivity = sources.Personal
+		s.log().Info("ordinary text held an identity card number", "request_ref", q.Ref)
+	}
 	allowed, read := s.Sources.Allowed(ctx, q.From, q.To, q.Sensitivity)
 	var need []*piece
 	for _, p := range all {
@@ -212,7 +232,9 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 			return Answer{}, f.At(p.passage)
 		}
 	}
-	return join(q, all, tails), nil
+	a := join(q, all, tails)
+	a.Sensitivity, a.Mismatch = q.Sensitivity, mismatch
+	return a, nil
 }
 
 // known asks the glossary, the memory and the cache, in that order (R-TRN-04).
@@ -222,7 +244,9 @@ func (s *Service) known(ctx context.Context, q Request, p *piece, allowed []bumb
 		name string
 		it   Answerer
 	}{{OriginGlossary, s.Glossary}, {OriginMemory, s.Memory}, {OriginCache, s.Cache}} {
-		if a.it == nil {
+		// Personal text is never cached (R-TRN-08), and not even looked for there: its
+		// hash stays out of the database too.
+		if a.it == nil || (a.name == OriginCache && q.Sensitivity != sources.Ordinary) {
 			continue
 		}
 		hit, ok, err := a.it.Answer(ctx, l)
