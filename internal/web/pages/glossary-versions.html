@@ -1,0 +1,17 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "glossaryVersions"}}</h1></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data.Versions}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "glossaryVersionTitle"}}</th><th scope="col">{{t .Lang "when"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "glossaryAdded"}}</th><th scope="col">{{t .Lang "glossaryReplaced"}}</th></tr></thead>
+    <tbody>{{range .Data.Versions}}<tr>
+      <td><a href="/glossary-versions/{{.Number}}"><strong>{{t $.Lang "glossaryVersionTitle"}} {{.Number}}</strong></a></td>
+      <td><span class="stack-label">{{t $.Lang "when"}}: </span>{{when .PublishedAt}}</td>
+      <td>{{if .By}}<span class="stack-label">{{t $.Lang "who"}}: </span>{{.By}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "glossaryAdded"}}: </span>{{.Added}}</td>
+      <td><span class="stack-label">{{t $.Lang "glossaryReplaced"}}: </span>{{.Replaced}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "glossaryNoVersions"}}</p>{{end}}
+</div>
+{{end}}

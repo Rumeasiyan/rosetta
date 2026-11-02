@@ -35,6 +35,10 @@ const (
 	ActionDenial        = "denial"
 	ActionCreation      = "creation"
 	ActionChange        = "change"
+	ActionApproval      = "approval"
+	ActionRejection     = "rejection"
+	ActionDeletion      = "deletion"
+	ActionExport        = "export"
 	ActionRoleChange    = "role change"
 	ActionKeyChange     = "key change"
 	ActionSettingChange = "setting change"
@@ -78,7 +82,7 @@ type Event struct {
 	Details    map[string]any // small; see CheckDetails
 }
 
-var actions = map[string]bool{ActionDenial: true, ActionCreation: true, ActionChange: true, ActionRoleChange: true, ActionKeyChange: true, ActionSettingChange: true}
+var actions = map[string]bool{ActionDenial: true, ActionCreation: true, ActionChange: true, ActionApproval: true, ActionRejection: true, ActionDeletion: true, ActionExport: true, ActionRoleChange: true, ActionKeyChange: true, ActionSettingChange: true}
 
 // Entry is what PENSIEVE receives, without the items the outbox has its own
 // columns for: entry_id as id, occurred_at, action.

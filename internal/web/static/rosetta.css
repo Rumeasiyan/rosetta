@@ -104,3 +104,12 @@ details[open] summary.pill { margin-bottom: 8px; }
 code { overflow-wrap: anywhere; }
 .stack-label { display: none; color: var(--soft); }
 @container (max-width: 600px) { .stack-label { display: inline; } }
+
+/* The glossary and the memory, as in design-lab/src/directions/stone. */
+.find { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.find input { font: inherit; font-size: 17px; flex: 1 1 200px; max-width: 560px; min-height: 48px; padding: 0 20px; border-radius: 999px; border: 1.5px solid currentColor; background: transparent; color: inherit; }
+.find input::placeholder { color: inherit; opacity: 0.8; }
+.pill.light { border-color: currentColor; color: inherit; min-height: 48px; }
+.band-empty { margin: 0; font-size: 20px; }
+.fields textarea { font: inherit; }
+.order details { margin-top: 10px; }

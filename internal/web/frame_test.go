@@ -92,7 +92,7 @@ func TestNavFollowsTheRole(t *testing.T) {
 	if !isAdmin(admin) || isAdmin(keeper) || isAdmin(&current{}) {
 		t.Fatal("isAdmin")
 	}
-	if len(nav(admin)) == 0 || len(nav(keeper)) != 0 || len(nav(&current{})) != 0 {
+	if len(nav(admin)) == 0 || len(nav(keeper)) != 1 || nav(keeper)[0].ID != "glossary" || len(nav(&current{})) != 0 {
 		t.Fatal("the bar offers screens the role does not open")
 	}
 	owner := &current{owned: []people.OwnedSystem{{Reference: "TEST-0001"}}}

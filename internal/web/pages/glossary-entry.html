@@ -1,0 +1,35 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+{{$e := .Data.Entry}}
+{{range $e.Terms}}<section class="band band-{{.Language}}">
+  <span class="eyebrow" lang="{{.Language}}">{{langName .Language}}</span>
+  {{if .Text}}<h1 class="fat band-term" lang="{{.Language}}">{{.Text}}</h1>{{else}}<p class="band-term band-empty">{{t $.Lang "glossaryNotWritten"}}</p>{{end}}
+  <span class="band-line">{{if .CheckedAt}}{{.CheckedBy}}: {{when .CheckedAt}}{{else}}{{t $.Lang "glossaryNotChecked"}}{{end}}</span>
+</section>{{end}}
+<div class="content wide">
+  {{template "flash" .}}
+  <p><strong>{{t .Lang (typeWord $e.Type)}}.</strong> {{$e.Note}}</p>
+  <p class="soft">{{t .Lang "glossaryState"}}: {{t .Lang (statusWord $e.Status)}}{{if $e.PublishedIn}}. {{t .Lang "glossaryInVersion"}} {{$e.PublishedIn}}{{end}}{{if $e.ReplacedIn}}. {{t .Lang "glossaryReplacedIn"}} {{$e.ReplacedIn}}{{end}}{{if $e.ProposedBy}}. {{t .Lang "glossaryProposedBy"}} {{$e.ProposedBy}}{{end}}</p>
+  {{if $e.OutcomeNote}}<p><strong>{{t .Lang "glossaryOutcome"}}:</strong> {{$e.OutcomeNote}}</p>{{end}}
+  <div class="inline row-actions">
+    <a class="pill" href="/glossary/{{$e.ID}}/history">{{t .Lang "history"}}</a>
+    {{if .Data.MayCorrect}}<a class="pill solid" href="/glossary/propose?corrects={{$e.ID}}">{{t .Lang "glossaryCorrect"}}</a>{{end}}
+    {{if $e.ReplacedByID}}<a class="pill" href="/glossary/{{$e.ReplacedByID}}">{{t .Lang "glossaryNewer"}}</a>{{end}}
+  </div>
+  {{range .Data.Yours}}<section class="order">
+    <h2 class="order-title">{{t $.Lang "glossaryYourLanguage"}}: <span lang="{{.Language}}">{{langName .Language}}</span></h2>
+    <form class="fields" method="post" action="/glossary/{{$e.ID}}/check">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="language" value="{{.Language}}">
+      <label for="text-{{.Language}}">{{t $.Lang "glossaryText"}}</label>
+      <input id="text-{{.Language}}" name="text" lang="{{.Language}}" value="{{.Text}}" maxlength="500" autocomplete="off">
+      <button class="pill solid" type="submit">{{t $.Lang "glossaryCheck"}}<span class="hidden-label">: {{langName .Language}}</span></button>
+    </form>
+    {{if not .CheckedAt}}<details><summary class="pill">{{t $.Lang "glossaryRefuse"}}<span class="hidden-label">: {{langName .Language}}</span></summary><form class="fields" method="post" action="/glossary/{{$e.ID}}/refuse">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="language" value="{{.Language}}">
+      <label for="why-{{.Language}}">{{t $.Lang "glossaryRefuseWhy"}}</label>
+      <textarea id="why-{{.Language}}" name="note" rows="3" maxlength="500" required></textarea>
+      <button class="pill solid" type="submit">{{t $.Lang "glossaryRefuse"}}<span class="hidden-label">: {{langName .Language}}</span></button>
+    </form></details>{{end}}
+  </section>{{end}}
+</div>
+{{end}}

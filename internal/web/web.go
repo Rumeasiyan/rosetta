@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/people"
 )
@@ -101,6 +102,14 @@ func RoleWord(role string) string {
 	return role
 }
 
+// entryTable is what the shared table of glossary entries takes.
+type entryTable struct {
+	Lang    i18n.Lang
+	Entries []glossary.Entry
+}
+
+func tableArgs(l i18n.Lang, entries []glossary.Entry) entryTable { return entryTable{l, entries} }
+
 // Page is what every screen's template receives.
 type Page struct {
 	Lang      i18n.Lang
@@ -137,6 +146,9 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"flagWord":   flagWord,
 		"stateWord":  stateWord,
 		"direction":  directionName,
+		"typeWord":   typeWord,
+		"statusWord": statusWord,
+		"args":       tableArgs,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err

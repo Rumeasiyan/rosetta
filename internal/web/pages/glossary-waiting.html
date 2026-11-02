@@ -1,0 +1,8 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "glossaryWaiting"}}</h1><p class="hero-line">{{if .Data.Yours}}{{t .Lang "glossaryWaitingYours"}}{{else}}{{t .Lang "glossaryWaitingAll"}}{{end}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{if .Data.Entries}}{{template "glossary-table" (args .Lang .Data.Entries)}}{{else}}<p>{{t .Lang "glossaryNoneWaiting"}}</p>{{end}}
+</div>
+{{end}}

@@ -122,7 +122,7 @@ Notes:
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
-| 29 | [ ] | Solo | E-GLO-01 | Entries, keepers' checks, publishing and versions | R-GLO-01, R-GLO-02, R-GLO-05 | Must | 7, 9 |
+| 29 | [x] | Solo | E-GLO-01 | Entries, keepers' checks, publishing and versions | R-GLO-01, R-GLO-02, R-GLO-05 | Must | 7, 9 |
 | 30 | [ ] | Wave 7 | E-GLO-02 | Any officer proposes a term; keepers told; proposer sees the outcome | R-GLO-04 | Must | 29 |
 | 31 | [ ] | Wave 7 | E-GLO-03 | Import and export a spreadsheet file | R-GLO-07 | Should | 29 |
 | 32 | [ ] | Wave 7 | E-GLO-04 | Terms kept in translation; whole terms answered from the glossary | R-GLO-03, R-TRN-04, R-GAT-02, R-NFR-05 | Must | 29 |

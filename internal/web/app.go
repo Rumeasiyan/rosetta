@@ -106,6 +106,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountSystems(mux)
 	a.mountSources(mux)
 	a.mountGate(mux)
+	a.mountGlossary(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -161,6 +162,9 @@ func nav(c *current) []NavItem {
 	}
 	if isAdmin(c) {
 		items = append(items, NavItem{ID: "gate", Word: "gate", Href: "/gate"})
+	}
+	if hasAnyRole(c) {
+		items = append(items, NavItem{ID: "glossary", Word: "glossary", Href: "/glossary"})
 	}
 	return items
 }

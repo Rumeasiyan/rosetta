@@ -1,0 +1,16 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "glossary"}}</h1>
+  <form class="find" method="get" action="/glossary" role="search"><label class="hidden-label" for="find">{{t .Lang "glossaryFind"}}</label><input id="find" name="find" value="{{.Data.Find}}" placeholder="{{t .Lang "glossaryFind"}}" autocomplete="off"><button class="pill light" type="submit">{{t .Lang "glossaryFindButton"}}</button></form>
+</div>
+<div class="content wide">
+  {{template "flash" .}}
+  <p class="soft">{{t .Lang "glossaryVersionNow"}}: {{.Data.Version}}</p>
+  {{if .Data.Entries}}{{template "glossary-table" (args .Lang .Data.Entries)}}{{else}}<p>{{t .Lang "glossaryEmpty"}}</p>{{end}}
+  {{if .Data.Full}}<p class="soft">{{t .Lang "glossaryFull"}}</p>{{end}}
+  <div class="inline row-actions">
+    {{if .Data.MayKeep}}<a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a><a class="pill" href="/glossary/waiting">{{t .Lang "glossaryWaiting"}}</a>{{end}}
+    <a class="pill" href="/glossary-versions">{{t .Lang "glossaryVersions"}}</a>
+  </div>
+</div>
+{{end}}
