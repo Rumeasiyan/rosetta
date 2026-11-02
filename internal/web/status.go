@@ -6,6 +6,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/callers"
+	"github.com/Rumeasiyan/rosetta/internal/people"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
@@ -36,6 +37,15 @@ type statusData struct {
 	// What has not reached PENSIEVE, which only a screen and the log can show (the decision on the
 	// audit outbox); silence from audit is PENSIEVE's own to flag.
 	OutboxWaiting, OutboxRefused int
+	// What is flagged to the administrator (R-CAL-02, R-CAL-05, R-ADM-06; s2).
+	FlaggedSystems   []callers.Caller
+	FlaggedLanguages []string
+	FlaggedPeople    []people.PersonToLookUp
+}
+
+// Flagged says anything is.
+func (d statusData) Flagged() bool {
+	return len(d.FlaggedSystems) > 0 || len(d.FlaggedLanguages) > 0 || len(d.FlaggedPeople) > 0
 }
 
 func (a *App) statusPage(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +96,18 @@ func (a *App) statusPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if d.OutboxWaiting, d.OutboxRefused, err = audit.Waiting(ctx, a.deps.Pool); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		if d.FlaggedSystems, err = callers.Flagged(ctx, a.deps.Pool); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		if d.FlaggedLanguages, err = people.LanguagesWithoutKeeper(ctx, a.deps.Pool); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		if d.FlaggedPeople, err = people.FlaggedPeople(ctx, a.deps.Pool); err != nil {
 			a.fail(w, r, err)
 			return
 		}

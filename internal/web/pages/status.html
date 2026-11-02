@@ -31,6 +31,12 @@
   {{if .Data.NoSystem}}<h3 class="order-title section-gap">{{t .Lang "statusNobody"}}</h3>
   <p class="soft">{{t .Lang "statusNobodyNote"}}</p>
   <ul class="chips">{{range .Data.NoSystem}}<li>{{t $.Lang (whyWord .Reason)}}: <strong>{{.Count}}</strong></li>{{end}}</ul>{{end}}
+  {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "flagsTitle"}}</h2>
+  {{if .Data.Flagged}}<ul class="row-list">
+    {{range .Data.FlaggedSystems}}<li><a href="/systems/{{.ID}}">{{.Name}}</a>: {{t $.Lang (flagWord .Flag)}}</li>{{end}}
+    {{range .Data.FlaggedLanguages}}<li>{{flagLanguage $.Lang .}}: {{t $.Lang "flagsLanguage"}}</li>{{end}}
+    {{range .Data.FlaggedPeople}}<li>{{.Email}}: {{t $.Lang "postFlagged"}}</li>{{end}}
+  </ul>{{else}}<p>{{t .Lang "flagsNone"}}</p>{{end}}{{end}}
   {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "statusOutbox"}}</h2>
   <ul class="chips"><li>{{t .Lang "statusOutboxWaiting"}}: <strong>{{.Data.OutboxWaiting}}</strong></li><li>{{t .Lang "statusOutboxRefused"}}: <strong>{{.Data.OutboxRefused}}</strong></li></ul>{{end}}
 </div>

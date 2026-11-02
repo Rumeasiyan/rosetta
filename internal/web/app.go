@@ -15,6 +15,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/posts"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
@@ -54,11 +55,19 @@ type Deps struct {
 	TVA tva.Reader
 	// Sources is BUMBLEBEE's source list. Nil shows it as never read.
 	Sources SourceList
+	// Posts looks up a person's post through BIFROST, at sign-in and when a role is granted
+	// (R-ADM-06). Nil never looks: every post stays as it is.
+	Posts PostChecker
 	// Tester sends test requests from the screens (R-ADM-04). Nil refuses them.
 	Tester Tester
 	// NoSystem is today's refusals of requests with no known system (R-CAL-04). Nil counts none.
 	NoSystem func() map[reasons.Reason]int
 	Logger   *slog.Logger
+}
+
+// PostChecker looks one person up and gives the post a session keeps for its audit entries.
+type PostChecker interface {
+	Check(ctx context.Context, p posts.Person) string
 }
 
 // Kicker starts sending what the outbox holds, without waiting for it.
@@ -141,10 +150,13 @@ func (c *current) has(role string) bool {
 
 func isAdmin(c *current) bool { return c.has(people.Administrator) }
 
-// actor is the signed-in person as an audit entry names them. Their post is not
-// known until E-CAL-05.
+// actor is the signed-in person as an audit entry names them, with the post found at sign-in.
 func (c *current) actor() audit.Actor {
-	return audit.Actor{PersonID: c.sess.personID, Subject: c.sess.subject, Name: c.sess.name, Post: audit.PostNotKnown}
+	post := c.sess.post
+	if post == "" {
+		post = audit.PostNotKnown
+	}
+	return audit.Actor{PersonID: c.sess.personID, Subject: c.sess.subject, Name: c.sess.name, Post: post}
 }
 
 // viewer is who the frame shows.
@@ -463,12 +475,18 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
+	// Looked up once the person is kept and before the session starts, so a role that ended is
+	// gone from the first page on. A failed look-up changes nothing and delays this at most a moment.
+	post := people.PostNotKnown
+	if a.deps.Posts != nil {
+		post = a.deps.Posts.Check(ctx, posts.Person{ID: person.ID, Subject: person.Subject, Email: person.Email})
+	}
 	// A browser signing in again leaves no older session or token behind.
 	if old, err := r.Cookie(SessionCookie); err == nil {
 		a.revoke(r.Context(), a.sessions.end(old.Value))
 	}
 	a.setLanguageCookie(w, person.Language)
-	a.setCookie(w, SessionCookie, a.sessions.create(person.ID, person.Subject, person.Name, person.Email, pd.Nonce, tokens), 0)
+	a.setCookie(w, SessionCookie, a.sessions.create(person.ID, person.Subject, person.Name, person.Email, post, pd.Nonce, tokens), 0)
 	http.Redirect(w, r, pd.next, http.StatusSeeOther)
 }
 

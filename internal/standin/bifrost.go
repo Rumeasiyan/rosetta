@@ -2,6 +2,7 @@ package standin
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -62,6 +63,17 @@ func (s *Server) bifrostLookup(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, ref.status, out)
 	}
 	mode, p := s.mode("bifrost")
+	var asked struct {
+		Email string `json:"email"`
+	}
+	body, _ := io.ReadAll(r.Body)
+	badBody := json.Unmarshal(body, &asked) != nil
+	// The control's param "email" keeps a mode to one person, and the others are found, so a pass
+	// over many people can be walked.
+	if only := p["email"]; only != "" && !strings.EqualFold(only, strings.TrimSpace(asked.Email)) {
+		mode = "found"
+		p = map[string]string{}
+	}
 	key, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	switch {
 	case !ok || (key != BifrostKey && key != BifrostWithdrawnKey):
@@ -78,10 +90,7 @@ func (s *Server) bifrostLookup(w http.ResponseWriter, r *http.Request) {
 		refuse(mode)
 		return
 	}
-	var in struct {
-		Email string `json:"email"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || strings.TrimSpace(in.Email) == "" {
+	if badBody || strings.TrimSpace(asked.Email) == "" {
 		refuse("bad_request")
 		return
 	}

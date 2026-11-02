@@ -20,9 +20,11 @@ import (
 	"github.com/Rumeasiyan/rosetta"
 	"github.com/Rumeasiyan/rosetta/internal/api"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/bifrost"
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
+	"github.com/Rumeasiyan/rosetta/internal/flags"
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/health"
@@ -30,6 +32,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
+	"github.com/Rumeasiyan/rosetta/internal/posts"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/terms"
@@ -154,6 +157,9 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if links.PensieveURL == "" || links.PensieveKey == "" {
 		return errors.New("ROSETTA_PENSIEVE_URL and ROSETTA_PENSIEVE_KEY are not set (audit entries; see .env.example)")
 	}
+	if links.BifrostURL == "" || links.BifrostKey == "" {
+		return errors.New("ROSETTA_BIFROST_URL and ROSETTA_BIFROST_KEY are not set (post look-ups; see .env.example)")
+	}
 	if links.TVADir == "" {
 		return errors.New("ROSETTA_TVA_DIR is not set (the system register's file; see .env.example)")
 	}
@@ -193,6 +199,8 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		notices.Sender = hedwig.Client{URL: links.HedwigURL, Key: links.HedwigKey}
 	}
 	defer notices.Wait()
+	post := &posts.Service{Pool: pool, Looker: bifrost.Client{URL: links.BifrostURL, Key: links.BifrostKey}, Kick: outbox.Kick, Logger: logger}
+	daily := &flags.Daily{TVA: tva.Dir(links.TVADir), Settings: values.Get, Logger: logger}
 	noSystem := api.NewCounts(time.Now)
 
 	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
@@ -228,7 +236,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Usage:   func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 	})
 
-	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, Tester: calls, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, Tester: calls, Posts: post, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
@@ -244,7 +252,14 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		jobs.Job{Name: "partitions", Run: func(ctx context.Context, tx pgx.Tx, _ string) (int, error) {
 			return usage.AddParts(ctx, tx, time.Now())
 		}},
-		jobs.Job{Name: "daily", Run: jobs.Nothing}, // E-CAL-05
+		jobs.Job{Name: "daily", Run: daily.Run, Then: func(ctx context.Context) int {
+			r, err := post.Pass(ctx, values.Get(ctx).Of(settings.PostLookUpsPerMinute))
+			if err != nil {
+				logger.Error("the daily pass over posts was not started", "error", err)
+			}
+			logger.Info("daily pass over posts", "asked", r.Asked, "failed", r.Failed, "ended", r.Ended, "left", r.Left)
+			return r.Asked
+		}},
 		jobs.Job{Name: "audit-catch-up", Run: func(ctx context.Context, tx pgx.Tx, run string) (int, error) {
 			sent, err := outbox.Job(ctx, tx, run)
 			if err != nil {

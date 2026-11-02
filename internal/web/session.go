@@ -30,6 +30,7 @@ type session struct {
 	subject  string
 	name     string
 	email    string
+	post     string // the post at sign-in, for audit entries (E-CAL-05)
 	csrf     string
 	seen     time.Time
 
@@ -92,12 +93,12 @@ func (s *sessions) take(state string) (pending, bool) {
 }
 
 // create makes a session and returns its cookie's value.
-func (s *sessions) create(personID int64, subject, name, email, nonce string, tokens oidc.Tokens) string {
+func (s *sessions) create(personID int64, subject, name, email, post, nonce string, tokens oidc.Tokens) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sweep()
 	tok := oidc.Random()
-	s.byToken[tok] = &session{personID: personID, subject: subject, name: name, email: email, csrf: oidc.Random(), seen: s.now(),
+	s.byToken[tok] = &session{personID: personID, subject: subject, name: name, email: email, post: post, csrf: oidc.Random(), seen: s.now(),
 		refresh: tokens.Refresh, nonce: nonce, expires: tokens.Expires, renewal: &sync.Mutex{}}
 	return tok
 }

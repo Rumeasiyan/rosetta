@@ -42,6 +42,11 @@ type Func func(ctx context.Context, tx pgx.Tx, runID string) (count int, err err
 type Job struct {
 	Name string
 	Run  Func
+	// Then, when set, runs once Run's transaction is kept and before the answer, holding no
+	// connection, for work that waits on another service (the daily post look-ups). A run PARADOX
+	// sends again is already done, so Then does not run twice; a stop part-way leaves the rest to
+	// the next run. It reports how many things it handled, and cannot fail the run.
+	Then func(ctx context.Context) int
 	lock int64
 }
 
@@ -122,6 +127,10 @@ func Handler(pool *pgxpool.Pool, keys []ed25519.PublicKey, jobs map[string]Job, 
 			return
 		}
 		status, count, err := runOnce(r.Context(), pool, job, c.RunID)
+		if err == nil && status == "done" && job.Then != nil {
+			// Not ended by PARADOX giving up on the call: what a look-up found stays good.
+			count += job.Then(context.WithoutCancel(r.Context()))
+		}
 		if len(after) > 0 {
 			actx, cancel := context.WithTimeout(r.Context(), AfterTimeout)
 			for _, f := range after {

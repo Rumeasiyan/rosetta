@@ -146,6 +146,31 @@ func OwnedBy(ctx context.Context, q Querier, subject string) ([]Caller, error) {
 	return list(ctx, q, `SELECT `+columns+` FROM caller WHERE owner_subject = $1 ORDER BY name, id`, subject)
 }
 
+// Refreshable is every system, held for the daily refresh.
+func Refreshable(ctx context.Context, tx pgx.Tx) ([]Caller, error) {
+	return list(ctx, tx, `SELECT `+columns+` FROM caller ORDER BY id FOR UPDATE`)
+}
+
+// Refresh keeps what TVA's file says of a system now: its name, status and owner are copies, never
+// edited here (Annex A.1).
+func Refresh(ctx context.Context, tx pgx.Tx, id int64, s tva.System) error {
+	subject, post := s.Owner()
+	_, err := tx.Exec(ctx, `UPDATE caller SET name = $2, owner_post_ref = NULLIF($3, ''), owner_subject = NULLIF($4, ''), tva_status = $5, tva_checked_at = now() WHERE id = $1`,
+		id, fit(s.Name(), 200), post, subject, s.Status)
+	return err
+}
+
+// SetFlag keeps a system's flag.
+func SetFlag(ctx context.Context, tx pgx.Tx, id int64, flag string) error {
+	_, err := tx.Exec(ctx, `UPDATE caller SET flag = $2 WHERE id = $1`, id, flag)
+	return err
+}
+
+// Flagged is each system carrying a flag, for the status screen.
+func Flagged(ctx context.Context, q Querier) ([]Caller, error) {
+	return list(ctx, q, `SELECT `+columns+` FROM caller WHERE flag <> $1 ORDER BY name, id`, FlagNone)
+}
+
 // Limits is a system's limits (R-CAL-07).
 type Limits struct {
 	PerMinute, AtOnce int

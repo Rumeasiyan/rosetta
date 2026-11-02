@@ -114,6 +114,8 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 		"ROSETTA_TVA_DIR":              "../../dev/tva",
 		"ROSETTA_BUMBLEBEE_URL":        "http://localhost:53190/bumblebee",
 		"ROSETTA_BUMBLEBEE_KEY":        "bb_standin",
+		"ROSETTA_BIFROST_URL":          "http://localhost:53190/bifrost",
+		"ROSETTA_BIFROST_KEY":          "bf_standin",
 	})
 	ready := make(chan string, 1)
 	var logs bytes.Buffer

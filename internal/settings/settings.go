@@ -53,7 +53,11 @@ var (
 	UsageRecordYears = Int{Name: "usage_record_years", Default: 2, Min: 1, Max: 20, Word: "settingUsageYears", Unit: "unitYears", Source: "R-REC-04"}
 	DailyTotalYears  = Int{Name: "daily_total_years", Default: 5, Min: 1, Max: 50, Word: "settingTotalYears", Unit: "unitYears", Source: "R-REC-04"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, UsageRecordYears, DailyTotalYears}
+	// PostLookUpsPerMinute paces the daily pass (E-CAL-05). BIFROST holds its limit per key, in
+	// its own settings, so this is ROSETTA's own and not a copy: lower it if BIFROST says too many.
+	PostLookUpsPerMinute = Int{Name: "post_look_ups_per_minute", Default: 30, Min: 1, Max: 600, Word: "settingPostLookUps", Unit: "unitRequests", Source: "R-ADM-06"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, UsageRecordYears, DailyTotalYears, PostLookUpsPerMinute}
 )
 
 // Find is the setting with this name.
