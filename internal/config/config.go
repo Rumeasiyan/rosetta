@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -42,6 +43,51 @@ func FromEnv(getenv func(string) string) (Config, error) {
 		return cfg, errors.New("DATABASE_URL is not set")
 	}
 	return cfg, nil
+}
+
+// Links are the addresses and keys of the services ROSETTA calls. Every one is
+// a setting, so Go live swaps settings, not code (E-ENB-03): locally they name
+// the stand-ins in cmd/rosetta-standin, on the server the real services. An
+// address has no trailing slash, and a caller adds the path its owner documents.
+type Links struct {
+	BumblebeeURL, BumblebeeKey string // ROSETTA_BUMBLEBEE_URL, _KEY
+	BifrostURL, BifrostKey     string // ROSETTA_BIFROST_URL, _KEY
+	PensieveURL, PensieveKey   string // ROSETTA_PENSIEVE_URL, _KEY
+	HedwigURL, HedwigKey       string // ROSETTA_HEDWIG_URL, _KEY
+	TVADir                     string // ROSETTA_TVA_DIR: the folder holding systems.json
+}
+
+// LinksFromEnv reads the links. An address that is set must be http or https;
+// the story that first calls a service makes its address required.
+func LinksFromEnv(getenv func(string) string) (Links, error) {
+	var l Links
+	for _, a := range []struct {
+		name     string
+		url, key *string
+	}{
+		{"BUMBLEBEE", &l.BumblebeeURL, &l.BumblebeeKey},
+		{"BIFROST", &l.BifrostURL, &l.BifrostKey},
+		{"PENSIEVE", &l.PensieveURL, &l.PensieveKey},
+		{"HEDWIG", &l.HedwigURL, &l.HedwigKey},
+	} {
+		v := strings.TrimRight(strings.TrimSpace(getenv("ROSETTA_"+a.name+"_URL")), "/")
+		if err := checkAddress("ROSETTA_"+a.name+"_URL", v); err != nil {
+			return l, err
+		}
+		*a.url, *a.key = v, strings.TrimSpace(getenv("ROSETTA_"+a.name+"_KEY"))
+	}
+	l.TVADir = strings.TrimSpace(getenv("ROSETTA_TVA_DIR"))
+	return l, nil
+}
+
+func checkAddress(name, v string) error {
+	if v == "" {
+		return nil
+	}
+	if u, err := url.Parse(v); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+		return fmt.Errorf("%s is not an http or https address", name)
+	}
+	return nil
 }
 
 // ListenPort returns the port of a listen address such as ":8080",

@@ -50,13 +50,44 @@ services:
       - pgbouncer
     restart: on-failure
 
+  # Every service ROSETTA talks to, each under its own path prefix, with a control
+  # address at /control. Never part of the image; see cmd/rosetta-standin. The
+  # issuer must read the same to the browser and to ROSETTA, so the stand-in
+  # gives the published address.
+  standin:
+    build:
+      context: ..
+      dockerfile: dev/standin.dockerfile
+    environment:
+      STANDIN_LISTEN: ":53090"
+      STANDIN_PUBLIC_URL: http://localhost:53090
+    mem_limit: 64m
+    read_only: true
+    ports:
+      - "127.0.0.1:53090:53090"
+    healthcheck:
+      test: ["CMD", "/standin", "-healthcheck"]
+      interval: 2s
+      start_period: 10s
+
   rosetta:
     build: ..
     # PARADOX_PUBLIC_KEY for the PARADOX stand-in; make it with dev/keys.sh.
     env_file:
       - ./keys/paradox.env
+    volumes:
+      - ./tva:/tva:ro
     environment:
       DATABASE_URL: postgres://rosetta:rosetta@pgbouncer:5432/rosetta
+      ROSETTA_BUMBLEBEE_URL: http://standin:53090/bumblebee
+      ROSETTA_BUMBLEBEE_KEY: bb_standin
+      ROSETTA_BIFROST_URL: http://standin:53090/bifrost
+      ROSETTA_BIFROST_KEY: bf_standin
+      ROSETTA_PENSIEVE_URL: http://standin:53090/pensieve
+      ROSETTA_PENSIEVE_KEY: pv_standin
+      ROSETTA_HEDWIG_URL: http://standin:53090/hedwig
+      ROSETTA_HEDWIG_KEY: hw_test_standin
+      ROSETTA_TVA_DIR: /tva
       GOMEMLIMIT: 200MiB
     mem_limit: 250m
     cpus: 1
@@ -76,3 +107,5 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      standin:
+        condition: service_healthy

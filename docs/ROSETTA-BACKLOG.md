@@ -37,7 +37,7 @@ Source: `docs/ROSETTA-PRD.md` v1.6 (requirements, Annex A data model, Annex B ar
 |---|---|---|---|---|---|---|---|
 | 1 | [x] | Solo | E-ENB-01 | Go service, Compose run, settings from one env file, `-healthcheck` | §5; B 6; R-NFR-14 | Must |  |
 | 2 | [x] | Solo | E-ENB-02 | PostgreSQL behind PgBouncer; migrations for every table in Annex A | Annex A, A.1; §5; B 10 | Must | 1 |
-| 3 | [ ] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
+| 3 | [x] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
 | 4 | [x] | Solo | E-GRM-01 | Spike: the stock plug-in on a local Document Server, against a stand-in check | R-CAL-06, R-GRM-01; B 2, B 9 | Must | 1 |
 | 5 | [ ] | Solo | E-ADM-01 | Sign-in through MJOLNIR's stand-in, the person's record, ROSETTA's own session | R-ADM-01; §5; B 8 | Must | 2, 3 |
 | 6 | [ ] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |

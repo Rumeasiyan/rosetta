@@ -12,9 +12,11 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `docs/diagrams/` | `build-erd.py` draws Annex A and writes its dictionary into the PRD; a test checks the schema against that dictionary. |
 | `cmd/rosetta/` | The service: `serve`, `migrate`, `-version`, `-healthcheck`. |
 | `cmd/rosetta-paradoxcall/` | Local stand-in for PARADOX. Not in the image. |
+| `cmd/rosetta-standin/`, `internal/standin` | Local stand-ins for BUMBLEBEE, MJOLNIR, CERBERUS, BIFROST, PENSIEVE and HEDWIG, each under its own path prefix; `/control` sets a failure mode and reads back what came. Not in the image. |
 | `internal/db` | PgBouncer-safe pool and migrations (`migrations/NNN-*.sql`, never edited once applied). |
 | `internal/jobs` | The job address PARADOX calls: signature, run record, lock. |
-| `dev/` | The local stack. Start only what you need; the machine runs many stacks. |
+| `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
+| `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 
 ## Commands
 
