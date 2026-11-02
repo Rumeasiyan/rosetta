@@ -83,7 +83,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 
 | ID | Requirement |
 |---|---|
-| R-PRV-01 | BUMBLEBEE is ROSETTA's only provider. ROSETTA uses BUMBLEBEE's list of browser sources, never older than 60 seconds (default: 60 seconds), with each source's operations, languages, state, resume time, grammar benchmark score and where it processes text, and skips paused sources until their resume time. A new provider joins later behind the same requests, with no change in any caller. |
+| R-PRV-01 | BUMBLEBEE is ROSETTA's only provider. ROSETTA uses BUMBLEBEE's list of browser sources, never older than 60 seconds (default: 60 seconds), with each source's operations, languages, state, resume time, and grammar benchmark score, and skips paused sources until their resume time. A new provider joins later behind the same requests, with no change in any caller. |
 | R-PRV-02 | For translation in each direction and for grammar, the administrator sets the order of sources and can turn a source off for ROSETTA. ROSETTA sends each piece to the first source in order that is on, open under the gate (R-GAT) and allowed for the text's sensitivity (R-MSK-01). |
 | R-PRV-03 | A source call that fails (unavailable, busy, blocked, page changed, timed out, too long, unsupported or turned off) goes to the next source in order. On "busy" with a suggested wait shorter than the time left, ROSETTA waits and tries the same source once more first. The answer says that fallback was used. |
 | R-PRV-04 | ROSETTA sends each source call at most 5,000 characters, waits at most 60 seconds for it (default: 60 seconds) and keeps each source under its limit of calls a minute (default: 30 a minute). |
@@ -175,7 +175,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-NFR-10 | **Security:** keys are stored so they cannot be read back; all traffic is encrypted; ROSETTA's own credentials for BUMBLEBEE live only on the server, never in the repository or on the screens; browser calls are accepted only from listed addresses (R-CAL-06); every request to the screens passes the provincial access policy (CERBERUS) once it runs. |
 | R-NFR-11 | **Privacy (Personal Data Protection Act, No. 9 of 2022):** each calling system decides what it sends and marks its sensitivity, and answers for that under the Act. ROSETTA keeps no grammar text (R-GRM-05), never keeps personal or confidential text after the answer (R-MSK-01), masks identity card and phone numbers before text leaves the shared server (R-MSK-02), and keeps no text in records (R-REC-01). Screens load no analytics, trackers or outside fonts. Development and evaluation use invented text only. |
 | R-NFR-12 | **Retention:** cache 30 days (R-TRN-08); grammar results 10 minutes in memory (R-GRM-05); memory and glossary until replaced; usage records 2 years and totals 5 years (R-REC-04). |
-| R-NFR-13 | **Third-party privacy:** an outside site used as a browser source receives the text, after masking, and keeps or uses it under that site's own terms, not ROSETTA's. BUMBLEBEE's source list records where each source processes text (R-PRV-01), so the Office and system owners can choose. |
+| R-NFR-13 | **Third-party privacy:** an outside site used as a browser source receives the text, after masking, and keeps or uses it under that site's own terms, not ROSETTA's. Every BUMBLEBEE source is an outside public website, and the screens say so beside each source, so the Office and system owners can choose. |
 | R-NFR-14 | **Maintainability:** one small program. A later provider joins with one adapter and settings, and no change in callers. Development runs with one command, with a stand-in BUMBLEBEE and a stand-in email service, and the volunteers' shared test set can be run against any source to produce the evaluation the gate needs (R-GAT-01). |
 
 ## 5. Technology stack
@@ -183,18 +183,84 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | Part | Choice |
 |---|---|
 | Service | Go, one small program on ep-shared-01 under the ALLSPARK STACK; always on (an exception the user approved, joining the platform network as a shared service like JARVIS); memory cap 250 MB, Go memory target 200 MB, 1 CPU; logs 3 files of 10 MB; read-only root filesystem; a `-healthcheck` flag that exits 0 when healthy |
-| Data | Database `rosetta` in the shared PostgreSQL through PgBouncer (pool 5, migrations pool 1) for glossary, memory, cache, settings and records; grammar results in process memory only; no cache server |
+| Data | Database `rosetta` in the shared PostgreSQL through PgBouncer (pool 5, migrations pool 1) for glossary, memory, cache, settings and records; `pg_trgm` text search to find pieces holding a changed term; translation cache in an `UNLOGGED` table (may be empty after a crash or restore); usage records in monthly partitions; grammar results in process memory only; no cache server |
 | Translation API | HTTPS JSON, versioned, server to server; callers on ep-shared-01 call ROSETTA directly on the platform network; callers on other machines (SCOS Pro) through Cloudflare to `/api/` only, with signed requests and their key; keys stored hashed |
 | Grammar API | LanguageTool-compatible check and languages endpoints, so the editor's ONLYOFFICE LanguageTool plug-in works unchanged; called from the officer's browser with MJOLNIR sign-in, CORS only for the listed editor addresses; separate from the server-to-server path |
 | Browser sources | BUMBLEBEE on its own machine, reached only through its Cloudflare tunnel from a link container on ep-shared-01 with an Access service token, plus ROSETTA's own key; synchronous calls of at most 5,000 characters; BUMBLEBEE keeps no text |
-| Schedules | PARADOX, contract `sign/v0.2.0` (`apps/rosetta/schedules.yaml`, `paradox.pub`): nightly totals and removals, daily flags; each call signed and checked |
+| Schedules | PARADOX, contract `sign/v0.2.0` (`apps/rosetta/schedules.yaml`, `paradox.pub`): nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed and checked |
 | Screens and sign-in | Go templates and htmx; MJOLNIR (OpenID Connect); Cloudflare Access in front of rosetta.epc.lk screens; CERBERUS checked by Caddy once it runs |
 | Links to other services | TVA's published register file read from SeaweedFS with a read-only key; PENSIEVE for audit entries; HEDWIG for alert email |
 | Operations | Uptime Kuma on `/__up` and a container monitor; one env file for secrets on the server, `.example` only in the repository; PHOENIX nightly backup of the database; Docker Compose with a stand-in BUMBLEBEE for development; GitHub Actions builds tagged images to GHCR; `deploy.sh` |
 
+<div class="a3">
+
 ## Annex A: Entity relationship diagram
 
-To be produced with the companion prompt.
+Boxes show each entity's keys; the other fields are in A.2. Lines point from a table up to the table it refers to (crow's foot: many; bar: one; dashed: optional). Every `person_id`, `actor_id` and `*_by` field refers to `person`; only the main links to it are drawn. `caller` and `source` are the centres of the working data. Grammar text, masking stand-ins and test requests are never stored, so no table holds them. This page is A3; zoom in to read.
+
+<img src="diagrams/rosetta-erd.svg" alt="ROSETTA entity relationship diagram: people, roles and settings; callers and keys; sources and gate; glossary; memory and cache; records and alerts, with person, caller and source as the centres.">
+
+</div>
+
+### A.1 Storage and loss
+
+Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them; posts are not held by any system yet, so an approver's post is the text the calling system sent. A caller's name is a display copy, refreshed daily from TVA's published file. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
+
+### A.2 Data dictionary
+
+<!-- dictionary:start -->
+#### A.2.1 People, roles and settings
+
+| Entity | Fields |
+|---|---|
+| `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; `name, email`: text, as MJOLNIR sent them at the last sign-in; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC) |
+| `role_grant` | `role`: administrator, glossary keeper, memory reviewer or system owner (R-ADM-06); `language`: si, ta or en; glossary keeper and memory reviewer only; `caller_id`: system owner only; at most one live system owner per caller (R-CAL-02); `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
+| `setting` | `value`: text; every "(default: ...)" value in the PRD; `updated_at`: time (UTC); takes effect within 60 seconds (R-ADM-05) |
+| `change_history` | `subject`: setting, source order or source switch (R-ADM-05); `subject_ref`: text; the setting name, or the operation and direction; `old_value, new_value`: text; never text sent by a caller; `changed_at`: time (UTC) |
+| `paradox_run` | `job`: nightly totals and removals, monthly record parts, daily flags, TVA refresh or audit catch-up; `started_at, finished_at`: time (UTC); a run_id already here is skipped; `kept`: 90 days |
+
+#### A.2.2 Callers and keys
+
+| Entity | Fields |
+|---|---|
+| `caller` | `tva_reference`: text, unique; the system's entry in TVA (R-CAL-01); `name`: text (max 200); display copy, refreshed daily from TVA's published file; `tva_live, tva_checked_at`: yes/no; time (UTC); a caller not live is refused; `requests_per_minute`: number (default: 60) (R-CAL-07); `requests_at_once`: number (default: 5); `registered_at, last_request_at`: time (UTC); `flag`: none, no owner, idle 90 days or not live in TVA (R-CAL-02, R-CAL-05) |
+| `caller_key` | `key_hash`: one-way hash; the key itself is shown once (R-CAL-03); `prefix`: first characters, shown in lists; `created_at, last_used_at`: time (UTC); `turned_off_at`: time (UTC); empty while live; at most 2 live per caller |
+| `caller_origin` | `origin`: browser address allowed to call the grammar check, for example the letter editor's (R-CAL-06); `added_at`: time (UTC) |
+
+#### A.2.3 Sources and gate
+
+| Entity | Fields |
+|---|---|
+| `source` | `name`: text, unique, as in BUMBLEBEE's list, for example google-translate; `version`: text; BUMBLEBEE's part for this site, returned with every answer; `state`: on, resting after a block, resting after a page change, or off; `tried_again_at`: time (UTC); empty unless resting; skipped until then (R-PRV-01); `on_for_rosetta`: yes/no; the administrator can turn a source off (R-PRV-02); `switched_at`: time (UTC); `seen_at`: time (UTC); last refresh of the list, never older than 60 seconds; `processes_text`: always an outside public website for BUMBLEBEE sources |
+| `source_offer` | `operation`: translate or grammar check; `from_language`: si, ta or en; `to_language`: si, ta or en; translation only, never the same as from_language; `benchmark_score`: grammar only; found share less false-alarm share, from BUMBLEBEE's latest run (R-GRM-06) |
+| `source_order` | `operation`: translate or grammar check; `to_language`: si, ta or en; for grammar the same as from_language; `position`: number from 1; grammar follows benchmark score unless set (R-GRM-06); `set_at`: time (UTC) |
+| `gate_decision` | `from_language, to_language`: si, ta or en; `source_version`: text; a new version starts closed (R-GAT-01); `state`: open or closed; `test_set_version, score`: text; number; the evaluation it rests on; `evaluated_on`: date; `effective_from, effective_to`: time (UTC); empty to while current; history kept |
+
+#### A.2.4 Glossary
+
+| Entity | Fields |
+|---|---|
+| `glossary_entry` | `type`: post, institution, place, term, or "keep as written" (R-GLO-01); `note`: text (max 500); `status`: proposed, held (not all three checked), published, replaced or refused (R-GLO-02); never deleted; `proposed_at`: time (UTC); `outcome_note`: text; shown to the proposer (R-GLO-04); `replaced_in`: glossary version number; empty while current |
+| `glossary_term` | `language`: si, ta or en; `text`: text (max 500), Unicode, normalised; `checked_at`: time (UTC); empty until the keeper for the language checks it |
+| `glossary_version` | `published_at`: time (UTC); one number for the whole list (R-GLO-05); `summary`: entries added and replaced |
+| `glossary_import` | `file_name`: text; spreadsheet of up to 5,000 rows (R-GLO-07); `rows, accepted, refused`: numbers; `imported_at`: time (UTC) |
+
+#### A.2.5 Memory and cache
+
+| Entity | Fields |
+|---|---|
+| `memory_entry` | `from_language, to_language`: si, ta or en; `source_text, source_hash`: text, normalised; hash for look-up, ordinary text only; `approved_text`: text; approved in the calling system (R-MEM-01); `approver_post`: text, as the calling system sent it; `approved_on`: date; `state`: served, recheck, removed or replaced (R-MEM-02, R-MEM-04); found for recheck by text search; `added_at, reviewed_at, removed_at`: time (UTC); `kept`: until replaced or removed |
+| `cache_piece` | `source_text, translation`: text; ordinary text only, never personal (R-TRN-08); `source_version`: text; `created_at, expires_at`: time (UTC); 30 days; `kept`: 30 days; may be empty after a crash or a restore, then rebuilt |
+
+#### A.2.6 Records and alerts
+
+| Entity | Fields |
+|---|---|
+| `usage_record` | `request_ref`: text, unique; passed to every BUMBLEBEE call (R-REC-01); `at`: time (UTC); `operation`: translate, grammar check, memory add or test; `sensitivity`: ordinary, personal or confidential; `from_language, to_language`: si, ta or en; `passages, characters`: numbers; `pieces_glossary, pieces_memory, pieces_cache, pieces_source`: numbers; `sources_used, fallback_used`: source names; yes/no; `mismatch`: yes/no; ordinary text held an identity card number (R-MSK-04); `duration_ms`: milliseconds; `outcome`: answered, or one reason from R-ERR-01; `kept`: 2 years in monthly parts, the oldest dropped; never any text; about 50 million rows (about 20 GB) at full capacity |
+| `daily_total` | `requests, characters`: numbers; `pieces by origin`: glossary, memory, cache and source counts; `mismatches`: number; `time_buckets`: counts by time taken, for the usage screens (R-REC-03); `kept`: 5 years (R-REC-04) |
+| `audit_outbox` | `entry_id`: text, unique; the ID PENSIEVE uses to keep the entry once; `occurred_at`: time (UTC); `action`: glossary change, memory add or removal, gate change, source order or state, key, role or setting (R-REC-02); `details`: structured text; who, what and when, never text sent by a caller; `attempts, next_try_at`: number; time (UTC); retried by PARADOX; `kept`: until PENSIEVE accepts it, at most 30 days |
+| `alert` | `kind`: BUMBLEBEE not answering, source paused or resumed, no source for a direction, failures over 20 percent, caller or language flagged (R-ADM-03); `raised_at, sent_at`: time (UTC); sent_at empty until HEDWIG accepts it; `hedwig_notice_id`: text; returned by HEDWIG; `kept`: 90 days |
+<!-- dictionary:end -->
 
 ## Annex B: Technical architecture
 
