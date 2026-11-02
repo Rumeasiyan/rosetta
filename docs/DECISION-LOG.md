@@ -2,6 +2,16 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## What joins the memory
+
+`POST /api/v1/memory` takes `from`, `to`, `sensitivity`, `approver_post`, an optional `approved_on` (today in Sri Lanka if left out, never ahead of it), and `passages`, each a `source` and `approved`. It carries the key and the signature as every call on `/api/` does, and the limits are a translation's. It answers `pieces`, the number that joined, and `not_kept`, the passages left out. E-CAL-04 publishes this.
+
+Sensitivity has no default: anything but `ordinary` is "invalid request" and nothing is kept (R-MEM-03). A card number anywhere, either side, makes it personal (R-MSK-04), so the whole request is refused with the passage's position, and the mismatch is counted for the system. A phone number alone is no mismatch, as the decision on sensitivity has it, but no number is kept: as in the cache, a piece holds the stand-in, so the same sentence with another number answers from one row. The two sides must hold the same numbers, however written, or the passage is left out.
+
+A piece here is a whole sentence (R-MEM-02), and the two sides are paired by position. Where they do not have the same number of sentences the passage cannot be paired truly, so it is left out and named in `not_kept` rather than failing the rest, as a person's approval of the other passages still stands. A person may well merge two sentences in a translation, so this will happen, and those passages stay with the machine. A sentence longer than a source's limit is kept whole, and the pipeline, which breaks it at words, will not find it; word breaks fall differently in two languages, so they cannot be paired. A piece with no letter is the same in any language and is not kept.
+
+A newer approval replaces the older, and the older row loses its words and keeps who, when and which row replaced it, as R-NFR-12 keeps memory only until replaced; a removal will do the same. An advisory lock in the transaction keeps two approvals of one piece from crossing on the unique index. The audit entry, one for each request, is `creation` on `memory` by the system with post `system`, naming the request's reference and counts: no text, and not the approver's post, which is text a calling system sent. `approver_post` is 1 to 200 characters and may not be a card number. R-ERR-02's approved messages are not seeded here: nobody has approved them yet, and they stay in the message file until a person has.
+
 ## Suggestions on a glossary term
 
 A suggestion overlapping a term's place in the text as sent, by even one unit, is dropped; one that only touches it stays. Nothing is moved, so positions stay true. Only the English terms count, as checks are English. The text goes to the source as written and not with stand-ins, since a source reads a sentence better whole, and it is the suggestion that is wrong, not the source's reading. What is held for ten minutes holds every suggestion, and terms are dropped as each answer goes out, so a term published or replaced while an answer is held is honoured at once. A check that cannot read the glossary answers "no provider" before anything goes out, as R-GRM-04 could not be honoured.

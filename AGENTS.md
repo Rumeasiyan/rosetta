@@ -30,6 +30,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
 | `internal/glossary` | The one shared glossary: entries, keepers' checks, publishing, versions, and telling keepers. |
+| `internal/memory` | The shared memory: approved text added, served, found, rechecked, removed. |
 | `internal/terms` | Finding glossary terms in a text, and the one normalise function. Pure. |
 | `internal/sheet` | One worksheet of an `.xlsx` file, read and written with the standard library. Pure. |
 | `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |

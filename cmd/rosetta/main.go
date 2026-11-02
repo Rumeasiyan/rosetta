@@ -28,6 +28,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/hedwig"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
+	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
@@ -216,6 +217,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 			return set, err
 		}},
 		Origins: api.PoolOrigins{Pool: pool},
+		Memory:  &memory.Service{Pool: pool, Settings: values.Get, Kick: outbox.Kick, Logger: logger},
 	})
 
 	mux := http.NewServeMux()

@@ -21,6 +21,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
@@ -95,6 +96,7 @@ func newPathWorld(t *testing.T) *pathWorld {
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
 		Translator: &translate.Service{Glossary: published, Memory: translate.None{}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
+		Memory:     &memory.Service{Pool: pool, Settings: values, Logger: logger},
 		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
 			return set, err
