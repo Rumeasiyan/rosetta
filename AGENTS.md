@@ -13,6 +13,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `cmd/rosetta/` | The service: `serve`, `migrate`, `evaluate`, `-version`, `-healthcheck`. |
 | `cmd/rosetta-paradoxcall/` | Local stand-in for PARADOX. Not in the image. |
 | `cmd/rosetta-standin/`, `internal/standin` | Local stand-ins for BUMBLEBEE, MJOLNIR, CERBERUS, BIFROST, PENSIEVE and HEDWIG, each under its own path prefix; `/control` sets a failure mode and reads back what came. Not in the image. |
+| `cmd/rosetta-load/` | Seeds capacity and measures against stand-ins (E-NFR-01). Not in the image. `uptime` first: the machine runs many stacks. |
 | `internal/db` | PgBouncer-safe pool and migrations (`migrations/NNN-*.sql`, never edited once applied). |
 | `internal/jobs` | The job address PARADOX calls: signature, run record, lock. |
 | `internal/oidc` | Sign-in through MJOLNIR: code flow with PKCE, renew, revoke. |
