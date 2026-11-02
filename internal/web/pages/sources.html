@@ -5,15 +5,28 @@
   {{template "flash" .}}
   {{if not .Data.Snapshot.Fresh}}<p class="note bad" role="status">{{t .Lang "listNotRead"}}</p>{{end}}
   <p>{{t .Lang "sizeLimit"}}: <strong>{{.Data.MaxText}}</strong> {{t .Lang "unitChars"}}{{if not .Data.Snapshot.ReadAt.IsZero}}<br><span class="soft">{{t .Lang "listReadAt"}}: {{when .Data.Snapshot.ReadAt}}</span>{{end}}</p>
-  {{if .Data.Snapshot.List.Sources}}<div class="stack"><table>
-    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "version"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "restUntil"}}</th><th scope="col">{{t .Lang "processesText"}}</th></tr></thead>
-    <tbody>{{range .Data.Snapshot.List.Sources}}<tr>
+  {{if .Data.Rows}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "version"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "restUntil"}}</th><th scope="col">{{t .Lang "processesText"}}</th><th scope="col">{{t .Lang "forRosetta"}}</th></tr></thead>
+    <tbody>{{range .Data.Rows}}<tr>
       <td><strong>{{.Name}}</strong></td>
       <td><span class="stack-label">{{t $.Lang "version"}}: </span>{{.Version}}</td>
       <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{t $.Lang (stateWord .State)}}</td>
       <td><span class="stack-label">{{t $.Lang "restUntil"}}: </span>{{if .RestUntil}}{{when .RestUntil}}{{end}}</td>
       <td><span class="stack-label">{{t $.Lang "processesText"}}: </span>{{t $.Lang "outsideWebsite"}}</td>
+      <td><span class="stack-label">{{t $.Lang "forRosetta"}}: </span>{{if .OnForRosetta}}{{t $.Lang "stateOn"}}{{else}}{{t $.Lang "stateOff"}}{{end}}
+        {{if $.Data.Admin}}<form method="post" action="/sources/switch/{{.Name}}"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="on" value="{{not .OnForRosetta}}"><button class="pill" type="submit">{{if .OnForRosetta}}{{t $.Lang "turnOffForRosetta"}}{{else}}{{t $.Lang "turnOnForRosetta"}}{{end}}<span class="hidden-label">: {{.Name}}</span></button></form>{{end}}</td>
     </tr>{{end}}</tbody>
   </table></div>{{else}}<p>{{t .Lang "noSources"}}</p>{{end}}
+
+  {{if .Data.Orders}}<h2 class="fat section">{{t .Lang "order"}}</h2>
+  <p class="soft">{{t .Lang "orderNote"}}</p>
+  {{range $f := .Data.Orders}}<form class="order" method="post" action="/sources/order/{{$f.Direction.Operation}}/{{$f.Direction.From}}/{{$f.Direction.To}}">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <h3 class="order-title">{{direction $.Lang $f.Direction}}</h3>
+    <div class="order-rows">{{range $f.Rows}}<label class="order-row"><span>{{.Name}}</span>
+      <input name="pos:{{.Name}}" type="number" inputmode="numeric" min="1"{{if .Position}} value="{{.Position}}"{{end}}{{if not $.Data.Admin}} disabled{{end}}></label>{{end}}</div>
+    {{if $.Data.Admin}}<button class="pill" type="submit">{{t $.Lang "save"}}<span class="hidden-label">: {{direction $.Lang $f.Direction}}</span></button>{{end}}
+  </form>{{end}}{{end}}
+  {{if .Data.Admin}}<p class="row-actions"><a class="pill" href="/sources/history">{{t .Lang "history"}}</a></p>{{end}}
 </div>
 {{end}}

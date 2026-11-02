@@ -121,6 +121,7 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"roleWord":   RoleWord,
 		"flagWord":   flagWord,
 		"stateWord":  stateWord,
+		"direction":  directionName,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err

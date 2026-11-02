@@ -93,6 +93,11 @@ a { color: inherit; }
 .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline input[type=number] { font: inherit; width: 7em; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
 .row-actions { margin-top: 20px; }
+.order { padding: 14px 0; border-bottom: 1px solid var(--brown); }
+.order-title { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.order-rows { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 10px; }
+.order-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.order-row input { font: inherit; width: 6em; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: transparent; color: inherit; }
 code { overflow-wrap: anywhere; }
 .stack-label { display: none; color: var(--soft); }
 @container (max-width: 600px) { .stack-label { display: inline; } }

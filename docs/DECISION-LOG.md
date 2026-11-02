@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Source order and switch
+
+With no order set, translation goes by source name, so the order never depends on how the list was written, and grammar by English benchmark score (R-GRM-06). Sources the administrator placed come first and the rest follow. A position left blank is not placed, and only the numbers' order counts. A system owner sees the source screen, since R-NFR-13 means them to choose, but changes nothing; the history is the administrator's. A source turned off keeps its place in the form. Changes are `change` entries, as P-ING-02 has no nearer word.
+
 ## Keys
 
 A key is `rst_`, twelve hex characters and 256 random bits; the first sixteen characters are the prefix lists show and `keyid` carries. It is stored as SHA-256: with that many random bits there is nothing to guess, so a slow hash would only cost every request. The two-live rule holds the system's row while counting. The refused key's denial names the fixed route `/api/`, the system if the key told which and otherwise the actor `unidentified caller`, with fixed words why. The system and prefix go in `object_ref`, which PENSIEVE does not scan, since a TVA reference could look like anything. Counts by reason are in memory until E-ADM-04 shows them: a request with no known key has no calling system, so a usage record cannot hold it. A request that a database fault stops from being checked answers "no provider", not "no key".

@@ -165,4 +165,16 @@ var messages = map[string]text{
 	"keyTooMany":      {"This system already holds two live keys. Turn one off first.", "මෙම පද්ධතියට දැනටමත් සජීවී යතුරු දෙකක් ඇත. පළමුව එකක් අක්‍රිය කරන්න.", "இந்த முறைமையிடம் ஏற்கனவே இரண்டு உயிர்ப்பான சாவிகள் உள்ளன. முதலில் ஒன்றை நிறுத்தவும்."},
 	"keyNoSuch":       {"That key is not live on this system.", "එම යතුර මෙම පද්ධතියේ සජීවී නොවේ.", "அந்தச் சாவி இந்த முறைமையில் உயிர்ப்புடன் இல்லை."},
 	"keyTurnedOff":    {"The key is turned off. It stopped working at once.", "යතුර අක්‍රිය කර ඇත. එය වහාම ක්‍රියා කිරීම නැවැත්වීය.", "சாவி நிறுத்தப்பட்டது. அது உடனே வேலை செய்வதை நிறுத்தியது."},
+
+	"forRosetta":        {"For ROSETTA", "ROSETTA සඳහා", "ROSETTA க்கு"},
+	"turnOffForRosetta": {"Turn off", "අක්‍රිය කරන්න", "நிறுத்துக"},
+	"turnOnForRosetta":  {"Turn on", "ක්‍රියාත්මක කරන්න", "இயக்குக"},
+	"order":             {"Order of sources", "මූලාශ්‍ර අනුපිළිවෙල", "மூலங்களின் வரிசை"},
+	"orderNote":         {"Each piece goes to the first source in order that is on, open under the gate and allowed for its sensitivity. Sources with no number come after those with one: by name, and for grammar by benchmark score.", "සෑම කොටසක්ම යන්නේ අනුපිළිවෙලින් ක්‍රියාත්මක, ද්වාරය යටතේ විවෘත සහ එහි සංවේදීතාවට අවසර ඇති පළමු මූලාශ්‍රයටය. අංකයක් නැති මූලාශ්‍ර අංක ඇති ඒවාට පසුව පැමිණේ: නමින්, ව්‍යාකරණ සඳහා මිණුම් ලකුණින්.", "ஒவ்வொரு துண்டும் வரிசையில் இயங்கும், வாயிலில் திறந்த, அதன் உணர்திறனுக்கு அனுமதிக்கப்பட்ட முதல் மூலத்துக்குச் செல்லும். எண் இல்லாத மூலங்கள் எண் உள்ளவற்றுக்குப் பின் வரும்: பெயரால், இலக்கணத்துக்கு மதிப்பெண்ணால்."},
+	"orderBad":          {"Positions must be whole numbers from 1, each used once. Nothing was changed.", "ස්ථාන 1 සිට පූර්ණ සංඛ්‍යා විය යුතු අතර, එක් වරක් පමණක් භාවිතා කළ යුතුය. කිසිවක් වෙනස් කළේ නැත.", "இடங்கள் 1 முதலான முழு எண்களாக, ஒவ்வொன்றும் ஒருமுறை மட்டுமே இருக்க வேண்டும். எதுவும் மாற்றப்படவில்லை."},
+	"sourceUnknown":     {"That source is not on the list yet. Nothing was changed.", "එම මූලාශ්‍රය තවම ලැයිස්තුවේ නැත. කිසිවක් වෙනස් කළේ නැත.", "அந்த மூலம் இன்னும் பட்டியலில் இல்லை. எதுவும் மாற்றப்படவில்லை."},
+	"grammarEnglish":    {"Grammar, English", "ව්‍යාකරණ, ඉංග්‍රීසි", "இலக்கணம், ஆங்கிலம்"},
+	"sourcesHistory":    {"History of sources", "මූලාශ්‍ර ඉතිහාසය", "மூலங்களின் வரலாறு"},
+	"backToSources":     {"Back to sources", "මූලාශ්‍ර වෙත ආපසු", "மூலங்களுக்குத் திரும்புக"},
+	"changeOf":          {"What changed", "වෙනස් වූයේ කුමක්ද", "என்ன மாறியது"},
 }
