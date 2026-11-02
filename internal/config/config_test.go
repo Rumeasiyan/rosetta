@@ -52,14 +52,14 @@ func TestErrorsNeverRepeatTheDatabaseURL(t *testing.T) {
 func TestLinksAreSettings(t *testing.T) {
 	get := func(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
 	l, err := LinksFromEnv(get(map[string]string{
-		"ROSETTA_BUMBLEBEE_URL": "http://standin:53090/bumblebee/",
+		"ROSETTA_BUMBLEBEE_URL": "http://standin:53190/bumblebee/",
 		"ROSETTA_BUMBLEBEE_KEY": " bb_test ",
 		"ROSETTA_TVA_DIR":       "dev/tva",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l.BumblebeeURL != "http://standin:53090/bumblebee" || l.BumblebeeKey != "bb_test" || l.TVADir != "dev/tva" {
+	if l.BumblebeeURL != "http://standin:53190/bumblebee" || l.BumblebeeKey != "bb_test" || l.TVADir != "dev/tva" {
 		t.Fatalf("%+v", l)
 	}
 	if _, err := LinksFromEnv(get(map[string]string{"ROSETTA_PENSIEVE_URL": "ftp://a"})); err == nil || !strings.Contains(err.Error(), "ROSETTA_PENSIEVE_URL") {

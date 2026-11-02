@@ -40,10 +40,10 @@ Source: `docs/ROSETTA-PRD.md` v1.6 (requirements, Annex A data model, Annex B ar
 | 3 | [x] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
 | 4 | [x] | Solo | E-GRM-01 | Spike: the stock plug-in on a local Document Server, against a stand-in check | R-CAL-06, R-GRM-01; B 2, B 9 | Must | 1 |
 | 5 | [x] | Solo | E-ADM-01 | Sign-in through MJOLNIR's stand-in, the person's record, ROSETTA's own session | R-ADM-01; §5; B 8 | Must | 2, 3 |
-| 6 | [ ] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |
-| 7 | [ ] | Solo | E-ADM-03 | Settings and their history, in force within 60 seconds | R-ADM-05 | Must | 6 |
+| 6 | [x] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |
+| 7 | [x] | Solo | E-ADM-03 | Settings and their history, in force within 60 seconds | R-ADM-05 | Must | 6 |
 | 8 | [x] | Solo | E-ENB-04 | PARADOX's signed calls: check, run record, a run already done is skipped | §5; B 12 | Must | 2, 3 |
-| 9 | [ ] | Solo | E-REC-01 | Audit outbox to PENSIEVE's stand-in, with the catch-up job | R-REC-02; B 13 | Must | 7, 8 |
+| 9 | [x] | Solo | E-REC-01 | Audit outbox to PENSIEVE's stand-in, with the catch-up job | R-REC-02; B 13 | Must | 7, 8 |
 
 Notes:
 
@@ -55,14 +55,6 @@ Notes:
 - **E-ADM-02:** The first administrator comes from a bootstrap setting that works only while no administrator exists. Each system has its own theme (STACK 2). No outside fonts or scripts.
 - **E-ENB-04:** Uses the module at `sign/v0.2.0`; the stand-in signs with a test key pair. Missed runs are PARADOX's to report (owners register): no monitor push per job.
 - **E-REC-01:** Entry shape as PENSIEVE's P-ING-01 requires; `post` comes from the look-up at sign-in (E-CAL-05). PENSIEVE refuses a blank one: send exactly `not known`, in lower case, when it is not known at the time of the action, which until E-CAL-05 is always, and `system` for automatic work. Older entries are not rewritten once a post is learned. The stand-in refuses a blank too. PENSIEVE refuses details holding a key or identity card number, so test that nothing of the kind gets in.
-
-**Still to run for R1.** E-ADM-02, E-ADM-03 and E-REC-01 are built, with their code and non-database tests passing, and their boxes stay unticked: their database tests and walks have not run, because the machine was too loaded for Docker. To finish them:
-
-1. `docker compose -f dev/compose.yaml up -d postgres pgbouncer`, then `ROSETTA_TEST_DATABASE_URL=postgres://rosetta:rosetta@localhost:53432/rosetta go test -p 1 ./...`. This is the first run of `internal/web/people_test.go`, `internal/web/settings_test.go`, `internal/audit/outbox_db_test.go`, `TestServeNeedsPensieve`, and migration 002. It also repeats E-ADM-01's tests over the sign-in code E-ADM-02 changed.
-2. Walk as AGENTS.md says, at desktop and 360 pixels wide: the first administrator from the bootstrap setting; a person with no role refused and the denial read back; a role granted and ended; each setting changed and refused, and its history; each screen in three languages.
-3. With entries waiting, set PENSIEVE's stand-in to `unavailable` through `/control`, make a change, put it back, call `audit-catch-up` with `cmd/rosetta-paradoxcall`, and read back what arrived.
-4. `dev/keys.sh && docker compose -f dev/compose.yaml up -d --build` once, for the release's one command: neither the service with its new settings nor `dev/standin.dockerfile` has been built or run in Compose.
-5. Tick each box as it passes.
 
 ## R2 Translation
 

@@ -59,12 +59,12 @@ services:
       context: ..
       dockerfile: dev/standin.dockerfile
     environment:
-      STANDIN_LISTEN: ":53090"
-      STANDIN_PUBLIC_URL: http://localhost:53090
+      STANDIN_LISTEN: ":53190"
+      STANDIN_PUBLIC_URL: http://localhost:53190
     mem_limit: 64m
     read_only: true
     ports:
-      - "127.0.0.1:53090:53090"
+      - "127.0.0.1:53190:53190"
     healthcheck:
       test: ["CMD", "/standin", "-healthcheck"]
       interval: 2s
@@ -79,20 +79,20 @@ services:
       - ./tva:/tva:ro
     environment:
       DATABASE_URL: postgres://rosetta:rosetta@pgbouncer:5432/rosetta
-      ROSETTA_BUMBLEBEE_URL: http://standin:53090/bumblebee
+      ROSETTA_BUMBLEBEE_URL: http://standin:53190/bumblebee
       ROSETTA_BUMBLEBEE_KEY: bb_standin
-      ROSETTA_BIFROST_URL: http://standin:53090/bifrost
+      ROSETTA_BIFROST_URL: http://standin:53190/bifrost
       ROSETTA_BIFROST_KEY: bf_standin
-      ROSETTA_PENSIEVE_URL: http://standin:53090/pensieve
+      ROSETTA_PENSIEVE_URL: http://standin:53190/pensieve
       ROSETTA_PENSIEVE_KEY: pv_standin
-      ROSETTA_HEDWIG_URL: http://standin:53090/hedwig
+      ROSETTA_HEDWIG_URL: http://standin:53190/hedwig
       ROSETTA_HEDWIG_KEY: hw_test_standin
       ROSETTA_TVA_DIR: /tva
       ROSETTA_PUBLIC_URL: http://localhost:53080
       # The issuer reads the same to the browser and to ROSETTA; inside this
       # network ROSETTA reaches it at the stand-in's name.
-      ROSETTA_SIGNIN_ISSUER: http://localhost:53090/mjolnir
-      ROSETTA_SIGNIN_INTERNAL_URL: http://standin:53090/mjolnir
+      ROSETTA_SIGNIN_ISSUER: http://localhost:53190/mjolnir
+      ROSETTA_SIGNIN_INTERNAL_URL: http://standin:53190/mjolnir
       ROSETTA_SIGNIN_CLIENT_ID: rosetta
       ROSETTA_SIGNIN_CLIENT_SECRET: local-stand-in-only
       ROSETTA_FIRST_ADMIN: dev-admin

@@ -65,3 +65,7 @@ The owner picked direction `stone` in `design-lab/`, "Stone bands": three flat b
 ## Grammar reads who is signed in from CERBERUS, not ROSETTA's own session
 
 An officer working in the editor may never have opened rosetta.epc.lk, so holds no ROSETTA cookie: it is host-only, set after ROSETTA's own sign-in. Only MJOLNIR's cookie, on the parent domain, can reach the check, CERBERUS checks it, and Caddy removes it. So the grammar paths take the person from `X-Cerberus-Account`, which only Caddy sets, and screens keep ROSETTA's own session. A system on the platform network could forge that header on the grammar path; it gains only a check counted to that person, never the screens. This changes Annex B link 2 and depends on the owner's decision on `docs/plugin-findings.md`.
+
+## The stand-in listens on 53190
+
+Port 53090 was held on the Docker side of the development machine with no container showing it, which left the stand-in running with no network. Docker's first error scrolled past while the container still reported healthy, so a Compose run that answers 502 at sign-in points here first.
