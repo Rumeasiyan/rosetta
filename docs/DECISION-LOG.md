@@ -10,6 +10,8 @@ A preflight needs no session or key and uses no limit, answers 204 for a listed 
 
 Addresses are listed on a system's screen, by the administrator only (R-CAL-06); an owner sees them. An address is `https://` and a host, with `http://` only on this machine, written one way, with no path or wildcard. One address counts to one system, so migration 004 makes `origin` unique and the second system to list it is refused. A change is history, in `change_history` as `caller origin`, an addition Annex A does not list, and an audit entry. R-CAL-06's default of the letter editor's address means no row until E-ENB-19 lists it: there is no system to hold it before then.
 
+B 9 has `POST` on the grammar paths checked by CERBERUS as a person's request, so a key caller from outside would be stopped there before reaching ROSETTA, though R-GRM-01 lets it call. A key caller on the platform network comes directly and is not affected. E-ENB-10 has to settle this if a system outside ever checks grammar with a key.
+
 `Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so until its `$.ajax` is changed or the owner decides otherwise, CERBERUS sees nobody and no check reaches ROSETTA from it.
 
 ## Grammar sources and fallback
