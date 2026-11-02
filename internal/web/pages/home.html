@@ -2,7 +2,15 @@
 {{define "main"}}
 <div class="hero"><h1 class="fat hero-title">{{t .Lang "welcome"}}</h1><p class="hero-line">{{.Viewer.Name}}</p></div>
 <div class="content">
-  <p>{{t .Lang "noRole"}}</p>
+  {{template "flash" .}}
+  {{if .Viewer.Roles}}<h2 class="fat section">{{t .Lang "yourRoles"}}</h2>
+  <ul class="chips">
+    {{- range .Data.Grants}}<li>{{t $.Lang (roleWord .Role)}}{{if .Language}} ({{langName .Language}}){{end}}</li>{{end}}
+    {{- if .Data.Owned}}<li>{{t .Lang "roleSystemOwner"}}</li>{{end -}}
+  </ul>
+  {{if .Data.Owned}}<h2 class="fat section">{{t .Lang "ownSystems"}}</h2>
+  <ul>{{range .Data.Owned}}<li>{{.Name}} ({{.Reference}})</li>{{end}}</ul>{{end}}
+  {{else}}<p>{{t .Lang "noRole"}}</p>{{end}}
   <p class="soft">{{t .Lang "proposal"}}</p>
 </div>
 {{end}}

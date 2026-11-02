@@ -128,7 +128,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if err != nil {
 		return err
 	}
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Logger: logger})
 	if err != nil {
 		return err
 	}

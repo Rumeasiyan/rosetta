@@ -7,12 +7,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,7 +32,10 @@ type Deps struct {
 	Pool      *pgxpool.Pool
 	SignIn    SignIn
 	PublicURL string // ROSETTA_PUBLIC_URL
-	Logger    *slog.Logger
+	// FirstAdmin is ROSETTA_FIRST_ADMIN: the MJOLNIR account that becomes the first
+	// administrator, only while no administrator exists.
+	FirstAdmin string
+	Logger     *slog.Logger
 }
 
 // signinCallTimeout is the longest ROSETTA waits on MJOLNIR for one person's request.
@@ -65,14 +71,59 @@ func (a *App) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("GET /signin/start", a.signinStart)
 	mux.HandleFunc("GET "+oidc.CallbackPath, a.signinCallback)
 	mux.HandleFunc("POST /signout", a.signout)
+	mux.HandleFunc("GET /lang/{lang}", a.setLanguage)
 	mux.Handle("GET /{$}", a.signedIn(a.home))
+	a.mountPeople(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
-// current is the signed-in person on this request.
+// current is the signed-in person on this request, with their roles read again on
+// every request, so a role that ends takes effect at once.
 type current struct {
-	token string
-	sess  session
+	token  string
+	sess   session
+	grants []people.Grant
+	owned  []people.OwnedSystem
+}
+
+func (c *current) has(role string) bool {
+	for _, g := range c.grants {
+		if g.Role == role {
+			return true
+		}
+	}
+	return false
+}
+
+func isAdmin(c *current) bool { return c.has(people.Administrator) }
+
+// actor is the signed-in person as an audit entry names them. Their post is not
+// known until E-CAL-05.
+func (c *current) actor() audit.Actor {
+	return audit.Actor{PersonID: c.sess.personID, Subject: c.sess.subject, Name: c.sess.name, Post: audit.PostNotKnown}
+}
+
+// viewer is who the frame shows.
+func (c *current) viewer() *Viewer {
+	v := &Viewer{Name: c.sess.name}
+	for _, g := range c.grants {
+		w := RoleWord(g.Role)
+		if !slices.Contains(v.Roles, w) {
+			v.Roles = append(v.Roles, w)
+		}
+	}
+	if len(c.owned) > 0 {
+		v.Roles = append(v.Roles, "roleSystemOwner")
+	}
+	return v
+}
+
+// nav is the top bar: only the screens this person's roles open.
+func nav(c *current) []NavItem {
+	if !isAdmin(c) {
+		return nil
+	}
+	return []NavItem{{ID: "people", Word: "people", Href: "/people"}}
 }
 
 type currentKey struct{}
@@ -120,6 +171,14 @@ func (a *App) signedIn(next http.HandlerFunc) http.Handler {
 			sess, _ = a.sessions.get(ck.Value, timer)
 		}
 		c := &current{token: ck.Value, sess: sess}
+		if c.grants, err = people.Live(r.Context(), a.deps.Pool, sess.personID); err != nil {
+			a.fail(w, r, err)
+			return
+		}
+		if c.owned, err = people.Owned(r.Context(), a.deps.Pool, sess.subject); err != nil {
+			a.fail(w, r, err)
+			return
+		}
 		next(w, r.WithContext(context.WithValue(r.Context(), currentKey{}, c)))
 	})
 }
@@ -174,10 +233,74 @@ func (a *App) toSignIn(w http.ResponseWriter, r *http.Request, where string) {
 	http.Redirect(w, r, where+"?next="+url.QueryEscape(r.URL.Path), http.StatusSeeOther)
 }
 
-// page is the data every signed-in screen starts from.
-func (a *App) page(r *http.Request, title string) Page {
+// page is the data every signed-in screen starts from. A flash message arrives in
+// the query after a form's redirect; only known words show, so nothing a link
+// carries reaches the page.
+func (a *App) page(r *http.Request, title, here string) Page {
 	c := fromCtx(r)
-	return Page{Lang: Language(r), Path: r.URL.Path, Title: title, Viewer: &Viewer{Name: c.sess.name}, CSRF: c.sess.csrf}
+	p := Page{Lang: Language(r), Path: r.URL.Path, Title: title, Here: here, Nav: nav(c), Viewer: c.viewer(), CSRF: c.sess.csrf}
+	if m := r.URL.Query().Get("m"); m != "" && i18n.Has(m) {
+		p.Flash = m
+		switch t := r.URL.Query().Get("tone"); t {
+		case "good", "warn", "bad":
+			p.FlashTone = t
+		default:
+			p.FlashTone = "good"
+		}
+	}
+	return p
+}
+
+// back redirects to path with a message.
+func back(w http.ResponseWriter, r *http.Request, path, msg, tone string) {
+	http.Redirect(w, r, path+"?m="+url.QueryEscape(msg)+"&tone="+tone, http.StatusSeeOther)
+}
+
+// inTx runs work in one transaction, which also holds its audit entries.
+func (a *App) inTx(r *http.Request, work func(tx pgx.Tx, now time.Time) error) error {
+	return pgx.BeginFunc(r.Context(), a.deps.Pool, func(tx pgx.Tx) error { return work(tx, time.Now()) })
+}
+
+// only lets the request through when allowed says so. Anything else is a denial,
+// which PENSIEVE's list requires (P-ING-02). The entry names the route, never the
+// address as sent.
+func (a *App) only(allowed func(*current) bool, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		c := fromCtx(r)
+		if allowed(c) {
+			next(w, r)
+			return
+		}
+		a.deny(w, r, "Role does not allow this", "notAllowed")
+	}
+}
+
+// post checks the form's token, so another site cannot make the person's browser
+// change anything: the session cookie alone is never enough.
+func (a *App) post(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		if r.ParseForm() != nil || subtle.ConstantTimeCompare([]byte(r.PostForm.Get("csrf")), []byte(fromCtx(r).sess.csrf)) != 1 {
+			a.deny(w, r, "Form token did not match", "badForm")
+			return
+		}
+		next(w, r)
+	}
+}
+
+// deny records one denial and shows the person why.
+func (a *App) deny(w http.ResponseWriter, r *http.Request, reason, word string) {
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		return audit.Record(r.Context(), tx, audit.Event{Actor: fromCtx(r).actor(), Action: audit.ActionDenial, ObjectType: "screen",
+			ObjectRef: r.Pattern, Result: audit.ResultDenied, Reason: reason, Visitor: audit.Visitor(r)}, now)
+	})
+	if err != nil {
+		a.fail(w, r, err)
+		return
+	}
+	p := a.page(r, "rosetta", "")
+	p.Flash, p.FlashTone = word, "bad"
+	a.Render(w, r, http.StatusForbidden, "message", p)
 }
 
 func (a *App) fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -198,8 +321,36 @@ func (a *App) gatePage(w http.ResponseWriter, r *http.Request) {
 	a.gate(w, r, http.StatusOK, "", "", r.URL.Query().Get("next"))
 }
 
+// homeData is what the home screen shows beyond the frame.
+type homeData struct {
+	Grants []people.Grant
+	Owned  []people.OwnedSystem
+}
+
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	a.Render(w, r, http.StatusOK, "home", a.page(r, "welcome"))
+	c := fromCtx(r)
+	p := a.page(r, "welcome", "")
+	p.Data = homeData{Grants: c.grants, Owned: c.owned}
+	a.Render(w, r, http.StatusOK, "home", p)
+}
+
+// setLanguage keeps the picked language and returns to the page it was picked on
+// (R-NFR-05). Signed in, it is remembered on the person too.
+func (a *App) setLanguage(w http.ResponseWriter, r *http.Request) {
+	l, ok := i18n.Parse(r.PathValue("lang"))
+	if !ok {
+		a.notFound(w, r)
+		return
+	}
+	a.setLanguageCookie(w, string(l))
+	if ck, err := r.Cookie(SessionCookie); err == nil {
+		if sess, ok := a.sessions.get(ck.Value, false); ok {
+			if err := people.SetLanguage(r.Context(), a.deps.Pool, sess.personID, string(l)); err != nil {
+				a.deps.Logger.Error("screen language not kept", "error", err)
+			}
+		}
+	}
+	http.Redirect(w, r, SafeNext(r.URL.Query().Get("next")), http.StatusSeeOther)
 }
 
 // ---- sign-in ---------------------------------------------------------------
@@ -258,29 +409,40 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, pd.next, http.StatusSeeOther)
 }
 
-// admit keeps the person's record, and settles their screen language: a pick made
-// before signing in, else what they chose last time, else the browser's.
+// admit keeps the person's record, settles their screen language (a pick made
+// before signing in, else what they chose last time, else the browser's) and makes
+// the first administrator if this is them.
 func (a *App) admit(r *http.Request, c oidc.Claims) (people.Person, error) {
 	ctx := r.Context()
-	person, err := people.Upsert(ctx, a.deps.Pool, c.Subject, c.Name, c.Email)
-	if err != nil {
-		return person, err
-	}
-	want := person.Language
-	if ck, err := r.Cookie(LangCookie); err == nil {
-		if l, ok := i18n.Parse(ck.Value); ok {
-			want = string(l)
+	var person people.Person
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		var err error
+		if person, err = people.Upsert(ctx, tx, c.Subject, c.Name, c.Email); err != nil {
+			return err
 		}
-	} else if person.IsNew {
-		want = string(Language(r))
-	}
-	if want != person.Language {
-		if err := people.SetLanguage(ctx, a.deps.Pool, person.ID, want); err != nil {
-			return person, err
+		want := person.Language
+		if ck, err := r.Cookie(LangCookie); err == nil {
+			if l, ok := i18n.Parse(ck.Value); ok {
+				want = string(l)
+			}
+		} else if person.IsNew {
+			want = string(Language(r))
 		}
-		person.Language = want
-	}
-	return person, nil
+		if want != person.Language {
+			if err := people.SetLanguage(ctx, tx, person.ID, want); err != nil {
+				return err
+			}
+			person.Language = want
+		}
+		first, err := people.FirstAdministrator(ctx, tx, person, a.deps.FirstAdmin)
+		if err != nil || !first {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Event{Actor: audit.System, Action: audit.ActionRoleChange, ObjectType: "person",
+			ObjectRef: person.Subject, Result: audit.ResultDone, Reason: "First administrator, from the bootstrap setting",
+			Visitor: audit.Visitor(r), Details: map[string]any{"change": "granted", "role": people.Administrator}}, now)
+	})
+	return person, err
 }
 
 func (a *App) setLanguageCookie(w http.ResponseWriter, language string) {

@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Roles
+
+The administrator names a person by the email they last signed in with, rather than picking from a list: every officer who ever signed in could otherwise outgrow a page (R-NFR-03). The role is still held by their account. The last administrator cannot be ended, since nobody could then grant anything. An end date counts through its whole day in Sri Lanka. A role reaching its end date stops being live with no audit entry until E-CAL-05 adds a daily pass. If every administrator's end date passes, the bootstrap setting works again, as it only asks whether one exists.
+
+## Audit entries are written from E-ADM-02 on
+
+`internal/audit` writes the outbox row in the same transaction as the work, so roles and settings have their entries from the start; E-REC-01 adds the sending. The row's `details` column holds the whole entry, since Annex A gives it as who, what and when and has no column for most of what P-ING-01 asks. A denial names the route (`GET /people`), never the address as sent. A bad form token is also a denial. Reasons are fixed words. Only a signed-in person's refusal is recorded: without a session nobody has been identified, and CERBERUS answers for those.
+
 ## How sign-in holds a session
 
 Sessions live in process memory, as PENSIEVE's do: Annex A has no session table, and after a restart a person passes through MJOLNIR with no form. ROSETTA holds no copy of MJOLNIR's limits: a session lasts until MJOLNIR refuses a renewal (`invalid_grant` or `access_denied`). `ForgetAfter`, 12 hours unseen, only keeps memory small. On any other answer from MJOLNIR nobody is let through and the session is kept. A request with `X-Timer-Request` neither renews nor counts as the person being seen. A renewal outlives the person's request, because a rotated token cannot be sent twice. This goes beyond PENSIEVE, whose client has no renewal.
@@ -21,6 +29,10 @@ P-ING-02: MJOLNIR records sign-ins and sends each to PENSIEVE, and no other syst
 ## Screens live at the root
 
 `/`, `/signin`, `/people` and so on, since not every screen is for an administrator: `/api/`, `/jobs/` and `/healthz` are the other parts. Cookies have `Path=/` and no `Domain`.
+
+## The Sinhala and Tamil words are best effort
+
+`internal/i18n/messages.go` holds them, written without a native reader. A person must check them before Go live. A test holds only that each is present and in its own script.
 
 ## Language at sign-in
 

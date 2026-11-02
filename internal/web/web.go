@@ -12,9 +12,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Rumeasiyan/rosetta"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/people"
 )
 
 //go:embed pages/*.html
@@ -31,13 +33,68 @@ var StaticPrefix = "/static/" + rosetta.Version + "/"
 const LangCookie = "rosetta_lang"
 
 // Viewer is the signed-in person as the screens see them.
-type Viewer struct{ Name string }
+type Viewer struct {
+	Name  string
+	Roles []string // message keys
+}
+
+// NavItem is one entry of the top bar.
+type NavItem struct {
+	ID   string // matches Page.Here
+	Word string // message key
+	Href string
+}
+
+// colombo is Sri Lanka time: times are stored in UTC and shown in Sri Lanka time.
+var colombo = func() *time.Location {
+	l, err := time.LoadLocation("Asia/Colombo")
+	if err != nil {
+		return time.FixedZone("Asia/Colombo", 5*3600+1800)
+	}
+	return l
+}()
+
+// When shows a time in Sri Lanka time, to the minute.
+func When(t any) string {
+	switch v := t.(type) {
+	case time.Time:
+		return v.In(colombo).Format("2006-01-02 15:04")
+	case *time.Time:
+		if v != nil {
+			return v.In(colombo).Format("2006-01-02 15:04")
+		}
+	}
+	return ""
+}
+
+// Day shows a date as it was stored.
+func Day(d *time.Time) string {
+	if d == nil {
+		return ""
+	}
+	return d.Format(time.DateOnly)
+}
+
+// RoleWord is the message key for a stored role name.
+func RoleWord(role string) string {
+	switch role {
+	case people.Administrator:
+		return "roleAdministrator"
+	case people.GlossaryKeeper:
+		return "roleGlossaryKeeper"
+	case people.MemoryReviewer:
+		return "roleMemoryReviewer"
+	}
+	return role
+}
 
 // Page is what every screen's template receives.
 type Page struct {
 	Lang      i18n.Lang
 	Path      string // this page's path
 	Title     string // message key of the page title
+	Here      string // the top bar entry that is current
+	Nav       []NavItem
 	Viewer    *Viewer
 	CSRF      string
 	Flash     string // message key, or ""
@@ -59,6 +116,9 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"langs":      func() []i18n.Lang { return i18n.Langs },
 		"langName":   i18n.Name,
 		"staticPath": func(name string) string { return StaticPrefix + name },
+		"when":       When,
+		"day":        Day,
+		"roleWord":   RoleWord,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err

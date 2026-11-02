@@ -1,5 +1,5 @@
 {{/* ROSETTA's frame, copied from design-lab/src/directions/stone. Pages define
-     "page", calling "frame" or "bare", and "main". */}}
+     "page", calling "frame", and "main". */}}
 {{define "head"}}<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"historyCacheSize":0,"refreshOnHistoryMiss":true,"responseHandling":[{"code":"204","swap":false},{"code":"...","swap":true}]}'>
@@ -10,11 +10,19 @@
 
 {{define "flash"}}{{if .Flash}}<p class="note {{.FlashTone}}" role="status">{{t .Lang .Flash}}</p>{{end}}{{end}}
 
+{{define "langs"}}<nav class="langs" aria-label="{{t .Lang "language"}}">
+{{- range langs}}<a href="/lang/{{.}}?next={{$.Path}}" lang="{{.}}" hreflang="{{.}}" hx-boost="false"{{if eq . $.Lang}} aria-current="true"{{end}}>{{langName .}}</a>{{end -}}
+</nav>{{end}}
+
 {{define "bar"}}<header class="bar">
   <a class="brand" href="/">ROSETTA</a>
+  {{if .Nav}}<nav class="nav" aria-label="{{t .Lang "menu"}}">
+  {{- range .Nav}}<a href="{{.Href}}"{{if eq .ID $.Here}} aria-current="page"{{end}}>{{t $.Lang .Word}}</a>{{end -}}
+  </nav>{{end}}
   <div class="bar-end">
+    {{template "langs" .}}
     {{if .Viewer}}<span class="who">{{.Viewer.Name}}</span>
-    <form method="post" action="/signout" hx-boost="false"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="pill small" type="submit">{{t .Lang "signOut"}}</button></form>{{end}}
+    <form method="post" action="/signout" hx-boost="false"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="pill" type="submit">{{t .Lang "signOut"}}</button></form>{{end}}
   </div>
 </header>{{end}}
 
