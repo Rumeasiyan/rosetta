@@ -2,6 +2,70 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## What the R2 walk by eye changed
+
+A source switch in `/sources/history` read `true` and `false` in every language; it now reads on and off in the reader's. The gate's history at phone width showed labels with nothing after them on a closed decision; a label now comes only with its value. A true 360 pixels comes from the browser's own emulated width, measured as `window.innerWidth`, since `frame-ancestors 'none'` refuses the page inside a frame. E-ERR-01 and E-TRN-02 stay unticked for a native reader, as R-ERR-02 calls their words approved.
+
+## The cache
+
+It holds pieces as they went to the source, stand-ins and all, so no card or phone number is ever in the table, and the same sentence with another number answers from one row. A machine's answer stays under the gate: only a source the piece could go to now answers from the cache, on the version it runs now, so a source turned off, closed or on a new version gives no cached answer either (R-GAT-02 exempts only the glossary and memory). A resting source does, as nothing goes to it. So, with BUMBLEBEE down and the list stale, cached pieces still answer as the last known list and the gate allow; R-NFR-09 names only the glossary and memory, and this goes a little further, which seemed right for callers. A piece is kept as soon as the source answers and its stand-ins come back whole, so a request that later fails need not pay again when sent again (R-TRN-05). A piece split again is kept whole when one source made all of it. Failing to read or write the cache costs a source call and logs fixed words, never the answer. `cache_days` is the setting; E-REC-03 removes expired rows.
+
+## The answer's shape
+
+Each passage gives `text`, `language`, `origins` (a count for each of the four), `pieces` (each piece's origin, source and version, and whether it used fallback), `sources` (each once), `machine`, `checked_by_person`, `label` in three languages only where a machine made any of it, `fallback_used` and `glossary_version`; the answer repeats those last two and adds `request_ref`, `from`, `to`, `sensitivity` and `sensitivity_mismatch`. A piece from the cache counts as a machine's, naming the source that made it. A passage with nothing in it is neither a machine's nor a person's. Because every answer must state the glossary version, being unable to read it fails the request as "no provider". The label's Sinhala and Tamil are best effort like the other messages. E-CAL-04 publishes all this.
+
+## Sensitivity
+
+Confidential is refused first and goes nowhere, not even the glossary's look-up, since R-MSK-01 says refused. A card number in ordinary text makes the whole request personal, as another passage may well name the same person, and the answer says so in `sensitivity` and `sensitivity_mismatch`, which R-MSK-04 does not ask for but costs a caller nothing. A phone number alone is no mismatch: R-MSK-04 names only the card. Personal text is not looked for in the cache either, so even its hash stays out of the database; the glossary and memory are still asked, as they hold people's work and keep nothing of the text. Mismatches are counted in memory by system until E-REC-02 writes `usage_record.mismatch`, so today's counts go at a restart.
+
+## What counts as returning the original (R-TRN-09)
+
+A source that answers with nothing, or with the very text sent (normalised, spacing at the edges aside), has failed, so the next source is tried; with every source doing so the request is "no provider". The exception is a piece with no letters outside its stand-ins, such as a number on a line of its own, which is the same in any language. This means a piece that truly stays the same, such as a system's name alone, fails until the glossary's "keep as written" answers it in R4. That was chosen over ever passing an echo off as a translation.
+
+## The piece pipeline
+
+A passage is masked before it is split, so a number written with spaces can never be broken up and sent in parts, and the splitter sees no dots inside numbers. Pieces go to a source one at a time, in order: simple, fair to BUMBLEBEE's queue, and the first failure stops the rest. A piece repeated in one request goes once. A long request can run into R-ERR-03 under BUMBLEBEE's rate, in which case the caller may send it again and ordinary text picks up from the cache; E-NFR-01 must measure this, and sending some at once is the first thing to try if it matters. `too long` for characters, passages or body says so with a position when one passage is at fault. The 5,000 characters of a passage is a setting too, though R-TRN-01 marks only its neighbours. Only the first `too long` from a source re-splits; a part too long again fails, as the list keeps changing under it.
+
+## How fallback decides
+
+Only `failure.reason` counts, and only it is read: the explanation is never kept, so an error cannot carry text. A reason it does not know, an answer in no documented shape and a refused key on BUMBLEBEE's side are all `unavailable`, as CALLERS.md has it. `busy`, `blocked` and `changed` hold the source in memory until their `retry_at`, for every request, as R-PRV-05 says every "try again after" is respected; a busy source this request is waiting on is held from the others too. A busy wait must leave 2 seconds for the call, and no call starts with under 2 seconds of the request left, so a late fallback cannot run past R-ERR-03: that is this build's figure. The one-call wait of 60 seconds is the one CALLERS.md gives and is a constant, as the source list does not publish it. Fallback used means a source earlier in the order was resting or failed, not merely a busy source tried again.
+
+## Limits per system
+
+The settings `caller_requests_per_minute` and `caller_requests_at_once` (R-CAL-07) are what a new system starts with; each system's own figures then live on its row, changed by the administrator on its screen, so a system's owner cannot raise them. They are read with the key on every request, so a change is in force at once. A minute is any 60 seconds, not a clock minute. The count is in memory, in the one process there is, so a restart starts it again. A refused request counts against neither limit, and a refused key touches none. Migration 003 adds `caller limit` to `change_history`'s subjects, an addition Annex A does not list, since R-ADM-05 keeps every such change as history.
+
+## The gate
+
+A decision is for one source and direction, and counts only for the version it was made on, compared with what the list says now, so a new version is closed at once with nothing to do. No decision is closed. Opening again on a new evaluation ends the old decision, which stays as history. A test set's name is 1 to 100 letters, digits, spaces and `._:-`, and one PENSIEVE would refuse is refused as a bad name. `GET /api/v1/gate` answers all six directions, as a signed call carries no query; a source turned off for ROSETTA is not among those open. It reads the list as last known, stale or not, since the gate is about evaluations and not about who is up. The screen is the administrator's alone.
+
+## Source order and switch
+
+With no order set, translation goes by source name, so the order never depends on how the list was written, and grammar by English benchmark score (R-GRM-06). Sources the administrator placed come first and the rest follow. A position left blank is not placed, and only the numbers' order counts. A system owner sees the source screen, since R-NFR-13 means them to choose, but changes nothing; the history is the administrator's. A source turned off keeps its place in the form. Changes are `change` entries, as P-ING-02 has no nearer word.
+
+## Keys
+
+A key is `rst_`, twelve hex characters and 256 random bits; the first sixteen characters are the prefix lists show and `keyid` carries. It is stored as SHA-256: with that many random bits there is nothing to guess, so a slow hash would only cost every request. The two-live rule holds the system's row while counting. The refused key's denial names the fixed route `/api/`, the system if the key told which and otherwise the actor `unidentified caller`, with fixed words why. The system and prefix go in `object_ref`, which PENSIEVE does not scan, since a TVA reference could look like anything. Counts by reason are in memory until E-ADM-04 shows them: a request with no known key has no calling system, so a usage record cannot hold it. A request that a database fault stops from being checked answers "no provider", not "no key".
+
+## The signature's form on /api/
+
+PARADOX's profile with one parameter added: `rosetta=("@method" "@path" "content-digest");created=<unix>;keyid="<prefix>";nonce="<nonce>";alg="ed25519";tag="caller-to-rosetta"`, nothing else accepted. The label and tag are this build's choice, so a signature made for PARADOX can never pass here, nor one for here pass there. A nonce is 16 to 128 of `A-Za-z0-9._~-`. Only a verified signature's nonce is remembered, so nobody can fill the memory or spend a caller's nonce without its key. After a restart a request still inside its window could pass once more, which is safe (R-TRN-05). E-CAL-04 publishes this. A key with no public key is for a caller on this server, which comes directly on the platform network (B 7), so it is not asked to sign; the same key on a request showing it came through the front door (B 3) is refused with "no key" and 401, so a leaked one is no use from outside. The front door shows as `Cf-Connecting-Ip` or `X-Forwarded-For`, either one, even empty. Caddy's `common` snippet sets the first on every site and its reverse proxy adds the second, whatever the caller sent, so a caller outside cannot remove them, and forging them refuses only itself. A system on this server that calls through Caddy rather than directly is refused the same, and needs a public key.
+
+## The masking stand-in's form
+
+`⟦M1⟧`, `⟦M2⟧`: brackets no language here writes, the form BUMBLEBEE's stand-in already looked for, and room for the glossary's `⟦G1⟧` in E-GLO-04. Numbers are counted from one within a piece (`Slice`), so the same sentence with another number in it is the same piece for the cache, and a number the caller wrote as a stand-in is skipped. Restoring is strict: each stand-in exactly once, and any other of that shape the text did not hold is a change, so a source that repeats one fails with "masking lost" rather than guessing. What counts as a number is written in `internal/mask`: digits of any script, single spaces, hyphens or dots between them, a Sinhala or Tamil letter joined to the end does not stop it, a Latin letter does. Twelve digits are a card, ten beginning 0 and the `94` forms a phone. A reference in those shapes gets masked too, which does no harm. Whether the real sites keep `⟦M1⟧` is unverified until E-ENB-18.
+
+## How the source list is read
+
+`internal/sources` Book reads the list on the in-process timer AGENTS C6 allows, twice within the `source_list_seconds` setting (R-PRV-01), so one failed read does not make it stale. A list older than the setting is never used to send anything, with no read on the way: while BUMBLEBEE is down a request fails at once (R-NFR-09) rather than waiting for it. The size is the list's `limits.max_text_chars`, then the last one known, and 5,000 code points only if it was never read, which sends nothing anyway since nothing is fresh. A source gone from the list stays in the table as `off`, since gate decisions and orders refer to it. The stand-in gains a second translation source, `standin-translate-b`, and a control param `source` that keeps a failure mode to one source, so fallback can be tested and walked.
+
+## Where the reasons' messages live, and their statuses
+
+R-ERR-02 says these messages are approved texts in the memory. The memory comes with R4, so for now they sit in the one message file, best effort like every other word there, and E-MEM-01 can seed them once a person has checked them. The HTTP status for each reason is this build's choice, written in `internal/reasons`: no key 401, over limit 429, invalid request 400, too long 413, unsupported 422, human translation required 409, no provincial provider 403, masking lost 502, no provider 503, timed out 504. Callers decide on the reason. A position counts from 0, as the answer's list does. ROSETTA failing inside itself, such as losing its database, has no reason of its own on the fixed list, so it answers "no provider" with the fault in the log only.
+
+## Registering a system
+
+Only the administrator registers (s2). TVA's file is read when the form is sent and before the transaction opens, so a slow read holds no connection of the five. The name kept is the English one, else whichever TVA has, at most 200 characters. The owner's post is kept as TVA's reference: the title has three languages and Annex A one column. The copies refresh in E-CAL-05's daily pass, so until then an owner who changes in TVA changes here only by that pass. A system that does not exist looks refused to anyone but the administrator, so an owner learns nothing about other systems. Registering is PENSIEVE's `creation` action, since P-ING-02 has no word nearer.
+
 ## How the audit outbox sends
 
 B 13 says straight after each change and from the outbox. After a change commits, a goroutine (never a timer, AGENTS C6) sends what is due, one at a time, with a 15 second limit, and the person's request does not wait for it. What cannot go waits for `audit-catch-up`, which PARADOX calls. A sent entry's row is deleted. A failed attempt backs off from one minute to one hour, or honours `Retry-After`; `not_kept` counts as failed. Any other refusal is a fault in the code that wrote the entry, since the same again gets the same answer (INTAKE.md): the row stays, marked in `refused_at` and `refusal` (migration 002, additions Annex A does not list), is not sent again, and is logged as an error with its ID and reason only. A batch is 100 entries, split further if PENSIEVE answers 413. A row older than 30 days is deleted (Annex A: at most 30 days, and PENSIEVE would refuse it) and the count logged as an error. Telling the administrator about refused or dropped rows waits for E-ADM-06, so until then only the log shows them.
@@ -17,6 +81,12 @@ The administrator names a person by the email they last signed in with, rather t
 ## Audit entries are written from E-ADM-02 on
 
 `internal/audit` writes the outbox row in the same transaction as the work, so roles and settings have their entries from the start; E-REC-01 adds the sending. The row's `details` column holds the whole entry, since Annex A gives it as who, what and when and has no column for most of what P-ING-01 asks. A denial names the route (`GET /people`), never the address as sent. A bad form token is also a denial. Reasons are fixed words. Only a signed-in person's refusal is recorded: without a session nobody has been identified, and CERBERUS answers for those.
+
+## Signing out goes on to MJOLNIR
+
+ROSETTA's button revokes its refresh token, ends its own session and sends the browser with a 303 to `ROSETTA_SIGNOUT_URL`, MJOLNIR's own page, as MJOLNIR's `docs/SESSION-INTERFACE.md` asks. Before this it stopped at a page of its own, so the person stayed signed in at MJOLNIR and "sign in" passed with no form. Hydra's `/oauth2/sessions/logout` is not used: it signs nobody out, as measured there. The form token is still checked, and a refused one ends nothing. The address is required, https except on this machine, and is the only place a sign-out goes; nothing in the request can change it. A request with no session goes there too. MJOLNIR's page does not come back, so ROSETTA's own signed-out message has gone. MJOLNIR being out of reach does not stop the sign-out here, though the browser then lands on an error of MJOLNIR's. The stand-in's `/mjolnir/sign-out` ends its sign-in cookie and shows a plain page.
+
+Chrome holds a redirect after a form's post to the page's `form-action`, so a page with the sign-out form on it (any page showing a signed-in person) adds the origins of `ROSETTA_SIGNOUT_URL` and `ROSETTA_SIGNIN_ISSUER` there, as sign-out passes through both of MJOLNIR's hosts. They come from the settings, and nothing else in the policy moves; a page without that form keeps `'self'` alone. Sign-in is a link, not a form, so `form-action` does not apply to it.
 
 ## How sign-in holds a session
 

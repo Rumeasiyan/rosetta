@@ -21,6 +21,14 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/audit` | The outbox of entries for PENSIEVE: written in the same transaction as the work, sent straight after and by the job `audit-catch-up`. |
 | `internal/settings` | The Office's settings: each PRD "(default: ...)" as stories need it, their history, and the read-on-use cache. |
 | `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
+| `internal/tva`, `internal/callers` | TVA's `systems.json` (format 1) and the calling systems with their owners. |
+| `internal/reasons` | The fixed reasons and how a failure is answered, with messages in three languages. |
+| `internal/bumblebee`, `internal/sources` | BUMBLEBEE's client, and what ROSETTA knows of its sources: the list and size limit on a timer. |
+| `internal/mask` | Masking and restoring card and phone numbers: pure, with a map to the original offsets. |
+| `internal/apisign` | The signature on calls from another machine: PARADOX's profile plus a nonce. |
+| `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
+| `internal/limits` | Requests a minute and at once for each calling system, in memory. |
+| `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
 
 ## Commands
@@ -32,7 +40,7 @@ go test -p 1 ./...
 docker compose -f dev/compose.yaml down
 ```
 
-To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`.
+To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`.
 
 ## Constraints
 

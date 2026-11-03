@@ -13,16 +13,23 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/api"
 	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
+	"github.com/Rumeasiyan/rosetta/internal/settings"
+	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/translate"
+	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
 )
 
@@ -129,6 +136,10 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if err != nil {
 		return err
 	}
+	signout, err := oidc.SignOutURL(getenv)
+	if err != nil {
+		return err
+	}
 	links, err := config.LinksFromEnv(getenv)
 	if err != nil {
 		return err
@@ -136,15 +147,62 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if links.PensieveURL == "" || links.PensieveKey == "" {
 		return errors.New("ROSETTA_PENSIEVE_URL and ROSETTA_PENSIEVE_KEY are not set (audit entries; see .env.example)")
 	}
+	if links.TVADir == "" {
+		return errors.New("ROSETTA_TVA_DIR is not set (the system register's file; see .env.example)")
+	}
+	if links.BumblebeeURL == "" || links.BumblebeeKey == "" {
+		return errors.New("ROSETTA_BUMBLEBEE_URL and ROSETTA_BUMBLEBEE_KEY are not set (browser sources; see .env.example)")
+	}
+	values := settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
+		return settings.Load(ctx, pool)
+	}, settings.RefreshEvery, logger)
+	provider := bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}
+	book := &sources.Book{
+		Read: provider.Sources,
+		MaxAge: func(ctx context.Context) time.Duration {
+			return time.Duration(values.Get(ctx).Of(settings.SourceListSeconds)) * time.Second
+		},
+		Kept: func(ctx context.Context, l bumblebee.List, at time.Time) error {
+			return sources.Mirror(ctx, pool, l, at)
+		},
+		Logger: logger,
+	}
+	reading, stopReading := context.WithCancel(ctx)
+	var readers sync.WaitGroup
+	readers.Go(func() { book.Run(reading) })
+	defer readers.Wait()
+	defer stopReading()
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
 
+	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
+	// use like the settings, with the last good values kept if a read fails.
+	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
+		return sources.LoadPolicy(ctx, pool)
+	}, settings.RefreshEvery, logger)
+	cache := translate.Cache{Q: pool, Settings: values.Get}
+	pipeline := &translate.Service{
+		Glossary: translate.None{}, // E-GLO-04
+		Memory:   translate.None{}, // E-MEM-02
+		Cache:    cache,
+		Keeper:   cache,
+		Sources:  &sources.Fallback{Book: book, Provider: provider, Policy: policy.Get, Logger: logger},
+		Settings: values.Get,
+		Version:  translate.GlossaryVersion(pool),
+		Logger:   logger,
+	}
+	calls := api.New(api.Deps{
+		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
+		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
+	})
+
 	mux := http.NewServeMux()
 	screens.Mount(mux)
+	calls.Mount(mux)
 	mux.Handle(health.Path, health.Handler(health.DBCheck(pool), logger))
 	mux.Handle(jobs.Prefix, jobs.Handler(pool, keys, jobs.Set(
 		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03

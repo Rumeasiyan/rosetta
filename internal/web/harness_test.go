@@ -71,7 +71,7 @@ func newWorld(t *testing.T) *world {
 	t.Cleanup(ts.Close)
 	w.screens = ts
 	app, err := New(Deps{
-		Pool: pool, Logger: logger, PublicURL: ts.URL,
+		Pool: pool, Logger: logger, PublicURL: ts.URL, SignOutURL: sts.URL + "/mjolnir/sign-out", SignInIssuer: sts.URL + "/mjolnir",
 		SignIn: oidc.New(oidc.Config{Issuer: sts.URL + "/mjolnir", ClientID: "rosetta", ClientSecret: clientSecret, RedirectURL: ts.URL + oidc.CallbackPath}, nil),
 	})
 	if err != nil {
@@ -234,3 +234,5 @@ func (w *world) exec(sql string, args ...any) {
 		w.t.Fatal(err)
 	}
 }
+
+func itoa(n int64) string { return fmt.Sprint(n) }

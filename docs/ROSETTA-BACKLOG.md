@@ -60,19 +60,19 @@ Notes:
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
-| 10 | [ ] | Wave 1 | E-CAL-01 | Register a system from TVA's status; its owner | R-CAL-01, R-CAL-02; B 11 | Must | 9 |
+| 10 | [x] | Wave 1 | E-CAL-01 | Register a system from TVA's status; its owner | R-CAL-01, R-CAL-02; B 11 | Must | 9 |
 | 11 | [ ] | Wave 1 | E-ERR-01 | The fixed reasons and their messages in three languages | R-ERR-01, R-ERR-02 | Must | 6 |
-| 12 | [ ] | Wave 1 | E-PRV-01 | Read BUMBLEBEE's source list; size limit and states | R-PRV-01, R-NFR-13; B 15 | Must | 3, 6 |
-| 13 | [ ] | Wave 1 | E-MSK-01 | Mask and restore identity card and phone numbers | R-MSK-02, R-MSK-03 | Must | 1 |
-| 14 | [ ] | Wave 2 | E-CAL-02 | Issue, list and turn off keys; check on each request | R-CAL-03, R-CAL-04, R-NFR-10 | Must | 10, 11 |
-| 15 | [ ] | Wave 2 | E-PRV-02 | Source order for each direction and grammar; turn a source off | R-PRV-02 | Must | 12 |
-| 16 | [ ] | Wave 2 | E-GAT-01 | Gate: open and close a direction per source, read its state | R-GAT-01, R-GAT-02, R-GAT-04 | Must | 12 |
-| 17 | [ ] | Wave 3 | E-CAL-03 | Limits per system | R-CAL-07 | Must | 14 |
-| 18 | [ ] | Wave 3 | E-PRV-03 | Source call and fallback | R-PRV-03, R-PRV-04, R-PRV-05, R-PRV-06, R-ERR-03; B 15 | Must | 11, 15, 16 |
-| 19 | [ ] | Solo | E-TRN-01 | Translate a list: split, join, all or nothing | R-TRN-01, R-TRN-02, R-TRN-04, R-TRN-09, R-GAT-03; B 3 | Must | 13, 17, 18 |
-| 20 | [ ] | Wave 4 | E-MSK-02 | Sensitivity: what may go, what is kept, mismatches | R-MSK-01, R-MSK-04, R-TRN-03, R-NFR-11 | Must | 19 |
+| 12 | [x] | Wave 1 | E-PRV-01 | Read BUMBLEBEE's source list; size limit and states | R-PRV-01, R-NFR-13; B 15 | Must | 3, 6 |
+| 13 | [x] | Wave 1 | E-MSK-01 | Mask and restore identity card and phone numbers | R-MSK-02, R-MSK-03 | Must | 1 |
+| 14 | [x] | Wave 2 | E-CAL-02 | Issue, list and turn off keys; check on each request | R-CAL-03, R-CAL-04, R-NFR-10 | Must | 10, 11 |
+| 15 | [x] | Wave 2 | E-PRV-02 | Source order for each direction and grammar; turn a source off | R-PRV-02 | Must | 12 |
+| 16 | [x] | Wave 2 | E-GAT-01 | Gate: open and close a direction per source, read its state | R-GAT-01, R-GAT-02, R-GAT-04 | Must | 12 |
+| 17 | [x] | Wave 3 | E-CAL-03 | Limits per system | R-CAL-07 | Must | 14 |
+| 18 | [x] | Wave 3 | E-PRV-03 | Source call and fallback | R-PRV-03, R-PRV-04, R-PRV-05, R-PRV-06, R-ERR-03; B 15 | Must | 11, 15, 16 |
+| 19 | [x] | Solo | E-TRN-01 | Translate a list: split, join, all or nothing | R-TRN-01, R-TRN-02, R-TRN-04, R-TRN-09, R-GAT-03; B 3 | Must | 13, 17, 18 |
+| 20 | [x] | Wave 4 | E-MSK-02 | Sensitivity: what may go, what is kept, mismatches | R-MSK-01, R-MSK-04, R-TRN-03, R-NFR-11 | Must | 19 |
 | 21 | [ ] | Wave 4 | E-TRN-02 | Answer fields and the machine label | R-TRN-06, R-TRN-07, R-NFR-05 | Must | 19 |
-| 22 | [ ] | Wave 5 | E-TRN-03 | Cache for ordinary pieces; same request, same answer | R-TRN-05, R-TRN-08, R-NFR-12 | Must | 20 |
+| 22 | [x] | Wave 5 | E-TRN-03 | Cache for ordinary pieces; same request, same answer | R-TRN-05, R-TRN-08, R-NFR-12 | Must | 20 |
 
 Notes:
 
@@ -84,6 +84,12 @@ Notes:
 - **E-PRV-03:** Decide on `failure.reason`, never the HTTP status. `too-long` refreshes the list and splits again before it counts as a failure. A `blocked` source is not called before `retry_at`. Pass the request reference as `request_id`. The wait on one call is the one in `docs/CALLERS.md`; the whole request stays inside R-ERR-03, so a late fallback may not start.
 - **E-TRN-01:** Solo because later stories all hook into its piece pipeline. Line breaks and edge spacing kept byte for byte around the pieces. The sentence splitter is rule-based for three scripts, with a table test; a too-long sentence breaks at word boundaries.
 - **E-TRN-03:** `UNLOGGED` table; lookup by hash of normalised text, language pair and source. Expired rows are removed by E-REC-03.
+
+**Still to run for R2.** Every R2 story is built, and its tests have passed with the database, none skipped. A scripted walk passed against the service and the stand-ins from source: every registration and refusal, keys and signatures, the order and switch, the gate in force inside 60 seconds, a translation with its spacing and masking, fallback on each reason, the cache, limits, every new screen answering in three languages, and nothing of the text in the log, the outbox or at PENSIEVE's stand-in. A second walk in Chrome took `/systems`, a system's screen, the key shown once, `/sources/history`, `/gate` with an open form and its history, and the settings through three languages at 1280 and a true 360 pixels wide: none runs wider than its window, and the key shows once. Looked at by eye: each screen on at least one width and language. The two boxes left open are the ones that rest on the words below:
+
+- **E-ERR-01 and E-TRN-02, best effort words:** every Sinhala and Tamil message R2 adds, the reasons and the label above all, wants a native reader before Go live. R-ERR-02 calls the messages approved texts, so these two stay open until a person has read them.
+
+<!-- r2-still -->
 
 ## R3 Grammar
 

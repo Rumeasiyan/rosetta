@@ -51,6 +51,26 @@ func TestFromEnvNamesWhatIsMissing(t *testing.T) {
 	}
 }
 
+func TestSignOutURLIsHTTPSExceptOnThisMachine(t *testing.T) {
+	for address, ok := range map[string]bool{
+		"https://sso.epc.test/sign-out":           true,
+		"http://localhost:53190/mjolnir/sign-out": true,
+		"http://127.0.0.1:53190/mjolnir/sign-out": true,
+		"http://sso.epc.test/sign-out":            false,
+		"ftp://sso.epc.test/sign-out":             false,
+		"/sign-out":                               false,
+		"":                                        false,
+	} {
+		got, err := oidc.SignOutURL(env(map[string]string{"ROSETTA_SIGNOUT_URL": address}))
+		if (err == nil) != ok || (ok && got != address) {
+			t.Errorf("%q: %q %v", address, got, err)
+		}
+		if !ok && !strings.Contains(err.Error(), "ROSETTA_SIGNOUT_URL") {
+			t.Errorf("%q: the error does not name the setting: %v", address, err)
+		}
+	}
+}
+
 func TestPublicURLIsHTTPSExceptOnThisMachine(t *testing.T) {
 	for u, ok := range map[string]bool{
 		"https://rosetta.epc.test": true,

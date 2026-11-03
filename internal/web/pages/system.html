@@ -1,0 +1,54 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{.Data.System.Name}}</h1><p class="hero-line">{{.Data.System.Reference}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "status"}}</th><th scope="col">{{t .Lang "ownerPost"}}</th><th scope="col">{{t .Lang "flag"}}</th><th scope="col">{{t .Lang "lastRequest"}}</th></tr></thead>
+    <tbody><tr>
+      <td><span class="stack-label">{{t .Lang "status"}}: </span>{{.Data.System.TVAStatus}}</td>
+      <td><span class="stack-label">{{t .Lang "ownerPost"}}: </span>{{if .Data.System.OwnerPostRef}}{{.Data.System.OwnerPostRef}}{{else}}{{t .Lang "postNotKnown"}}{{end}}</td>
+      <td><span class="stack-label">{{t .Lang "flag"}}: </span>{{t .Lang (flagWord .Data.System.Flag)}}</td>
+      <td><span class="stack-label">{{t .Lang "lastRequest"}}: </span>{{if .Data.System.LastRequestAt}}{{when .Data.System.LastRequestAt}}{{else}}{{t .Lang "never"}}{{end}}</td>
+    </tr></tbody>
+  </table></div>
+
+  <h2 class="fat section">{{t .Lang "limits"}}</h2>
+  {{if .Data.Admin}}<form class="fields" method="post" action="/systems/{{.Data.System.ID}}/limits">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="per_minute">{{t .Lang "settingCallerPerMinute"}}</label>
+    <input id="per_minute" name="per_minute" type="number" inputmode="numeric" min="1" value="{{.Data.System.PerMinute}}" required>
+    <label for="at_once">{{t .Lang "settingCallerAtOnce"}}</label>
+    <input id="at_once" name="at_once" type="number" inputmode="numeric" min="1" value="{{.Data.System.AtOnce}}" required>
+    <button class="pill" type="submit">{{t .Lang "save"}}</button>
+  </form>{{else}}<p>{{t .Lang "settingCallerPerMinute"}}: <strong>{{.Data.System.PerMinute}}</strong><br>{{t .Lang "settingCallerAtOnce"}}: <strong>{{.Data.System.AtOnce}}</strong></p>{{end}}
+  {{if .Data.Limits}}<p class="soft">{{t .Lang "history"}}: {{t .Lang "settingCallerPerMinute"}} / {{t .Lang "settingCallerAtOnce"}}</p>
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "oldValue"}}</th><th scope="col">{{t .Lang "newValue"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "when"}}</th></tr></thead>
+    <tbody>{{range .Data.Limits}}<tr><td><span class="stack-label">{{t $.Lang "oldValue"}}: </span>{{.Old}}</td><td><span class="stack-label">{{t $.Lang "newValue"}}: </span>{{.New}}</td><td>{{.By}}</td><td>{{when .ChangedAt}}</td></tr>{{end}}</tbody>
+  </table></div>{{end}}
+
+  <h2 class="fat section">{{t .Lang "keys"}}</h2>
+  <p class="soft">{{t .Lang "keysNote"}}</p>
+  {{if .Data.Keys}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "keyPrefix"}}</th><th scope="col">{{t .Lang "keyKind"}}</th><th scope="col">{{t .Lang "keyMade"}}</th><th scope="col">{{t .Lang "keyLastUsed"}}</th><th scope="col">{{t .Lang "keyState"}}</th></tr></thead>
+    <tbody>{{range .Data.Keys}}<tr>
+      <td><code>{{.Prefix}}</code></td>
+      <td><span class="stack-label">{{t $.Lang "keyKind"}}: </span>{{if .Signs}}{{t $.Lang "keySigns"}}{{else}}{{t $.Lang "keyOnThisServer"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "keyMade"}}: </span>{{when .CreatedAt}}{{if .CreatedBy}}<br><span class="soft">{{.CreatedBy}}</span>{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "keyLastUsed"}}: </span>{{if .LastUsedAt}}{{when .LastUsedAt}}{{else}}{{t $.Lang "never"}}{{end}}</td>
+      <td>{{if .Live}}<form method="post" action="/systems/{{$.Data.System.ID}}/keys/{{.ID}}/off"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "keyTurnOff"}}<span class="hidden-label">: {{.Prefix}}</span></button></form>{{else}}{{t $.Lang "keyOff"}}: {{when .TurnedOffAt}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noKeys"}}</p>{{end}}
+
+  <h2 class="fat section">{{t .Lang "keyIssue"}}</h2>
+  <form class="fields" method="post" action="/systems/{{.Data.System.ID}}/keys">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="public_key">{{t .Lang "keyPublic"}}</label>
+    <textarea id="public_key" name="public_key" rows="2" autocomplete="off" spellcheck="false"></textarea>
+    <p class="soft">{{t .Lang "keyPublicNote"}}</p>
+    <button class="pill solid" type="submit">{{t .Lang "keyIssue"}}</button>
+  </form>
+  <p class="row-actions"><a class="pill" href="/systems">{{t .Lang "backToSystems"}}</a></p>
+</div>
+{{end}}

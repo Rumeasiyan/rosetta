@@ -95,6 +95,7 @@ services:
       ROSETTA_SIGNIN_INTERNAL_URL: http://standin:53190/mjolnir
       ROSETTA_SIGNIN_CLIENT_ID: rosetta
       ROSETTA_SIGNIN_CLIENT_SECRET: local-stand-in-only
+      ROSETTA_SIGNOUT_URL: http://localhost:53190/mjolnir/sign-out
       ROSETTA_FIRST_ADMIN: dev-admin
       GOMEMLIMIT: 200MiB
     mem_limit: 250m

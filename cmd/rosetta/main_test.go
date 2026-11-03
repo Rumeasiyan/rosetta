@@ -68,6 +68,7 @@ func TestServeNeedsPensieve(t *testing.T) {
 		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53190/mjolnir",
 		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
 		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
+		"ROSETTA_SIGNOUT_URL":          "http://localhost:53190/mjolnir/sign-out",
 	})
 	var logs bytes.Buffer
 	err := serve(context.Background(), e, &logs, nil)
@@ -107,8 +108,12 @@ func TestServeAnswersHealthAndLogsJSON(t *testing.T) {
 		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53190/mjolnir",
 		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
 		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
+		"ROSETTA_SIGNOUT_URL":          "http://localhost:53190/mjolnir/sign-out",
 		"ROSETTA_PENSIEVE_URL":         "http://localhost:53190/pensieve",
 		"ROSETTA_PENSIEVE_KEY":         "pv_standin",
+		"ROSETTA_TVA_DIR":              "../../dev/tva",
+		"ROSETTA_BUMBLEBEE_URL":        "http://localhost:53190/bumblebee",
+		"ROSETTA_BUMBLEBEE_KEY":        "bb_standin",
 	})
 	ready := make(chan string, 1)
 	var logs bytes.Buffer

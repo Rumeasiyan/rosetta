@@ -22,7 +22,7 @@ const (
 var bumblebeeModes = []string{
 	"normal",
 	"busy", "blocked", "changed", "timeout", "too-long", "unsupported", "source-off", "unavailable",
-	"lose-masking", "change-term", "slow", "silent",
+	"lose-masking", "change-term", "echo", "slow", "silent",
 }
 
 // reasonStatus is each failure reason's status in CALLERS.md.
@@ -45,11 +45,12 @@ type bbSource struct {
 var bbSources = []bbSource{
 	{name: "standin-translate", version: "1"},
 	{name: "standin-grammar", version: "2", grammar: true},
+	{name: "standin-translate-b", version: "1"},
 }
 
 var bbRequestID = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 
-// defaultMasking finds a masking stand-in, until E-MSK-01 fixes their form; the
+// defaultMasking finds a masking stand-in in the form internal/mask gives them; the
 // control's "match" replaces it.
 const defaultMasking = `⟦[^⟧]*⟧`
 
@@ -57,6 +58,16 @@ func (s *Server) mountBumblebee(mux *http.ServeMux) {
 	mux.HandleFunc("POST /bumblebee/v1/requests", s.serve("bumblebee", s.bbRequest))
 	mux.HandleFunc("GET /bumblebee/v1/sources", s.serve("bumblebee", s.bbSources))
 	mux.HandleFunc("GET /bumblebee/health", s.serve("bumblebee", s.bbHealth))
+}
+
+// bbModeFor is the mode for one source: the control's param "source", when set,
+// keeps a failure mode to that source and leaves the others normal, so fallback can
+// be walked.
+func bbModeFor(mode string, p map[string]string, source string) string {
+	if only := p["source"]; only != "" && only != source {
+		return "normal"
+	}
+	return mode
 }
 
 // bbKey answers a refused key and reports whether the call may go on.
@@ -80,17 +91,17 @@ func (s *Server) bbSources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode, p := s.mode("bumblebee")
-	state, rest := "on", ""
-	switch mode {
-	case "blocked":
-		state, rest = "resting-block", retryAt(p)
-	case "changed":
-		state, rest = "resting-change", retryAt(p)
-	case "source-off":
-		state = "off"
-	}
 	var list []map[string]any
 	for _, src := range bbSources {
+		state, rest := "on", ""
+		switch bbModeFor(mode, p, src.name) {
+		case "blocked":
+			state, rest = "resting-block", retryAt(p)
+		case "changed":
+			state, rest = "resting-change", retryAt(p)
+		case "source-off":
+			state = "off"
+		}
 		e := map[string]any{"name": src.name, "version": src.version, "state": state}
 		if rest != "" {
 			e["rest_until"] = rest
@@ -174,6 +185,7 @@ func (s *Server) bbRequest(w http.ResponseWriter, r *http.Request) {
 	if src != nil {
 		answer["version"] = src.version
 	}
+	mode = bbModeFor(mode, p, in.Source)
 	if _, isFailure := reasonStatus[mode]; isFailure {
 		fail(mode, "the stand-in was told to fail this way")
 		return
@@ -209,6 +221,8 @@ func (s *Server) bbRequest(w http.ResponseWriter, r *http.Request) {
 	// a test can tell it from the original (R-TRN-09).
 	text := "[" + in.To + "] " + in.Text
 	switch mode {
+	case "echo":
+		text = in.Text
 	case "lose-masking":
 		match := p["match"]
 		if match == "" {
