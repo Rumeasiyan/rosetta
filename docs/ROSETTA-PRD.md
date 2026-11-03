@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.7, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.8, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -71,7 +71,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-TRN-10 | A system may send the same request as a background run, so a long translation need not fit R-ERR-03. It is checked at once and refused as a direct request would be; otherwise ROSETTA answers straight away with the run's reference and when to ask again. R-TRN-02 to R-TRN-09 apply to a run as to a direct request. Direct requests stay. Only systems call this, server to server; never an officer's browser. |
 | R-TRN-11 | Only the system that started a run may ask after it. While it works, the answer gives its state, pieces done, pieces in all and when to ask again, and never any text. When it ends, the answer is exactly what a direct request would have answered, or its failure with position and reason. That answer is handed over once, then forgotten. A system may give up a run at any time, and it is forgotten at once. |
 | R-TRN-12 | A run may take up to 30 minutes (default: 30 minutes), then fails with the reason "timed out". Each system may have up to 5 runs at once (default: 5), and ROSETTA up to 50 in all (default: 50); past either, a new run is refused with the reason "over limit" and when to try again. |
-| R-TRN-13 | A run's text, its masks and its answer are held only in the service's process memory, for no longer than needed, and never written to the database, a disk, a record or a log. They are forgotten at hand-over, when the system gives up, 10 minutes after the run ends if not collected (default: 10 minutes), and at any restart. Personal text stays uncached (R-TRN-08); confidential text is refused as ever (R-MSK-01). Asking after a run so forgotten gives the reason "run not known", and the system sends it again (R-TRN-05). |
+| R-TRN-13 | A run's text, its masks and its answer are held only in the service's process memory, for no longer than needed, and never written to the database, a disk, a record or a log. The one exception is ordinary text: its translated pieces, numbers masked, join the cache as any other request's do (R-TRN-08). A run's whole text and answer are not kept, and personal text never reaches the cache. They are forgotten at hand-over, when the system gives up, 10 minutes after the run ends if not collected (default: 10 minutes), and at any restart. Confidential text is refused as ever (R-MSK-01). Asking after a run so forgotten gives the reason "run not known", and the system sends it again (R-TRN-05). |
 
 ### 3.3 Grammar and spelling checks (R-GRM)
 
