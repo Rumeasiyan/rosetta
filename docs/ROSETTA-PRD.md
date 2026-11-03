@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.6, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.8, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -11,7 +11,7 @@ ROSETTA is one always-on service that every provincial system calls for language
 
 - registration of calling systems, each with its own key;
 - translation of a list of passages, all or nothing, between Sinhala, Tamil and English;
-- English grammar and spelling checks, which the editor's checking plug-in uses unchanged;
+- English grammar and spelling checks, which the editor's checking plug-in uses once installed with one edit: ROSETTA's address and credentials turned on;
 - one shared glossary of official terms, kept by a named keeper for each language;
 - a shared memory of translations a person has approved in a calling system;
 - browser sources reached through BUMBLEBEE, chosen by order, with fallback;
@@ -52,14 +52,14 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-CAL-04 | A request with no key, an unknown key or a turned-off key is refused with the reason "no key" (R-ERR-01) and counted on the status screen (R-ADM-02). |
 | R-CAL-05 | A calling system that has sent no request for 90 days (default: 90 days), or whose status in the register is no longer live or may join, is flagged to the administrator. |
 | R-CAL-06 | An officer's browser may call the grammar check (R-GRM-01) directly, only while the officer is signed in, and only from addresses the administrator lists for that calling system (default: the letter editor's address). The call is counted to that system. |
-| R-CAL-07 | Each calling system has limits: requests a minute (default: 60) and requests at once (default: 5). A request over a limit is refused with the reason "over limit" and when to try again. |
+| R-CAL-07 | Each calling system has limits: requests a minute (default: 60) and requests at once (default: 5). A request over a limit is refused with the reason "over limit" and when to try again. Asking after a background run counts against neither limit (R-TRN-12 has its own); a system keeps to the time it is told. |
 | R-CAL-08 | ROSETTA publishes how to call it: requests, answers, errors and limits. This is the one shape of its API; every caller adapts to it (R-ADM-07), and none gets a form of its own. |
 
 ### 3.2 Translation (R-TRN)
 
 | ID | Requirement |
 |---|---|
-| R-TRN-01 | A system sends a list of up to 200 passages (default: 200), each up to 5,000 characters and at most 20,000 characters in all (default: 20,000), with the source and target languages, and receives the same number of passages back, in the same order, in the same request. The languages are Sinhala, Tamil and English, named by the caller; all six directions are offered, each under its own gate (R-GAT). |
+| R-TRN-01 | A system sends a list of up to 200 passages (default: 200), each up to 5,000 characters and at most 20,000 characters in all (default: 20,000), with the source and target languages, and receives the same number of passages back, in the same order, in the same request, or through a background run (R-TRN-10). The languages are Sinhala, Tamil and English, named by the caller; all six directions are offered, each under its own gate (R-GAT). |
 | R-TRN-02 | A request is all or nothing: if any passage cannot be translated, the whole request fails with that passage's position and reason, and no passages are returned. |
 | R-TRN-03 | Every request states the sensitivity of its text: ordinary, personal or confidential (R-MSK-01). There is no default; a request without it, or naming any other language, is refused with the reason "invalid request". |
 | R-TRN-04 | ROSETTA splits each passage into sentences, and longer sentences at word boundaries, and answers each piece in this order: a whole glossary term (served under any gate state), the memory (R-MEM-02), the cache (R-TRN-08), then a source (R-PRV-02). Each passage is the pieces joined in their original order, with line breaks and spacing at its edges kept. |
@@ -68,12 +68,16 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-TRN-07 | Every passage that a machine produced in whole or part carries the label "Machine translation, check before issue" in all three languages, for the caller to show beside the text. Passages wholly from the glossary or memory carry no label and are marked as checked by a person. |
 | R-TRN-08 | Each translated piece of ordinary text is kept in a cache for 30 days (default: 30 days), by text, language pair and source, so the same piece is not sent to a source twice. Personal and confidential text is never cached. A glossary change removes cached pieces that hold the changed term (R-GLO-06). |
 | R-TRN-09 | ROSETTA never returns the original text, or part of it, as if it were the translation. |
+| R-TRN-10 | A system may send the same request as a background run, so a long translation need not fit R-ERR-03. It is checked at once and refused as a direct request would be; otherwise ROSETTA answers straight away with the run's reference and when to ask again. R-TRN-02 to R-TRN-09 apply to a run as to a direct request. Direct requests stay. Only systems call this, server to server; never an officer's browser. |
+| R-TRN-11 | Only the system that started a run may ask after it. While it works, the answer gives its state, pieces done, pieces in all and when to ask again, and never any text. When it ends, the answer is exactly what a direct request would have answered, or its failure with position and reason. That answer is handed over once, then forgotten. A system may give up a run at any time, and it is forgotten at once. |
+| R-TRN-12 | A run may take up to 30 minutes (default: 30 minutes), then fails with the reason "timed out". Each system may have up to 5 runs at once (default: 5), and ROSETTA up to 50 in all (default: 50); past either, a new run is refused with the reason "over limit" and when to try again. |
+| R-TRN-13 | A run's text, its masks and its answer are held only in the service's process memory, for no longer than needed, and never written to the database, a disk, a record or a log. The one exception is ordinary text: its translated pieces, numbers masked, join the cache as any other request's do (R-TRN-08). A run's whole text and answer are not kept, and personal text never reaches the cache. A run's text, masks and answer are forgotten at hand-over, when the system gives up, 10 minutes after the run ends if not collected (default: 10 minutes), and at any restart. Confidential text is refused as ever (R-MSK-01). Asking after a run so forgotten gives the reason "run not known", and the system sends it again (R-TRN-05). |
 
 ### 3.3 Grammar and spelling checks (R-GRM)
 
 | ID | Requirement |
 |---|---|
-| R-GRM-01 | ROSETTA answers grammar checks in the form the editor's existing checking plug-in expects, including its list of languages, so the plug-in works unchanged once pointed at ROSETTA. Other systems may call the same check with their key. |
+| R-GRM-01 | ROSETTA answers grammar checks in the form the editor's existing checking plug-in expects, including its list of languages, so nothing of the plug-in changes but one edit at its installation: ROSETTA's address and credentials turned on, repeated at each plug-in update (`docs/plugin-findings.md`, with the risks the owner took). Other systems may call the same check with their key. |
 | R-GRM-02 | A check sends English text of up to 20,000 characters (default: 20,000) and receives a list of suggestions, or an empty list when there is nothing to suggest. ROSETTA splits longer text into pieces no longer than its sources allow (R-PRV-04) and joins their suggestions. Sinhala and Tamil are listed as not offered and refused with the reason "unsupported". |
 | R-GRM-03 | Each suggestion gives its start and length in the units the editor counts (UTF-16), a message, up to 3 replacements, a category (for example spelling, grammar or style) and the source that made it. Positions always refer to the text the caller sent, also after masking (R-MSK-02) and splitting. |
 | R-GRM-04 | Suggestions on a glossary term are dropped, so approved names, posts and offices are never marked as errors. |
@@ -95,7 +99,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 
 | ID | Requirement |
 |---|---|
-| R-MSK-01 | **Ordinary** text may go to any source. **Personal** text, which holds names, addresses or similar, may go to any source after masking (R-MSK-02), but is never cached, never kept in memory and never kept after the answer. **Confidential** text goes only to providers on provincial machines; as there are none yet, it is refused with the reason "no provincial provider". |
+| R-MSK-01 | **Ordinary** text may go to any source. **Personal** text, which holds names, addresses or similar, may go to any source after masking (R-MSK-02), but is never cached, never kept in the translation memory (R-MEM-03) and never kept after the answer; a background run's answer is its hand-over (R-TRN-13). **Confidential** text goes only to providers on provincial machines; as there are none yet, it is refused with the reason "no provincial provider". |
 | R-MSK-02 | Before any text, translation or grammar, leaves the shared server, ROSETTA replaces identity card numbers (old and new forms) and phone numbers with stand-ins, whatever the declared sensitivity. Calling systems need not mask them first. Masking is a help, not a guarantee: anything it does not recognise is sent as written. |
 | R-MSK-03 | Stand-ins in the source's answer are replaced with the original values before the answer goes back. A stand-in the source lost or changed makes that piece fail with the reason "masking lost", never an answer without the value. The link between stand-ins and original values exists only while the request runs and is never stored or written to any record. |
 | R-MSK-04 | Text marked ordinary that holds an identity card number is treated as personal, and the mismatch is counted for the system owner (R-REC-03). |
@@ -135,15 +139,15 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 
 | ID | Requirement |
 |---|---|
-| R-ERR-01 | Every refusal or failure gives one reason from a fixed list (no key, over limit, invalid request, too long, unsupported, human translation required, no provincial provider, masking lost, no provider, timed out) and, where it helps, when to try again. An error never holds the text that was sent. |
+| R-ERR-01 | Every refusal or failure gives one reason from a fixed list (no key, over limit, invalid request, too long, unsupported, human translation required, no provincial provider, masking lost, no provider, timed out, run not known) and, where it helps, when to try again. An error never holds the text that was sent. |
 | R-ERR-02 | Every reason comes with a message for the officer in Sinhala, Tamil and English, so the caller can show it in the reader's language. These messages are approved texts in the memory. |
-| R-ERR-03 | A request that runs longer than 60 seconds in all (default: 60 seconds) stops with the reason "timed out"; the caller may send it again (R-TRN-05). |
+| R-ERR-03 | A direct request that runs longer than 60 seconds in all (default: 60 seconds) stops with the reason "timed out"; the caller may send it again (R-TRN-05). A background run has its own limit (R-TRN-12). |
 
 ### 3.10 Records (R-REC)
 
 | ID | Requirement |
 |---|---|
-| R-REC-01 | Every request leaves a usage record: calling system, officer (if signed in), operation, sensitivity, languages, passages and length, pieces by origin (glossary, memory, cache, source), sources used, fallback used, time taken, outcome or reason and request reference. It never holds the text or the answer. ROSETTA passes the request reference to every source call, so BUMBLEBEE's own records can be matched to ROSETTA's. |
+| R-REC-01 | Every request leaves a usage record, and a background run is one request, recorded when it ends (one lost to a restart leaves none): calling system, officer (if signed in), operation, sensitivity, languages, passages and length, pieces by origin (glossary, memory, cache, source), sources used, fallback used, time taken, outcome or reason and request reference. It never holds the text or the answer. ROSETTA passes the request reference to every source call, so BUMBLEBEE's own records can be matched to ROSETTA's. |
 | R-REC-02 | Glossary changes, memory additions and removals, gate changes, source order and state changes, key changes and setting changes are sent to the provincial audit record (PENSIEVE) with who, what and when, never text, along with everything PENSIEVE's list requires of a source system (P-ING-02), such as refusals and exports. PENSIEVE takes security events only: usage counts stay in ROSETTA (R-REC-01). |
 | R-REC-03 | Usage screens show requests, pieces by origin, failures by reason, sensitivity mismatches (R-MSK-04) and time taken, by calling system, operation, direction, source and day. A system owner sees only their own systems. Any view can be exported as a spreadsheet file. |
 | R-REC-04 | Each night, usage records are added to daily totals. Usage records are removed after 2 years (default: 2 years); daily totals after 5 years (default: 5 years). |
@@ -153,7 +157,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | ID | Requirement |
 |---|---|
 | R-ADM-01 | Every screen is reached through MJOLNIR sign-in and the CERBERUS check, then ROSETTA's own roles (R-ADM-06). Any signed-in officer may propose a glossary term (R-GLO-04); every other screen needs a role. Calling systems never use the screens. |
-| R-ADM-02 | A status screen shows BUMBLEBEE up or down, each source's state and resume time, and today's requests, refusals and failures by reason. |
+| R-ADM-02 | A status screen shows BUMBLEBEE up or down, each source's state and resume time, and today's requests, refusals and failures by reason, and the background runs waiting and working, as counts. |
 | R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system, language or person is flagged (R-CAL-02, R-CAL-05, R-ADM-06). A system owner gets the alerts about their own systems. |
 | R-ADM-04 | A system owner or the administrator can send a test request with invented text from the screens and see the full answer, including sources and fallback. |
 | R-ADM-05 | Every change to a setting, source order, gate or key is kept as history with who made it and when, and takes effect within 60 seconds with no change in any calling system. |
@@ -171,7 +175,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-NFR-05 | **Languages:** screens and messages in Sinhala, Tamil and English, chosen by the user and remembered. All text is Unicode, normalised the same way before it is compared or stored, so the same word is always matched. Every answer names the language of its text, for screen readers. |
 | R-NFR-06 | **Accessibility:** screens meet WCAG 2.2 level AA. |
 | R-NFR-07 | **Availability:** ROSETTA is always on and never sleeps. If it stops answering, the administrator is alerted within 5 minutes by the platform monitor, which does not depend on ROSETTA or the email service. |
-| R-NFR-08 | **Recovery:** the glossary, memory, cache, settings, keys and records are backed up and restored under PHOENIX's policy (the platform runbook). Requests in progress during a restart fail with a reason and may be sent again (R-TRN-05). |
+| R-NFR-08 | **Recovery:** the glossary, memory, cache, settings, keys and records are backed up and restored under PHOENIX's policy (the platform runbook). Requests in progress during a restart fail with a reason and may be sent again (R-TRN-05); background runs are lost with it, and the system learns so when it asks (R-TRN-13). |
 | R-NFR-09 | **Continuity:** while BUMBLEBEE or every source for a direction is down, the glossary and memory still answer, and every other request fails at once with its reason; callers must keep working without machine translation. |
 | R-NFR-10 | **Security:** keys are stored so they cannot be read back; all traffic is encrypted; ROSETTA's own credentials for BUMBLEBEE live only on the server, never in the repository or on the screens; browser calls are accepted only from listed addresses (R-CAL-06); every request to the screens passes the provincial access policy (CERBERUS). |
 | R-NFR-11 | **Privacy (Personal Data Protection Act, No. 9 of 2022):** each calling system decides what it sends and marks its sensitivity, and answers for that under the Act. ROSETTA keeps no grammar text (R-GRM-05), never keeps personal or confidential text after the answer (R-MSK-01), masks identity card and phone numbers before text leaves the shared server (R-MSK-02), and keeps no text in records (R-REC-01). Screens load no analytics, trackers or outside fonts. Development and evaluation use invented text only. |
@@ -184,9 +188,9 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | Part | Choice |
 |---|---|
 | Service | Go, one small program on ep-shared-01 under the ALLSPARK STACK; always on, counted inside the 6 systems awake, on the platform network like JARVIS; memory cap 250 MB, Go memory target 200 MB, 1 CPU; logs 3 files of 10 MB; read-only root filesystem; a `-healthcheck` flag that exits 0 when healthy |
-| Data | Database `rosetta` in the shared PostgreSQL through PgBouncer (pool 5, migrations pool 1) for glossary, memory, cache, settings and records; `pg_trgm` text search to find pieces holding a changed term; translation cache in an `UNLOGGED` table (may be empty after a crash or restore); usage records in monthly partitions; grammar results in process memory only; no cache server |
-| Translation API | HTTPS JSON, versioned, server to server; callers on ep-shared-01 call ROSETTA directly on the platform network; callers on other machines (SCOS Pro) through Cloudflare to `/api/` only, with their key and requests signed by the caller (Ed25519, RFC 9421, as in PARADOX's contract); keys stored hashed, each with the caller's public key |
-| Grammar API | LanguageTool-compatible check and languages endpoints, so the editor's ONLYOFFICE LanguageTool plug-in works unchanged; called from the officer's browser with MJOLNIR sign-in, CORS only for the listed editor addresses; separate from the server-to-server path |
+| Data | Database `rosetta` in the shared PostgreSQL through PgBouncer (pool 5, migrations pool 1) for glossary, memory, cache, settings and records; `pg_trgm` text search to find pieces holding a changed term; translation cache in an `UNLOGGED` table (may be empty after a crash or restore); usage records in monthly partitions; grammar results and background runs in process memory only; no cache server |
+| Translation API | HTTPS JSON, versioned, server to server, direct or as a background run asked after by the caller, with no call back (R-TRN-10); callers on ep-shared-01 call ROSETTA directly on the platform network; callers on other machines (SCOS Pro) through Cloudflare to `/api/` only, with their key and requests signed by the caller (Ed25519, RFC 9421, as in PARADOX's contract); keys stored hashed, each with the caller's public key |
+| Grammar API | LanguageTool-compatible check and languages endpoints, so the editor's ONLYOFFICE LanguageTool plug-in works with one edit (R-GRM-01); called from the officer's browser with MJOLNIR sign-in, CORS only for the listed editor addresses; separate from the server-to-server path |
 | Browser sources | BUMBLEBEE on its own machine, reached only through its Cloudflare tunnel from a link container on ep-shared-01 with an Access service token, plus ROSETTA's own key; synchronous calls within BUMBLEBEE's limits (R-PRV-04); BUMBLEBEE keeps no text |
 | Schedules | PARADOX, contract `sign/v0.2.0` (`apps/rosetta/schedules.yaml`, `paradox.pub`): nightly totals and removals, next months' record partitions, daily flags and TVA refresh, audit entries waiting for PENSIEVE; each call signed and checked |
 | Screens and sign-in | Go templates and htmx; MJOLNIR (OpenID Connect); CERBERUS checked by Caddy; ROSETTA's own roles. No Cloudflare Access on any screen |
@@ -205,7 +209,7 @@ Boxes show each entity's keys; the other fields are in A.2. Lines point from a t
 
 ### A.1 Storage and loss
 
-Everything is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. A role and an audit entry record the post SCROLL gave at the last look-up, or "not known" for a person never found; ROSETTA keeps no staff list; an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
+Everything but a background run, held only in process memory (R-TRN-13), is kept in the database `rosetta` on the shared server and backed up nightly by PHOENIX, with point-in-time restore (R-NFR-08). The translation cache is the exception: it may be empty after a crash or a restore from change logs, and refills as requests arrive (R-TRN-08). People are kept as MJOLNIR sent them. A role and an audit entry record the post SCROLL gave at the last look-up, or "not known" for a person never found; ROSETTA keeps no staff list; an approver's post is the text the calling system sent, as the calling system's own record. A caller's name and owner are copies, refreshed daily from TVA's published file and never edited here. Usage records are kept in monthly parts, so the oldest month is dropped whole after 2 years (R-REC-04).
 
 ### A.2 Data dictionary
 
@@ -274,8 +278,8 @@ Numbers on the diagram match the table below. Red links carry text on its way to
 | # | From and to | What flows | Protocol and port |
 |---|---|---|---|
 | 1 | Browsers to Cloudflare | Screens (htmx) for the administrator, glossary keepers, memory reviewers, system owners and officers proposing a term, after MJOLNIR sign-in and CERBERUS (link 9) | HTTPS 443 |
-| 2 | Officers' letter editor to Cloudflare | Grammar checks and the list of languages, to `/api/v2/check` and `/api/v2/languages`, sent from the officer's browser only when they click Check (R-GRM-01, R-CAL-06). Carries the officer's own ROSETTA session, from MJOLNIR sign-in. CORS allows only the listed editor address, and the preflight goes through without the session. At most about 50 checks a minute for an office of 50, well under Caddy's limit per address | HTTPS 443 |
-| 3 | SCOS Pro server to Cloudflare | Translation requests and approved text for the memory, to `/api/` only, signed and with the system's key (R-TRN-01, R-MEM-01). SCOS Pro's server is in this path; it is not in link 2 | HTTPS 443 |
+| 2 | Officers' letter editor to Cloudflare | Grammar checks and the list of languages, to `/api/v2/check` and `/api/v2/languages`, sent from the officer's browser when they click Check, and the whole text again when they accept a suggestion; nothing on opening, on a change of selection or on a timer (R-GRM-01, R-CAL-06). Carries the officer's sign-in, as the plug-in's edit turns credentials on. CORS allows only the listed editor address; the plug-in's calls send no preflight, and any preflight goes through without the sign-in. The plug-in also loads its own scripts from `onlyoffice.github.io` on each opening (`docs/plugin-findings.md`). At most about 50 checks a minute for an office of 50, well under Caddy's limit per address | HTTPS 443 |
+| 3 | SCOS Pro server to Cloudflare | Translation requests and approved text for the memory, to `/api/` only, signed and with the system's key (R-TRN-01, R-MEM-01), and background runs started, asked after and collected the same way (R-TRN-10). SCOS Pro's server is in this path; it is not in link 2 | HTTPS 443 |
 | 4 | cloudflared and Cloudflare | The tunnel, opened from the server outward; it carries all web traffic both ways | QUIC (UDP 7844); HTTP/2 (TCP 7844) when UDP is blocked |
 | 5 | cloudflared to Caddy | Requests for rosetta.epc.lk | HTTP 80, platform network |
 | 6 | Caddy to ROSETTA | Screens, grammar checks and API requests; ROSETTA is always on, so nothing is held | HTTP 8080, platform network |
