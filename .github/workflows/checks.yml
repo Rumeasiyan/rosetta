@@ -48,3 +48,7 @@ jobs:
             | grep -vE '(^|/)\.' | grep -vE '\.go$' | grep -vE '^docs/(STANDARDS|GETTING-STARTED|RESEARCH|ROSETTA-PRD|ROSETTA-BACKLOG)\.md$' \
             | grep -E '[A-Z ]|_' || true)
           if [ -n "$bad" ]; then echo "Rename to lower-case-with-hyphens:"; echo "$bad"; exit 1; fi
+      - name: no reference images, local keys or private keys
+        run: |
+          bad=$(git ls-files | grep -E '^design-lab/inspiration/|^dev/keys/|\.key$|\.pem$' || true)
+          if [ -n "$bad" ]; then echo "These must not be committed:"; echo "$bad"; exit 1; fi
