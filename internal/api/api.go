@@ -23,8 +23,10 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/limits"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
+	"github.com/Rumeasiyan/rosetta/internal/runs"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
 // Prefix is the path this package answers under.
@@ -62,14 +64,24 @@ type Deps struct {
 	Policy   func(ctx context.Context) sources.Policy
 	// Translator answers translation requests. Nil answers "no provider".
 	Translator Translator
+	// TestTranslator answers tests from the screens: the same pipeline as Translator, keeping
+	// nothing (Annex A). Nil answers "no provider".
+	TestTranslator Translator
+	// Runner and Runs start background runs and hold them in memory (R-TRN-10, R-TRN-13). Nil
+	// answers "no provider".
+	Runner RunStarter
+	Runs   *runs.Book
 	// Memory keeps approved text. Nil answers "no provider".
 	Memory MemoryAdder
 	// Grammar answers grammar checks. Nil answers "no provider".
 	Grammar GrammarChecker
 	// Origins finds who lists a browser's address (R-CAL-06). Nil lists none.
 	Origins Origins
-	// Usage hears of each grammar check, for the records E-REC-02 adds. Nil keeps nothing.
-	Usage  func(ctx context.Context, u GrammarUse)
+	// Usage keeps each request's record (R-REC-01). Nil keeps nothing. A failure here is logged
+	// as fixed words and changes no answer.
+	Usage func(ctx context.Context, r usage.Record) error
+	// Counts is where requests with no known system are counted. Nil makes its own.
+	Counts *Counts
 	Logger *slog.Logger
 	Now    func() time.Time // time.Now when nil
 }
@@ -92,10 +104,16 @@ func New(deps Deps) *Server {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
+	if deps.Counts == nil {
+		deps.Counts = NewCounts(deps.Now)
+	}
+	s := &Server{deps: deps, counts: deps.Counts, limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
+	s.routes.HandleFunc("POST "+runsPath, s.runStart)
+	s.routes.HandleFunc("GET "+runsPath+"/{run}", s.runAsk)
+	s.routes.HandleFunc("DELETE "+runsPath+"/{run}", s.runGiveUp)
 	s.routes.HandleFunc("POST /api/v1/memory", s.memoryAdd)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
@@ -130,6 +148,10 @@ type Request struct {
 	// text, and Officer is who is signed in there.
 	Browser bool
 	Officer string
+	// Use is this request's usage record, written when it has been answered (R-REC-01), unless
+	// NoRecord says it is part of a background run, which is one request, recorded when it ends.
+	Use      *usage.Record
+	NoRecord bool
 }
 
 func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}).(*Request) }
@@ -138,6 +160,43 @@ func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}
 // nothing of the request.
 func NewRef() string { return "r-" + oidc.Random() }
 
+// operationOf names the work the address stands for, whatever came of the request.
+func operationOf(r *http.Request) string {
+	if r.URL.Path == runsPath && r.Method == http.MethodPost {
+		return usage.OpTranslate
+	}
+	switch r.URL.Path {
+	case "/api/v1/translate":
+		return usage.OpTranslate
+	case "/api/v1/memory":
+		return usage.OpMemoryAdd
+	case checkPath:
+		return usage.OpGrammar
+	}
+	return usage.OpRead
+}
+
+// keepUse writes a request's record once it has been answered, whatever its caller did with
+// the answer. A request with no known system cannot have one (Annex A: caller_id), and is
+// counted instead (R-CAL-04).
+func (s *Server) keepUse(r *http.Request, rec *usage.Record, started time.Time) {
+	if rec.CallerID == 0 {
+		if rec.Outcome != usage.Answered {
+			s.counts.Add(reasons.Reason(rec.Outcome))
+		}
+		return
+	}
+	if s.deps.Usage == nil {
+		return
+	}
+	rec.DurationMS = s.deps.Now().Sub(started).Milliseconds()
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), denialTimeout)
+	defer cancel()
+	if err := s.deps.Usage(ctx, *rec); err != nil {
+		s.deps.Logger.Error("a usage record was not kept", "request_ref", rec.Ref)
+	}
+}
+
 // withKey checks the key, then the signature if this key has a public key; a key with
 // none works only from this server. A failure is "no key" with 401 (R-CAL-04), counted,
 // and kept as a denial.
@@ -145,60 +204,75 @@ func (s *Server) withKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		ref := NewRef()
+		rec := &usage.Record{Ref: ref, Operation: operationOf(r), Outcome: usage.Answered}
+		q := &Request{Ref: ref, Use: rec}
+		started := s.deps.Now()
+		defer func() {
+			if !q.NoRecord {
+				s.keepUse(r, rec, started)
+			}
+		}()
 		key, ok := bearer(r)
 		if !ok {
-			s.refuseKey(w, r, ref, "", "No key was sent")
+			s.refuseKey(w, r, rec, "", "No key was sent")
 			return
 		}
 		h, err := s.deps.Keys.Find(ctx, callers.HashKey(key))
 		switch {
 		case errors.Is(err, callers.ErrNoSuchKey):
-			s.refuseKey(w, r, ref, "", "Not a key ROSETTA knows")
+			s.refuseKey(w, r, rec, "", "Not a key ROSETTA knows")
 			return
 		case err != nil:
 			s.deps.Logger.Error("a key could not be checked", "request_ref", ref)
-			s.answer(w, ref, reasons.New(reasons.NoProvider))
+			s.answer(w, rec, reasons.New(reasons.NoProvider))
 			return
+		}
+		rec.CallerID = h.Caller.ID
+		switch {
 		case h.TurnedOff:
-			s.refuseKey(w, r, ref, h.Caller.Reference, "The key is turned off")
+			s.refuseKey(w, r, rec, h.Caller.Reference, "The key is turned off")
 			return
 		case !tva.MayCall(h.Caller.TVAStatus):
-			s.refuseKey(w, r, ref, h.Caller.Reference, "The system is neither live nor may join")
+			s.refuseKey(w, r, rec, h.Caller.Reference, "The system is neither live nor may join")
 			return
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, MaxBody+1))
 		if err != nil {
-			s.answer(w, ref, reasons.New(reasons.Invalid))
+			s.answer(w, rec, reasons.New(reasons.Invalid))
 			return
 		}
 		if len(body) > MaxBody {
-			s.answer(w, ref, reasons.New(reasons.TooLong))
+			s.answer(w, rec, reasons.New(reasons.TooLong))
 			return
 		}
 		switch {
 		case h.PublicKey != "":
 			if err := s.checkSignature(r, body, h); err != nil {
 				s.deps.Logger.Warn("a signature was refused", "request_ref", ref, "system", h.Caller.Reference, "why", err.Error())
-				s.refuseKey(w, r, ref, h.Caller.Reference, "The signature did not pass")
+				s.refuseKey(w, r, rec, h.Caller.Reference, "The signature did not pass")
 				return
 			}
 		case throughFrontDoor(r):
 			s.deps.Logger.Warn("an unsigned key came from outside", "request_ref", ref, "system", h.Caller.Reference)
-			s.refuseKey(w, r, ref, h.Caller.Reference, "A key with no public key came from outside")
+			s.refuseKey(w, r, rec, h.Caller.Reference, "A key with no public key came from outside")
 			return
 		}
 		if err := s.deps.Keys.Used(ctx, h); err != nil {
 			s.deps.Logger.Error("a key's use was not noted", "request_ref", ref)
 		}
 		// Over a limit is no denial (E-REC-02's note): the key was good. Limits are read
-		// with the key, so a change is in force at once.
-		release, wait, allowed := s.limiter.Acquire(h.Caller.ID, h.Caller.PerMinute, h.Caller.AtOnce)
-		if !allowed {
-			s.answer(w, ref, reasons.New(reasons.OverLimit).Until(s.deps.Now().Add(wait)))
-			return
+		// with the key, so a change is in force at once. Asking after a run counts against
+		// neither (R-CAL-07).
+		if !askingAfterRun(r) {
+			release, wait, allowed := s.limiter.Acquire(h.Caller.ID, h.Caller.PerMinute, h.Caller.AtOnce)
+			if !allowed {
+				s.answer(w, rec, reasons.New(reasons.OverLimit).Until(s.deps.Now().Add(wait)))
+				return
+			}
+			defer release()
 		}
-		defer release()
-		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, requestKey{}, &Request{Ref: ref, Caller: h.Caller, Body: body})))
+		q.Caller, q.Body = h.Caller, body
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, requestKey{}, q)))
 	})
 }
 
@@ -229,9 +303,9 @@ func bearer(r *http.Request) (string, bool) {
 
 // refuseKey answers "no key", and keeps the denial: that keeping never changes the
 // answer. The caller's request does not wait long for it.
-func (s *Server) refuseKey(w http.ResponseWriter, r *http.Request, ref, system, why string) {
-	s.answer(w, ref, reasons.New(reasons.NoKey))
-	s.keepDenial(r, ref, system, why)
+func (s *Server) refuseKey(w http.ResponseWriter, r *http.Request, rec *usage.Record, system, why string) {
+	s.answer(w, rec, reasons.New(reasons.NoKey))
+	s.keepDenial(r, rec.Ref, system, why)
 }
 
 // keepDenial keeps a refused call as an audit entry, after it has been answered.
@@ -246,35 +320,35 @@ func (s *Server) keepDenial(r *http.Request, ref, system, why string) {
 	}
 }
 
-// answer writes a failure and counts it.
-func (s *Server) answer(w http.ResponseWriter, ref string, f *reasons.Failure) {
-	s.counts.Add(f.Reason)
-	reasons.Write(w, ref, f, s.deps.Now())
+// answer writes a failure, and notes it for the request's record.
+func (s *Server) answer(w http.ResponseWriter, rec *usage.Record, f *reasons.Failure) {
+	rec.Outcome = string(f.Reason)
+	reasons.Write(w, rec.Ref, f, s.deps.Now())
 }
 
 // refuse answers a request that passed the key check.
 func (s *Server) refuse(w http.ResponseWriter, r *http.Request, f *reasons.Failure) {
 	q := requestOf(r)
 	if q.Browser {
-		s.answerText(w, r, q.Ref, f, plainWord(f.Reason))
+		s.answerText(w, r, q.Use, f, plainWord(f.Reason))
 		return
 	}
-	s.answer(w, q.Ref, f)
+	s.answer(w, q.Use, f)
 }
 
-// Counts holds how many of each reason today, in memory. A request with no known key
-// has no calling system, so no usage record (Annex A) can hold it; E-ADM-04 shows these.
+// Counts holds how many of each reason today for requests with no known system, in memory:
+// they have no calling system, so no usage record (Annex A) can hold them. The status screen
+// shows these beside the records (R-CAL-04, R-ADM-02). A restart starts them again.
 type Counts struct {
-	mu         sync.Mutex
-	now        func() time.Time
-	day        string
-	by         map[reasons.Reason]int
-	mismatches map[string]int // by system (R-MSK-04), until E-REC-02 keeps them in usage records
+	mu  sync.Mutex
+	now func() time.Time
+	day string
+	by  map[reasons.Reason]int
 }
 
 // NewCounts starts counting.
 func NewCounts(now func() time.Time) *Counts {
-	return &Counts{now: now, by: map[reasons.Reason]int{}, mismatches: map[string]int{}}
+	return &Counts{now: now, by: map[reasons.Reason]int{}}
 }
 
 var colombo = func() *time.Location {
@@ -288,7 +362,7 @@ var colombo = func() *time.Location {
 // roll starts a new count when the day in Sri Lanka has changed. Called under mu.
 func (c *Counts) roll() {
 	if d := c.now().In(colombo).Format(time.DateOnly); d != c.day {
-		c.day, c.by, c.mismatches = d, map[reasons.Reason]int{}, map[string]int{}
+		c.day, c.by = d, map[reasons.Reason]int{}
 	}
 }
 
@@ -298,26 +372,6 @@ func (c *Counts) Add(r reasons.Reason) {
 	defer c.mu.Unlock()
 	c.roll()
 	c.by[r]++
-}
-
-// AddMismatch counts one request of ordinary text holding an identity card number.
-func (c *Counts) AddMismatch(system string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.roll()
-	c.mismatches[system]++
-}
-
-// Mismatches is a copy of today's mismatches, by system.
-func (c *Counts) Mismatches() map[string]int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.roll()
-	out := make(map[string]int, len(c.mismatches))
-	for k, v := range c.mismatches {
-		out[k] = v
-	}
-	return out
 }
 
 // Today is a copy of today's counts.

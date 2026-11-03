@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -44,6 +45,33 @@ type Request struct {
 	From, To    string
 	Sensitivity string
 	Passages    []string
+	// Tally, when set, is told what happened, whole or failed, for the usage record (R-REC-01).
+	Tally *Tally
+}
+
+// Tally is what a request did, with none of its text: what was treated how, and the pieces
+// answered before any failure.
+type Tally struct {
+	Sensitivity string // as treated: personal where ordinary text held a card (R-MSK-04)
+	Mismatch    bool
+	Pieces      map[string]int // by origin
+	Sources     []string
+	Fallback    bool
+}
+
+// add counts the pieces answered so far.
+func (t *Tally) add(all []*piece) {
+	t.Pieces = map[string]int{}
+	for _, p := range all {
+		if p.info.Origin == "" {
+			continue
+		}
+		t.Pieces[p.info.Origin]++
+		t.Fallback = t.Fallback || p.info.Fallback
+		if p.info.Source != "" && !slices.Contains(t.Sources, p.info.Source) {
+			t.Sources = append(t.Sources, p.info.Source)
+		}
+	}
 }
 
 // Lookup is one piece as an Answerer sees it.
@@ -187,21 +215,93 @@ func (s *Service) log() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// Translate answers a request, whole or not at all. The failure is the one way out with
-// no answer, and holds no text.
-func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Failure) {
+// admit refuses what cannot be taken at all, reading nothing and sending nothing.
+func (s *Service) admit(ctx context.Context, q Request) (settings.Values, *reasons.Failure) {
 	v := s.Settings(ctx)
 	if f := check(q, v); f != nil {
-		return Answer{}, f
+		return v, f
 	}
 	// There are no providers on provincial machines yet, so nothing can be done with
 	// confidential text, whatever it holds (R-MSK-01). It goes nowhere, not even the
 	// glossary's look-up.
 	if q.Sensitivity == sources.Confidential {
-		return Answer{}, reasons.New(reasons.NoProvincial)
+		return v, reasons.New(reasons.NoProvincial)
 	}
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
+	return v, nil
+}
+
+// requestTime is the time one request may take (R-ERR-03).
+func requestTime(ctx context.Context, v settings.Values) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, time.Duration(v.Of(settings.RequestLimitSeconds))*time.Second)
+}
+
+// Translate answers a request, whole or not at all. The failure is the one way out with
+// no answer, and holds no text.
+func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Failure) {
+	v, f := s.admit(ctx, q)
+	if f != nil {
+		return Answer{}, f
+	}
+	ctx, cancel := requestTime(ctx, v)
 	defer cancel()
+	w, f := s.prepare(ctx, q)
+	if f != nil {
+		return Answer{}, f
+	}
+	return w.Finish(ctx)
+}
+
+// Readiness says whether any allowed source could be called now, and if none could, the earliest
+// one is expected. A background run asks, so it is refused at once where a direct request would
+// fail at once (R-TRN-10, R-NFR-09).
+type Readiness interface {
+	Ready(ctx context.Context, from, to, sensitivity string) (time.Time, bool)
+}
+
+// Start checks a background run as a direct request would be checked, and answers what the glossary,
+// memory and cache know, inside the time of one request (R-TRN-10). What it returns holds the run's
+// text and masks in memory, and nowhere else (R-TRN-13). Finish does the rest, with a limit of the
+// caller's.
+func (s *Service) Start(ctx context.Context, q Request) (*Work, *reasons.Failure) {
+	v, f := s.admit(ctx, q)
+	if f != nil {
+		return nil, f
+	}
+	ctx, cancel := requestTime(ctx, v)
+	defer cancel()
+	w, f := s.prepare(ctx, q)
+	if f != nil {
+		return nil, f
+	}
+	if ctx.Err() != nil {
+		return nil, reasons.New(reasons.TimedOut)
+	}
+	if ready, ok := s.Sources.(Readiness); ok && len(w.need) > 0 {
+		if at, yes := ready.Ready(ctx, w.q.From, w.q.To, w.q.Sensitivity); !yes {
+			return nil, reasons.New(reasons.NoProvider).Until(at).At(w.need[0].passage)
+		}
+	}
+	return w, nil
+}
+
+// Work is a request checked and split, with the pieces nothing knew still to go to a source.
+type Work struct {
+	s        *Service
+	q        Request
+	all      []*piece
+	need     []*piece
+	tails    []string
+	version  int
+	mismatch bool
+	done     atomic.Int64
+}
+
+// Pieces is how many pieces are done and how many there are, safe to read while Finish runs. It
+// says nothing of what they hold.
+func (w *Work) Pieces() (done, total int) { return int(w.done.Load()), len(w.all) }
+
+// prepare masks and splits the passages and answers what it can without a source.
+func (s *Service) prepare(ctx context.Context, q Request) (*Work, *reasons.Failure) {
 	version := 0
 	var glossary *terms.Set
 	var err error
@@ -212,13 +312,16 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	}
 	if err != nil {
 		s.log().Error("the glossary was not read", "request_ref", q.Ref)
-		return Answer{}, reasons.New(reasons.NoProvider)
+		return nil, reasons.New(reasons.NoProvider)
 	}
 
 	// Each passage is masked before it is split, so a number written with spaces can
 	// never be broken up and sent in parts. The stand-ins and values stay here.
 	limit := s.Sources.MaxText()
 	var all []*piece
+	if q.Tally != nil {
+		defer func() { q.Tally.add(all) }()
+	}
 	tails := make([]string, len(q.Passages))
 	mismatch := false
 	for i, text := range q.Passages {
@@ -242,11 +345,14 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 		q.Sensitivity = sources.Personal
 		s.log().Info("ordinary text held an identity card number", "request_ref", q.Ref)
 	}
+	if q.Tally != nil {
+		q.Tally.Sensitivity, q.Tally.Mismatch = q.Sensitivity, mismatch
+	}
 	allowed, read := s.Sources.Allowed(ctx, q.From, q.To, q.Sensitivity)
 	var need []*piece
 	for _, p := range all {
 		if f := s.known(ctx, q, p, allowed); f != nil {
-			return Answer{}, f
+			return nil, f
 		}
 		if p.info.Origin == "" {
 			need = append(need, p)
@@ -257,18 +363,31 @@ func (s *Service) Translate(ctx context.Context, q Request) (Answer, *reasons.Fa
 	if len(need) > 0 && read && len(allowed) == 0 {
 		f := reasons.New(reasons.HumanRequired).At(need[0].passage)
 		f.Terms = published(all)
-		return Answer{}, f
+		return nil, f
+	}
+	w := &Work{s: s, q: q, all: all, need: need, tails: tails, version: version, mismatch: mismatch}
+	w.done.Store(int64(len(all) - len(need)))
+	return w, nil
+}
+
+// Finish sends the pieces nothing knew to a source, in order, and joins the answer. The first
+// failure stops the rest. ctx holds the limit: a request's or a run's.
+func (w *Work) Finish(ctx context.Context) (Answer, *reasons.Failure) {
+	q := w.q
+	if q.Tally != nil {
+		defer func() { q.Tally.add(w.all) }()
 	}
 	// One piece twice in a request goes to a source once: what comes back is masked, so
 	// each restores its own values. It lasts only as long as this request.
 	done := map[string]*sourceAnswer{}
-	for _, p := range need {
-		if f := s.fromSource(ctx, q, p, version, done); f != nil {
+	for _, p := range w.need {
+		if f := w.s.fromSource(ctx, q, p, w.version, done); f != nil {
 			return Answer{}, f.At(p.passage)
 		}
+		w.done.Add(1)
 	}
-	a := join(q, all, tails)
-	a.Sensitivity, a.Mismatch, a.From, a.To, a.GlossaryVersion = q.Sensitivity, mismatch, q.From, q.To, version
+	a := join(q, w.all, w.tails)
+	a.Sensitivity, a.Mismatch, a.From, a.To, a.GlossaryVersion = q.Sensitivity, w.mismatch, q.From, q.To, w.version
 	return a, nil
 }
 

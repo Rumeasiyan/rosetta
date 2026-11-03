@@ -10,9 +10,10 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `docs/ROSETTA-BACKLOG.md` | **Build order.** Stories citing the PRD. Tick a box when its story is done. |
 | `docs/DECISION-LOG.md` | Build decisions the PRD and backlog do not hold. |
 | `docs/diagrams/` | `build-erd.py` draws Annex A and writes its dictionary into the PRD; a test checks the schema against that dictionary. |
-| `cmd/rosetta/` | The service: `serve`, `migrate`, `-version`, `-healthcheck`. |
+| `cmd/rosetta/` | The service: `serve`, `migrate`, `evaluate`, `-version`, `-healthcheck`. |
 | `cmd/rosetta-paradoxcall/` | Local stand-in for PARADOX. Not in the image. |
 | `cmd/rosetta-standin/`, `internal/standin` | Local stand-ins for BUMBLEBEE, MJOLNIR, CERBERUS, BIFROST, PENSIEVE and HEDWIG, each under its own path prefix; `/control` sets a failure mode and reads back what came. Not in the image. |
+| `cmd/rosetta-load/` | Seeds capacity and measures against stand-ins (E-NFR-01). Not in the image. `uptime` first: the machine runs many stacks. |
 | `internal/db` | PgBouncer-safe pool and migrations (`migrations/NNN-*.sql`, never edited once applied). |
 | `internal/jobs` | The job address PARADOX calls: signature, run record, lock. |
 | `internal/oidc` | Sign-in through MJOLNIR: code flow with PKCE, renew, revoke. |
@@ -29,10 +30,16 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
 | `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
+| `internal/runs` | Background runs held in process memory only: limits, a few worked at a time, one timer per run, hand-over, give up, forgotten at any stop. |
 | `internal/glossary` | The one shared glossary: entries, keepers' checks, publishing, versions, and telling keepers. |
 | `internal/memory` | The shared memory: approved text added, served, found, rechecked, removed. |
 | `internal/terms` | Finding glossary terms in a text, and the one normalise function. Pure. |
 | `internal/sheet` | One worksheet of an `.xlsx` file, read and written with the standard library. Pure. |
+| `internal/usage` | The usage record of every request, without text: kept, added up and removed. Never sent to PENSIEVE. |
+| `internal/bifrost`, `internal/posts` | BIFROST's client, and post look-ups: only `found: false` is not found, a failed look-up changes nothing. |
+| `internal/flags` | The job `daily`'s transaction: TVA's copies, each system's flag, roles past their date. |
+| `internal/alerts` | Alerts by email when a state changes (R-ADM-03): looked at on the source list's timer, kept in `alert`, sent through HEDWIG. |
+| `internal/evaluate` | `rosetta evaluate`: a test set against one source, giving the score the gate records. |
 | `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |
 | `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (`how-to-run.md`). |
@@ -46,7 +53,7 @@ go test -p 1 ./...
 docker compose -f dev/compose.yaml down
 ```
 
-To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`. To check grammar as a browser would: list an address on a system's screen, then `curl localhost:53080/api/v2/check -H 'Origin: <address>' -H 'X-Cerberus-Account: dev-officer' -d 'language=en-GB' --data-urlencode 'text=We recieve letters.'`; on the server only Caddy sets that header. To teach the memory: `POST /api/v1/memory` with the key and `{"from":"en","to":"ta","sensitivity":"ordinary","approver_post":"An invented post","passages":[{"source":"An invented line.","approved":"..."}]}`. Keepers need a role for each language on `/people`, so clear `role_grant` first or the `dev-admin` bootstrap will not work; read notices with `curl localhost:53190/control/hedwig/received`.
+To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`. A long translation goes to `POST /api/v1/translate/runs`, asked after on `GET /api/v1/translate/runs/{run}` (`docs/CALLERS.md`). To check grammar as a browser would: list an address on a system's screen, then `curl localhost:53080/api/v2/check -H 'Origin: <address>' -H 'X-Cerberus-Account: dev-officer' -d 'language=en-GB' --data-urlencode 'text=We recieve letters.'`; on the server only Caddy sets that header. To teach the memory: `POST /api/v1/memory` with the key and `{"from":"en","to":"ta","sensitivity":"ordinary","approver_post":"An invented post","passages":[{"source":"An invented line.","approved":"..."}]}`. Keepers need a role for each language on `/people`, so clear `role_grant` first or the `dev-admin` bootstrap will not work; read notices with `curl localhost:53190/control/hedwig/received`.
 
 ## Constraints
 

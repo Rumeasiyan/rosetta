@@ -1,0 +1,29 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "testTitle"}}</h1><p class="hero-line">{{.Data.System.Name}} ({{.Data.System.Reference}})</p></div>
+<div class="content">
+  <p class="note warn" role="note">{{t .Lang "testNote"}}</p>
+  <form class="fields" method="post" action="/systems/{{.Data.System.ID}}/test">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="operation">{{t .Lang "usageByOperation"}}</label>
+    <select id="operation" name="operation"><option value="translate"{{if eq .Data.Operation "translate"}} selected{{end}}>{{t .Lang "opTranslate"}}</option><option value="grammar"{{if eq .Data.Operation "grammar"}} selected{{end}}>{{t .Lang "opGrammar"}}</option></select>
+    <label for="from">{{t .Lang "usageFromLanguage"}}</label>
+    <select id="from" name="from">{{range langs}}<option value="{{.}}" lang="{{.}}"{{if eq (printf "%s" .) $.Data.From}} selected{{end}}>{{langName .}}</option>{{end}}</select>
+    <label for="to">{{t .Lang "usageToLanguage"}}</label>
+    <select id="to" name="to">{{range langs}}<option value="{{.}}" lang="{{.}}"{{if eq (printf "%s" .) $.Data.To}} selected{{end}}>{{langName .}}</option>{{end}}</select>
+    <label for="sensitivity">{{t .Lang "testSensitivity"}}</label>
+    <select id="sensitivity" name="sensitivity">{{range $word := sensitivities}}<option value="{{$word}}"{{if eq $word $.Data.Sensitivity}} selected{{end}}>{{t $.Lang (sensitivityWord $word)}}</option>{{end}}</select>
+    <p class="soft">{{t .Lang "testGrammarNote"}}</p>
+    <label for="text">{{t .Lang "testText"}}</label>
+    <textarea id="text" name="text" rows="5" required>{{.Data.Text}}</textarea>
+    <button class="pill solid" type="submit">{{t .Lang "testSend"}}</button>
+  </form>
+  {{with .Data.Answer}}
+  <h2 class="fat section">{{t $.Lang "testAnswer"}}</h2>
+  {{if .Reason}}<p class="note bad" role="status">{{t $.Lang "testRefused"}}: {{t $.Lang (whyWord .Reason)}}</p>{{else}}<p class="note good" role="status">{{t $.Lang "testAnswered"}}</p>{{end}}
+  <p>{{t $.Lang "sources"}}: <strong>{{if .Sources}}{{range $i, $s := .Sources}}{{if $i}}, {{end}}{{$s}}{{end}}{{else}}{{t $.Lang "testNoSource"}}{{end}}</strong><br>{{t $.Lang "testFallback"}}: <strong>{{if .Fallback}}{{t $.Lang "testYes"}}{{else}}{{t $.Lang "testNo"}}{{end}}</strong></p>
+  <pre class="answer" tabindex="0" aria-label="{{t $.Lang "testAnswer"}}">{{.JSON}}</pre>
+  {{end}}
+  <p class="row-actions"><a class="pill" href="/systems/{{.Data.System.ID}}">{{t .Lang "backToSystem"}}</a></p>
+</div>
+{{end}}

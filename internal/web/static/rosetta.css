@@ -119,3 +119,10 @@ code { overflow-wrap: anywhere; }
 .pair-side { padding: clamp(24px, 4vw, 44px); }
 .pair-text { font-size: clamp(22px, 3vw, 38px); margin-top: 18px; white-space: pre-line; }
 details.row-actions { margin-top: 12px; }
+.view-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; max-width: none; margin-bottom: 20px; }
+.view-field { display: grid; gap: 4px; min-width: min(100%, 170px); flex: 1 1 170px; }
+.view-field label { margin-top: 0; }
+.view-form button { margin-top: 0; }
+.section-gap { margin-top: 16px; }
+.answer { font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; background: #fff; border: 1px solid var(--stone); padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 60vh; overflow: auto; }
+input[type=date]:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 3px var(--paper); }

@@ -390,3 +390,31 @@ func TestFallbackAgainstTheStandIn(t *testing.T) {
 		t.Fatal("a log holds the text")
 	}
 }
+
+// Ready reads what attempt reads, and calls nobody (R-TRN-10, R-NFR-09).
+func TestReadySaysWhatAnAttemptWouldFind(t *testing.T) {
+	b := newFB(t)
+	ctx := context.Background()
+	if _, ok := b.f.Ready(ctx, "en", "ta", Ordinary); !ok {
+		t.Fatal("every source is on")
+	}
+	if len(b.provider.calls) != 0 {
+		t.Fatal("it called a source")
+	}
+	if _, ok := b.f.Ready(ctx, "si", "ta", Ordinary); ok {
+		t.Fatal("a closed direction has nobody to call")
+	}
+	// Each source held till some time: not ready, with the earliest.
+	soon, later := b.now.Add(time.Minute), b.now.Add(time.Hour)
+	b.f.hold("a", &later)
+	b.f.hold("b", &soon)
+	b.f.hold("c", &later)
+	if at, ok := b.f.Ready(ctx, "en", "ta", Ordinary); ok || !at.Equal(soon) {
+		t.Fatal(at, ok)
+	}
+	// A list past its age sends nothing, so nothing is ready.
+	b.now = b.now.Add(2 * time.Hour)
+	if _, ok := b.f.Ready(ctx, "en", "ta", Ordinary); ok {
+		t.Fatal("a stale list")
+	}
+}

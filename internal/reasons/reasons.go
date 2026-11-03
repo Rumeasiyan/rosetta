@@ -30,10 +30,11 @@ const (
 	MaskingLost   Reason = "masking lost"
 	NoProvider    Reason = "no provider"
 	TimedOut      Reason = "timed out"
+	RunNotKnown   Reason = "run not known"
 )
 
 // All is the whole list, in the order of R-ERR-01.
-var All = []Reason{NoKey, OverLimit, Invalid, TooLong, Unsupported, HumanRequired, NoProvincial, MaskingLost, NoProvider, TimedOut}
+var All = []Reason{NoKey, OverLimit, Invalid, TooLong, Unsupported, HumanRequired, NoProvincial, MaskingLost, NoProvider, TimedOut, RunNotKnown}
 
 // statuses and words are each reason's HTTP status and message key. Callers decide
 // on the reason; the status only says the same thing to the HTTP layer.
@@ -42,16 +43,23 @@ var (
 		NoKey: http.StatusUnauthorized, OverLimit: http.StatusTooManyRequests, Invalid: http.StatusBadRequest,
 		TooLong: http.StatusRequestEntityTooLarge, Unsupported: http.StatusUnprocessableEntity, HumanRequired: http.StatusConflict,
 		NoProvincial: http.StatusForbidden, MaskingLost: http.StatusBadGateway, NoProvider: http.StatusServiceUnavailable,
-		TimedOut: http.StatusGatewayTimeout,
+		TimedOut: http.StatusGatewayTimeout, RunNotKnown: http.StatusNotFound,
 	}
 	words = map[Reason]string{
 		NoKey: "reasonNoKey", OverLimit: "reasonOverLimit", Invalid: "reasonInvalid", TooLong: "reasonTooLong", Unsupported: "reasonUnsupported",
 		HumanRequired: "reasonHumanRequired", NoProvincial: "reasonNoProvincial", MaskingLost: "reasonMaskingLost", NoProvider: "reasonNoProvider", TimedOut: "reasonTimedOut",
+		RunNotKnown: "reasonRunNotKnown",
 	}
 )
 
 // Status is the reason's HTTP status.
 func (r Reason) Status() int { return statuses[r] }
+
+// IsFailure says ROSETTA or a source could not do the work, rather than the request being refused:
+// the difference R-ADM-02 and R-ADM-03 draw between refusals and failures.
+func (r Reason) IsFailure() bool {
+	return r == MaskingLost || r == NoProvider || r == TimedOut
+}
 
 // Word is the message key of the reason.
 func (r Reason) Word() string { return words[r] }
@@ -136,16 +144,21 @@ func WriteText(w http.ResponseWriter, requestRef string, f *Failure, message str
 	w.Write([]byte(message))
 }
 
-// Write answers with the failure. Retry-After goes with any failure that says when.
-func Write(w http.ResponseWriter, requestRef string, f *Failure, now time.Time) {
+// Body is what a failure answers: a caller's JSON, and what a test from the screens shows.
+func Body(requestRef string, f *Failure) any {
 	d := detail{Reason: f.Reason, Messages: f.Reason.Messages(), Position: f.Position, Terms: f.Terms}
-	h := w.Header()
 	if f.RetryAt != nil {
 		d.RetryAt = f.RetryAt.Format(time.RFC3339)
 	}
+	return body{RequestRef: requestRef, Error: d}
+}
+
+// Write answers with the failure. Retry-After goes with any failure that says when.
+func Write(w http.ResponseWriter, requestRef string, f *Failure, now time.Time) {
+	h := w.Header()
 	retryAfter(h, f, now)
 	h.Set("Content-Type", "application/json")
 	h.Set("Cache-Control", "no-store")
 	w.WriteHeader(f.Reason.Status())
-	json.NewEncoder(w).Encode(body{RequestRef: requestRef, Error: d})
+	json.NewEncoder(w).Encode(Body(requestRef, f))
 }

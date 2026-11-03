@@ -1,0 +1,58 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "usage"}}</h1><p class="hero-line">{{t .Lang "usageNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <form class="fields view-form" method="get" action="/usage">
+    <div class="view-field"><label for="group">{{t .Lang "usageGroup"}}</label>
+    <select id="group" name="group">{{range .Data.Groups}}<option value="{{.}}"{{if eq . $.Data.Filter.Group}} selected{{end}}>{{t $.Lang (groupWord .)}}</option>{{end}}</select></div>
+    <div class="view-field"><label for="since">{{t .Lang "usageSince"}}</label><input id="since" name="since" type="date" value="{{.Data.Since}}" max="{{.Data.Today}}"></div>
+    <div class="view-field"><label for="until">{{t .Lang "usageUntil"}}</label><input id="until" name="until" type="date" value="{{.Data.Until}}" max="{{.Data.Today}}"></div>
+    <div class="view-field"><label for="system">{{t .Lang "usageBySystem"}}</label>
+    <select id="system" name="system"><option value="">{{t .Lang "usageAll"}}</option>{{range .Data.Systems}}<option value="{{.ID}}"{{if eq .ID $.Data.Filter.Caller}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+    <div class="view-field"><label for="operation">{{t .Lang "usageByOperation"}}</label>
+    <select id="operation" name="operation"><option value="">{{t .Lang "usageAll"}}</option>{{range .Data.Ops}}<option value="{{.}}"{{if eq . $.Data.Filter.Operation}} selected{{end}}>{{t $.Lang (opWord .)}}</option>{{end}}</select></div>
+    <div class="view-field"><label for="from">{{t .Lang "usageFromLanguage"}}</label>
+    <select id="from" name="from"><option value="">{{t .Lang "usageAll"}}</option>{{range langs}}<option value="{{.}}" lang="{{.}}"{{if eq (printf "%s" .) $.Data.Filter.From}} selected{{end}}>{{langName .}}</option>{{end}}</select></div>
+    <div class="view-field"><label for="to">{{t .Lang "usageToLanguage"}}</label>
+    <select id="to" name="to"><option value="">{{t .Lang "usageAll"}}</option>{{range langs}}<option value="{{.}}" lang="{{.}}"{{if eq (printf "%s" .) $.Data.Filter.To}} selected{{end}}>{{langName .}}</option>{{end}}</select></div>
+    <div class="view-field"><label for="source">{{t .Lang "usageBySource"}}</label>
+    <select id="source" name="source"><option value="">{{t .Lang "usageAll"}}</option>{{range .Data.Sources}}<option value="{{.}}"{{if eq . $.Data.Filter.Source}} selected{{end}}>{{.}}</option>{{end}}</select></div>
+    <button class="pill solid" type="submit">{{t .Lang "usageShow"}}</button>
+  </form>
+  {{if .Data.Lines}}
+  {{if or .Data.Filter.Source (eq .Data.Filter.Group "source")}}<p class="soft">{{t .Lang "usageSourceNote"}}</p>{{end}}
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang (groupWord .Data.Filter.Group)}}</th><th scope="col">{{t .Lang "usageRequests"}}</th><th scope="col">{{t .Lang "usagePiecesGlossary"}}</th><th scope="col">{{t .Lang "usagePiecesMemory"}}</th><th scope="col">{{t .Lang "usagePiecesCache"}}</th><th scope="col">{{t .Lang "usagePiecesSource"}}</th><th scope="col">{{t .Lang "usageFailed"}}</th><th scope="col">{{t .Lang "usageMismatches"}}</th><th scope="col">{{t .Lang "usageTime"}}</th></tr></thead>
+    <tbody>{{range .Data.Lines}}<tr>
+      <td><strong>{{.Label}}</strong></td>
+      <td><span class="stack-label">{{t $.Lang "usageRequests"}}: </span>{{.Requests}}</td>
+      <td><span class="stack-label">{{t $.Lang "usagePiecesGlossary"}}: </span>{{.Pieces.Glossary}}</td>
+      <td><span class="stack-label">{{t $.Lang "usagePiecesMemory"}}: </span>{{.Pieces.Memory}}</td>
+      <td><span class="stack-label">{{t $.Lang "usagePiecesCache"}}: </span>{{.Pieces.Cache}}</td>
+      <td><span class="stack-label">{{t $.Lang "usagePiecesSource"}}: </span>{{.Pieces.Source}}</td>
+      <td><span class="stack-label">{{t $.Lang "usageFailed"}}: </span>{{.Failed}}</td>
+      <td><span class="stack-label">{{t $.Lang "usageMismatches"}}: </span>{{.Mismatches}}</td>
+      <td><span class="stack-label">{{t $.Lang "usageTime"}}: </span>{{t $.Lang (timeWord .Slowest95)}}</td>
+    </tr>{{end}}
+    <tr><td><strong>{{t .Lang "usageWhole"}}</strong></td>
+      <td><span class="stack-label">{{t .Lang "usageRequests"}}: </span><strong>{{.Data.Whole.Requests}}</strong></td>
+      <td><span class="stack-label">{{t .Lang "usagePiecesGlossary"}}: </span>{{.Data.Whole.Pieces.Glossary}}</td>
+      <td><span class="stack-label">{{t .Lang "usagePiecesMemory"}}: </span>{{.Data.Whole.Pieces.Memory}}</td>
+      <td><span class="stack-label">{{t .Lang "usagePiecesCache"}}: </span>{{.Data.Whole.Pieces.Cache}}</td>
+      <td><span class="stack-label">{{t .Lang "usagePiecesSource"}}: </span>{{.Data.Whole.Pieces.Source}}</td>
+      <td><span class="stack-label">{{t .Lang "usageFailed"}}: </span>{{.Data.Whole.Failed}}</td>
+      <td><span class="stack-label">{{t .Lang "usageMismatches"}}: </span>{{.Data.Whole.Mismatches}}</td>
+      <td><span class="stack-label">{{t .Lang "usageTime"}}: </span>{{t .Lang (timeWord .Data.Whole.Slowest95)}}</td></tr>
+    </tbody>
+  </table></div>
+  {{if .Data.More}}<p class="soft">{{t .Lang "usageMore"}}</p>{{end}}
+  {{if .Data.Reasons}}<h2 class="fat section">{{t .Lang "usageByReason"}}</h2>
+  <div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "reason"}}</th><th scope="col">{{t .Lang "usageRequests"}}</th></tr></thead>
+    <tbody>{{range .Data.Reasons}}<tr><td><strong>{{t $.Lang (whyWord .Reason)}}</strong></td><td><span class="stack-label">{{t $.Lang "usageRequests"}}: </span>{{.Count}}</td></tr>{{end}}</tbody>
+  </table></div>{{end}}
+  <p class="row-actions"><a class="pill" href="{{.Data.ExportURL}}" hx-boost="false">{{t .Lang "usageExport"}}</a></p>
+  {{else}}<p>{{t .Lang "usageNothing"}}</p>{{end}}
+</div>
+{{end}}

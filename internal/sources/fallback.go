@@ -147,6 +147,32 @@ func (f *Fallback) Allowed(ctx context.Context, from, to, sensitivity string) ([
 	return f.Policy(ctx).Candidates(snap.List, Translate(from, to), sensitivity), !snap.ReadAt.IsZero()
 }
 
+// Ready says whether a piece of this kind could go to a source now, without calling one, and if
+// not, when the earliest is expected. It is attempt's own reading of the list, so a run is refused
+// at once where a direct request would fail at once (R-TRN-10, R-NFR-09).
+func (f *Fallback) Ready(ctx context.Context, from, to, sensitivity string) (time.Time, bool) {
+	snap := f.Book.Snapshot(ctx)
+	if !snap.Fresh {
+		return time.Time{}, false
+	}
+	var back time.Time
+	now := f.now()
+	for _, s := range f.Policy(ctx).Candidates(snap.List, Translate(from, to), sensitivity) {
+		if !s.Usable(now) {
+			if s.RestUntil != nil {
+				back = earlier(back, *s.RestUntil)
+			}
+			continue
+		}
+		if at, held := f.heldUntil(s.Name, now); held {
+			back = earlier(back, at)
+			continue
+		}
+		return time.Time{}, true
+	}
+	return back, false
+}
+
 // earlier keeps the earliest of two times, where zero means none.
 func earlier(a, b time.Time) time.Time {
 	if a.IsZero() || (!b.IsZero() && b.Before(a)) {

@@ -84,6 +84,10 @@ type Answer struct {
 	Suggestions []Suggestion
 	Sources     []Used
 	Fallback    bool
+	// Pieces is how many pieces went to a source for this text; Held says they were not sent
+	// this time, since the suggestions were still held (R-GRM-05). Both are for the usage record.
+	Pieces int
+	Held   bool
 }
 
 var english = regexp.MustCompile(`^en(-[a-z0-9]{1,8})*$`)
@@ -133,6 +137,7 @@ func (s *Service) Check(ctx context.Context, q Request) (Answer, *reasons.Failur
 	}
 	if s.Held != nil {
 		if a, ok := s.Held.Get(q.Text, keepFor(v)); ok {
+			a.Held = true
 			return withoutTerms(a, q.Text, glossary), nil
 		}
 	}
@@ -219,6 +224,7 @@ func (s *Service) part(ctx context.Context, q Request, m mask.Masked, sp transla
 				Replacements: replacements(found.Replacements), Category: category(found.Category), Source: r.Source})
 		}
 	}
+	out.Pieces++
 	if u := (Used{r.Source, r.Version}); !slices.Contains(out.Sources, u) {
 		out.Sources = append(out.Sources, u)
 	}

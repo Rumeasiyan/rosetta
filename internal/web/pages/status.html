@@ -1,0 +1,56 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "statusScreen"}}</h1><p class="hero-line">{{t .Lang "statusNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <h2 class="fat section">{{t .Lang "statusBumblebee"}}</h2>
+  {{if .Data.Up}}<p class="note good" role="status">{{t .Lang "statusUp"}}</p>{{else}}<p class="note bad" role="status">{{t .Lang "statusDown"}}</p>{{end}}
+  {{if .Data.ReadAt}}<p class="soft">{{t .Lang "listReadAt"}}: {{when .Data.ReadAt}}</p>{{end}}
+  {{if and .Data.Sources (not .Data.Up)}}<p class="soft">{{t .Lang "statusLastKnown"}}</p>{{end}}
+  {{if .Data.Sources}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "restUntil"}}</th><th scope="col">{{t .Lang "processesText"}}</th></tr></thead>
+    <tbody>{{range .Data.Sources}}<tr>
+      <td><strong>{{.Name}}</strong></td>
+      <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{t $.Lang (stateWord .State)}}</td>
+      <td>{{if .RestUntil}}<span class="stack-label">{{t $.Lang "restUntil"}}: </span>{{when .RestUntil}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "processesText"}}: </span>{{t $.Lang "outsideWebsite"}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noSources"}}</p>{{end}}
+
+  <h2 class="fat section">{{t .Lang "statusToday"}}</h2>
+  <ul class="chips">
+    <li>{{t .Lang "statusRequests"}}: <strong>{{.Data.Requests}}</strong></li>
+    <li>{{t .Lang "statusRefusals"}}: <strong>{{.Data.Refusals}}</strong></li>
+    <li>{{t .Lang "statusFailures"}}: <strong>{{.Data.Failures}}</strong></li>
+    {{if .Data.GivenUp}}<li>{{t .Lang "statusGivenUp"}}: <strong>{{.Data.GivenUp}}</strong></li>{{end}}
+  </ul>
+  {{if .Data.Reasons}}<div class="stack section-gap"><table>
+    <thead><tr><th scope="col">{{t .Lang "reason"}}</th><th scope="col">{{t .Lang "statusKind"}}</th><th scope="col">{{t .Lang "usageRequests"}}</th></tr></thead>
+    <tbody>{{range .Data.Reasons}}<tr><td><strong>{{t $.Lang (whyWord .Reason)}}</strong></td>
+      <td><span class="stack-label">{{t $.Lang "statusKind"}}: </span>{{if .Failure}}{{t $.Lang "statusFailure"}}{{else}}{{t $.Lang "statusRefusal"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "usageRequests"}}: </span>{{.Count}}</td></tr>{{end}}</tbody>
+  </table></div>{{else if not .Data.Requests}}<p>{{t .Lang "statusNothingToday"}}</p>{{end}}
+  {{if .Data.NoSystem}}<h3 class="order-title section-gap">{{t .Lang "statusNobody"}}</h3>
+  <p class="soft">{{t .Lang "statusNobodyNote"}}</p>
+  <ul class="chips">{{range .Data.NoSystem}}<li>{{t $.Lang (whyWord .Reason)}}: <strong>{{.Count}}</strong></li>{{end}}</ul>{{end}}
+  <h2 class="fat section">{{t .Lang "statusRuns"}}</h2>
+  <ul class="chips"><li>{{t .Lang "statusRunsWaiting"}}: <strong>{{.Data.RunsWaiting}}</strong></li><li>{{t .Lang "statusRunsWorking"}}: <strong>{{.Data.RunsWorking}}</strong></li></ul>
+  {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "flagsTitle"}}</h2>
+  {{if .Data.Flagged}}<ul class="row-list">
+    {{range .Data.FlaggedSystems}}<li><a href="/systems/{{.ID}}">{{.Name}}</a>: {{t $.Lang (flagWord .Flag)}}</li>{{end}}
+    {{range .Data.FlaggedLanguages}}<li>{{flagLanguage $.Lang .}}: {{t $.Lang "flagsLanguage"}}</li>{{end}}
+    {{range .Data.FlaggedPeople}}<li>{{.Email}}: {{t $.Lang "postFlagged"}}</li>{{end}}
+  </ul>{{else}}<p>{{t .Lang "flagsNone"}}</p>{{end}}{{end}}
+  {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "alertsTitle"}}</h2>
+  {{if .Data.Alerts}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "alertWhat"}}</th><th scope="col">{{t .Lang "when"}}</th><th scope="col">{{t .Lang "alertSent"}}</th></tr></thead>
+    <tbody>{{range .Data.Alerts}}<tr>
+      <td><strong>{{t $.Lang (alertWord .Kind)}}</strong>{{if .Source}}<br><span class="soft">{{.Source}}</span>{{end}}{{if .System}}<br><span class="soft">{{.System}}</span>{{end}}{{if .Subject}}<br><span class="soft">{{alertAbout $.Lang .}}</span>{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "when"}}: </span>{{when .RaisedAt}}</td>
+      <td><span class="stack-label">{{t $.Lang "alertSent"}}: </span>{{if .SentAt}}{{when .SentAt}}{{else}}{{t $.Lang "alertWaiting"}}{{end}}</td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "alertsNone"}}</p>{{end}}{{end}}
+  {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "statusOutbox"}}</h2>
+  <ul class="chips"><li>{{t .Lang "statusOutboxWaiting"}}: <strong>{{.Data.OutboxWaiting}}</strong></li><li>{{t .Lang "statusOutboxRefused"}}: <strong>{{.Data.OutboxRefused}}</strong></li></ul>{{end}}
+</div>
+{{end}}

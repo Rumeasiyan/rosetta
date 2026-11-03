@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
@@ -63,11 +64,14 @@ func (s *Server) memoryAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	req, fail := parseMemory(q, r)
 	if fail == nil {
+		rec := q.Use
+		rec.From, rec.To, rec.Sensitivity, rec.Passages = req.From, req.To, req.Sensitivity, len(req.Passages)
+		for _, p := range req.Passages {
+			rec.Characters += utf8.RuneCountInString(p.Source)
+		}
 		var a memory.Added
 		a, fail = s.deps.Memory.Add(r.Context(), req)
-		if a.Mismatch {
-			s.counts.AddMismatch(q.Caller.Reference)
-		}
+		rec.Mismatch, rec.Pieces.Memory = a.Mismatch, a.Pieces
 		if fail == nil {
 			writeJSON(w, memoryAnswer{RequestRef: q.Ref, From: req.From, To: req.To, GlossaryVersion: a.GlossaryVersion, Pieces: a.Pieces, NotKept: a.NotKept})
 			return

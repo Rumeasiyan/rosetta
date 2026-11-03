@@ -13,7 +13,7 @@ import (
 
 // The list is exactly R-ERR-01's, in its words.
 func TestTheListIsTheOneInThePRD(t *testing.T) {
-	want := "no key, over limit, invalid request, too long, unsupported, human translation required, no provincial provider, masking lost, no provider, timed out"
+	want := "no key, over limit, invalid request, too long, unsupported, human translation required, no provincial provider, masking lost, no provider, timed out, run not known"
 	var got []string
 	for _, r := range All {
 		got = append(got, string(r))

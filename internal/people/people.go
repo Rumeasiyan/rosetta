@@ -66,7 +66,7 @@ const (
 	MemoryReviewer = "memory reviewer"
 )
 
-// PostNotKnown is post_ref until E-CAL-05 looks posts up.
+// PostNotKnown is post_ref until a post look-up finds the person.
 const PostNotKnown = "not known"
 
 // liveSQL is what makes a grant live; its end date counts through its whole day in
@@ -98,9 +98,11 @@ type Grant struct {
 	Role     string
 	Language i18n.Lang // empty for an administrator
 	PostRef  string
-	StartsAt time.Time
-	EndsOn   *time.Time
-	EndedAt  *time.Time
+	// PostFlagged says BIFROST answered and the person's post is still not known (R-ADM-06).
+	PostFlagged bool
+	StartsAt    time.Time
+	EndsOn      *time.Time
+	EndedAt     *time.Time
 }
 
 // Request is a grant as asked for, checked by ParseRequest.
@@ -139,12 +141,12 @@ func ParseRequest(role, language, endsOn string, today time.Time) (Request, erro
 	return out, nil
 }
 
-const grantColumns = `g.id, g.person_id, p.mjolnir_subject, p.name, p.email, g.role, COALESCE(g.language, ''), g.post_ref, g.starts_at, g.ends_on, g.ended_at`
+const grantColumns = `g.id, g.person_id, p.mjolnir_subject, p.name, p.email, g.role, COALESCE(g.language, ''), g.post_ref, g.post_flagged_at IS NOT NULL, g.starts_at, g.ends_on, g.ended_at`
 
 func scanGrant(r pgx.CollectableRow) (Grant, error) {
 	var g Grant
 	var lang string
-	err := r.Scan(&g.ID, &g.PersonID, &g.Subject, &g.Name, &g.Email, &g.Role, &lang, &g.PostRef, &g.StartsAt, &g.EndsOn, &g.EndedAt)
+	err := r.Scan(&g.ID, &g.PersonID, &g.Subject, &g.Name, &g.Email, &g.Role, &lang, &g.PostRef, &g.PostFlagged, &g.StartsAt, &g.EndsOn, &g.EndedAt)
 	g.Language = i18n.Lang(lang)
 	return g, err
 }
@@ -252,6 +254,91 @@ func EndRole(ctx context.Context, tx pgx.Tx, grantID, by int64) (Grant, error) {
 	}
 	_, err = tx.Exec(ctx, `UPDATE role_grant SET ended_at = now(), ended_by = $2 WHERE id = $1`, grantID, by)
 	return g, err
+}
+
+// LiveForUpdate is one person's live roles, held for a look-up's transaction.
+func LiveForUpdate(ctx context.Context, tx pgx.Tx, personID int64) ([]Grant, error) {
+	rows, err := tx.Query(ctx, `SELECT `+grantColumns+` FROM role_grant g JOIN person p ON p.id = g.person_id
+		WHERE g.person_id = $1 AND `+liveSQL+` ORDER BY g.id FOR UPDATE OF g`, personID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanGrant)
+}
+
+// SetPost keeps what a look-up found: the post, or that the person was answered as not found, or
+// only that BIFROST answered. A failed look-up never comes here.
+func SetPost(ctx context.Context, tx pgx.Tx, grantID int64, post string, flagged bool) error {
+	_, err := tx.Exec(ctx, `UPDATE role_grant SET post_ref = $2, post_checked_at = now(),
+		post_flagged_at = CASE WHEN $3 THEN COALESCE(post_flagged_at, now()) END WHERE id = $1`, grantID, post, flagged)
+	return err
+}
+
+// EndForPost ends a role at once because the person no longer holds its post (R-ADM-06). ROSETTA
+// ended it, so ended_by stays empty. Unlike a person's own click this may end the last administrator:
+// the bootstrap setting then works again, and R-ADM-06 makes no exception.
+func EndForPost(ctx context.Context, tx pgx.Tx, grantID int64) error {
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `UPDATE role_grant SET ended_at = now(), post_checked_at = now() WHERE id = $1`, grantID)
+	return err
+}
+
+// EndPastDate ends each role whose end date has passed in Sri Lanka, which has already stopped
+// being live, and returns them for their audit entries (E-CAL-05).
+func EndPastDate(ctx context.Context, tx pgx.Tx) ([]Grant, error) {
+	rows, err := tx.Query(ctx, `WITH ended AS (UPDATE role_grant g SET ended_at = now()
+			WHERE g.ended_at IS NULL AND g.ends_on < (now() AT TIME ZONE 'Asia/Colombo')::date RETURNING g.*)
+		SELECT `+grantColumns+` FROM ended g JOIN person p ON p.id = g.person_id ORDER BY g.id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanGrant)
+}
+
+// PersonToLookUp is one person holding a live role.
+type PersonToLookUp struct {
+	ID      int64
+	Subject string
+	Email   string
+}
+
+// HoldingRoles is everyone holding a live role, each once, for the daily pass.
+func HoldingRoles(ctx context.Context, q Querier) ([]PersonToLookUp, error) {
+	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, p.mjolnir_subject, p.email FROM role_grant g JOIN person p ON p.id = g.person_id WHERE `+liveSQL+` ORDER BY p.id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (PersonToLookUp, error) {
+		var x PersonToLookUp
+		err := r.Scan(&x.ID, &x.Subject, &x.Email)
+		return x, err
+	})
+}
+
+// FlaggedPeople is who is flagged now: their post is still not known after BIFROST answered.
+func FlaggedPeople(ctx context.Context, q Querier) ([]PersonToLookUp, error) {
+	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, p.mjolnir_subject, p.email FROM role_grant g JOIN person p ON p.id = g.person_id
+		WHERE g.post_flagged_at IS NOT NULL AND `+liveSQL+` ORDER BY p.id`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (PersonToLookUp, error) {
+		var x PersonToLookUp
+		err := r.Scan(&x.ID, &x.Subject, &x.Email)
+		return x, err
+	})
+}
+
+// LanguagesWithoutKeeper is each language no live glossary keeper holds (s2).
+func LanguagesWithoutKeeper(ctx context.Context, q Querier) ([]string, error) {
+	rows, err := q.Query(ctx, `SELECT l FROM unnest(ARRAY['si', 'ta', 'en']) AS l WHERE NOT EXISTS (
+		SELECT 1 FROM role_grant g WHERE g.role = $1 AND g.language = l AND `+liveSQL+`)`, GlossaryKeeper)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[string])
 }
 
 // OwnedSystem is a calling system TVA's file says this person answers for.

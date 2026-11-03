@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta"
@@ -17,6 +16,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 )
 
 // The grammar paths (R-GRM-01; B 2): LanguageTool's public v2 form, so the editor's stock
@@ -159,48 +159,45 @@ func shapeCheck(ref, text string, a grammar.Answer) checkAnswer {
 	return out
 }
 
-// GrammarUse is one check, for the usage record E-REC-02 writes (R-REC-01). It holds no
-// text: what R-REC-01 asks for, as far as a check has it.
-type GrammarUse struct {
-	Ref        string
-	System     string // TVA's reference of the system it counts to
-	CallerID   int64
-	Officer    string // who is signed in; "" for a call with a key
-	Characters int
-	Sources    []grammar.Used
-	Fallback   bool
-	Duration   time.Duration
-	Outcome    string // "answered", or the reason
-}
-
 func (s *Server) check(w http.ResponseWriter, r *http.Request) {
 	q := requestOf(r)
-	started := s.deps.Now()
-	use := GrammarUse{Ref: q.Ref, System: q.Caller.Reference, CallerID: q.Caller.ID, Officer: q.Officer, Outcome: "answered"}
-	if s.deps.Usage != nil {
-		defer func() {
-			use.Duration = s.deps.Now().Sub(started)
-			s.deps.Usage(context.WithoutCancel(r.Context()), use)
-		}()
-	}
 	var fail *reasons.Failure
 	if s.deps.Grammar == nil {
 		fail = reasons.New(reasons.NoProvider)
 	} else {
 		var req grammar.Request
 		if req, fail = parseCheck(r, q.Ref, q.Body); fail == nil {
-			use.Characters = utf8.RuneCountInString(req.Text)
+			noteCheck(q.Use, req)
 			var a grammar.Answer
 			if a, fail = s.deps.Grammar.Check(r.Context(), req); fail == nil {
-				use.Sources, use.Fallback = a.Sources, a.Fallback
+				noteChecked(q.Use, a)
 				writeJSON(w, shapeCheck(q.Ref, req.Text, a))
 				return
 			}
 		}
 	}
-	use.Outcome = string(fail.Reason)
 	s.deps.Logger.Info("a check was not answered", "request_ref", q.Ref, "system", q.Caller.Reference, "reason", string(fail.Reason))
 	s.refuse(w, r, fail)
+}
+
+// noteCheck keeps what a usage record holds of a check. A check is English, and its length is
+// all that stays of its text (R-GRM-05).
+func noteCheck(rec *usage.Record, q grammar.Request) {
+	rec.Characters, rec.Passages, rec.From = utf8.RuneCountInString(q.Text), 1, "en"
+}
+
+// noteChecked keeps what a check did. Suggestions held in memory spared a source, so they count
+// with the cache: nothing else on Annex A's list is nearer.
+func noteChecked(rec *usage.Record, a grammar.Answer) {
+	rec.Fallback = a.Fallback
+	for _, u := range a.Sources {
+		rec.Sources = append(rec.Sources, u.Name)
+	}
+	if a.Held {
+		rec.Pieces.Cache = a.Pieces
+	} else {
+		rec.Pieces.Source = a.Pieces
+	}
 }
 
 // The browser's way in (R-CAL-06; B 2, B 9).
@@ -237,8 +234,9 @@ func plainWord(r reasons.Reason) string {
 
 // answerText answers a browser in plain text in the reader's language, English if it is not
 // known, and counts it. The body is the fixed message and never anything sent.
-func (s *Server) answerText(w http.ResponseWriter, r *http.Request, ref string, f *reasons.Failure, word string) {
-	s.counts.Add(f.Reason)
+func (s *Server) answerText(w http.ResponseWriter, r *http.Request, rec *usage.Record, f *reasons.Failure, word string) {
+	rec.Outcome = string(f.Reason)
+	ref := rec.Ref
 	lang := i18n.Choose("", i18n.Accepted(r.Header.Get("Accept-Language")))
 	w.Header().Add("Vary", "Accept-Language")
 	reasons.WriteText(w, ref, f, i18n.T(lang, word), s.deps.Now())
@@ -279,22 +277,26 @@ func (s *Server) grammarEntry(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Add("Vary", "Origin")
 		ref := NewRef()
+		rec := &usage.Record{Ref: ref, Operation: operationOf(r), Outcome: usage.Answered}
 		origin := r.Header.Get("Origin")
 		var owner callers.Caller
 		ok := false
 		if origin != "" {
 			var fail *reasons.Failure
 			if owner, ok, fail = s.listed(ctx, origin); fail != nil {
-				s.answerText(w, r, ref, fail, plainWord(fail.Reason))
+				s.answerText(w, r, rec, fail, plainWord(fail.Reason))
+				s.keepUse(r, rec, s.deps.Now())
 				return
 			}
 			if ok {
 				allowOrigin(h, origin)
+				rec.CallerID = owner.ID
 			}
 		}
 		if r.Method == http.MethodOptions {
+			// A preflight is no request of anyone's: it uses no limit and leaves no record.
 			if !ok {
-				s.answerText(w, r, ref, reasons.New(reasons.NoKey), "grammarNotListed")
+				s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotListed")
 				return
 			}
 			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -303,27 +305,29 @@ func (s *Server) grammarEntry(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		if origin != "" && !ok {
-			s.answerText(w, r, ref, reasons.New(reasons.NoKey), "grammarNotListed")
-			s.keepDenial(r, ref, owner.Reference, "The browser's address is not listed")
-			return
-		}
-		if r.Header.Get("Authorization") != "" {
+		if r.Header.Get("Authorization") != "" && (origin == "" || ok) {
 			keyed.ServeHTTP(w, r)
 			return
 		}
+		defer s.keepUse(r, rec, s.deps.Now())
+		if origin != "" && !ok {
+			s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotListed")
+			s.keepDenial(r, ref, owner.Reference, "The browser's address is not listed")
+			return
+		}
 		if origin == "" {
-			s.answerText(w, r, ref, reasons.New(reasons.NoKey), "grammarNotListed")
+			s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotListed")
 			s.keepDenial(r, ref, "", "No key and no browser address")
 			return
 		}
 		account := strings.TrimSpace(r.Header.Get(accountHeader))
 		if account == "" || len(account) > maxAccount {
-			s.answerText(w, r, ref, reasons.New(reasons.NoKey), "grammarNotSignedIn")
+			s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotSignedIn")
 			s.keepDenial(r, ref, owner.Reference, "Nobody is signed in")
 			return
 		}
-		q := &Request{Ref: ref, Caller: owner, Browser: true, Officer: account}
+		rec.Officer = account
+		q := &Request{Ref: ref, Caller: owner, Browser: true, Officer: account, Use: rec}
 		r = r.WithContext(context.WithValue(ctx, requestKey{}, q))
 		body, err := io.ReadAll(io.LimitReader(r.Body, MaxBody+1))
 		switch {

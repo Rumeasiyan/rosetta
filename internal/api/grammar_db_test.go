@@ -21,6 +21,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -47,14 +48,17 @@ func TestNoGrammarTextIsKeptAnywhere(t *testing.T) {
 	}
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	var uses []api.GrammarUse
+	var uses []usage.Record
 	srv := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger,
 		Grammar: &grammar.Service{
 			Sources:  &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: func(context.Context) sources.Policy { return sources.Policy{} }, Logger: logger},
 			Settings: func(context.Context) settings.Values { return settings.Defaults() }, Held: &grammar.Held{}, Logger: logger,
 		},
-		Usage: func(_ context.Context, u api.GrammarUse) { uses = append(uses, u) },
+		Usage: func(ctx context.Context, u usage.Record) error {
+			uses = append(uses, u)
+			return usage.Keep(ctx, pool, u)
+		},
 	})
 	mux := http.NewServeMux()
 	srv.Mount(mux)

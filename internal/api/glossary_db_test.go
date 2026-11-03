@@ -22,11 +22,13 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/memory"
+	"github.com/Rumeasiyan/rosetta/internal/runs"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
 	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
+	"github.com/Rumeasiyan/rosetta/internal/usage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -40,6 +42,8 @@ type pathWorld struct {
 	logs   *bytes.Buffer
 	key    string
 	person int64
+	maxAge time.Duration // how old the source list may be
+	book   *sources.Book
 }
 
 func newPathWorld(t *testing.T) *pathWorld {
@@ -59,7 +63,7 @@ func newPathWorld(t *testing.T) *pathWorld {
 			pool.Exec(context.Background(), sql)
 		}
 	})
-	w := &pathWorld{t: t, pool: pool, logs: &bytes.Buffer{}}
+	w := &pathWorld{t: t, pool: pool, logs: &bytes.Buffer{}, maxAge: time.Minute}
 	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		var err error
 		w.key, _, err = issueByTestPerson(ctx, tx, id)
@@ -76,13 +80,14 @@ func newPathWorld(t *testing.T) *pathWorld {
 	logger := slog.New(slog.NewJSONHandler(w.logs, nil))
 	values := func(context.Context) settings.Values { return settings.Defaults() }
 	client := bumblebee.Client{URL: w.stand.URL + "/bumblebee", Key: standin.BumblebeeKey}
-	book := &sources.Book{Read: client.Sources, Logger: logger, MaxAge: func(context.Context) time.Duration { return time.Minute },
+	book := &sources.Book{Read: client.Sources, Logger: logger, MaxAge: func(context.Context) time.Duration { return w.maxAge },
 		Kept: func(ctx context.Context, l bumblebee.List, at time.Time) error {
 			return sources.Mirror(ctx, pool, l, at)
 		}}
 	if err := book.Refresh(ctx); err != nil {
 		t.Fatal(err)
 	}
+	w.book = book
 	policy := func(ctx context.Context) sources.Policy {
 		p, err := sources.LoadPolicy(ctx, pool)
 		if err != nil {
@@ -93,10 +98,14 @@ func newPathWorld(t *testing.T) *pathWorld {
 	cache := translate.Cache{Q: pool, Settings: values}
 	published := &glossary.Book{Q: pool}
 	fallback := &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: policy, Logger: logger}
+	pipeline := &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger}
+	running := &runs.Book{Logger: logger, Limits: func(ctx context.Context) runs.Limits { return runs.LimitsOf(values(ctx)) }}
+	t.Cleanup(func() { running.Stop(); running.Wait() })
 	calls := api.New(api.Deps{
-		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
-		Translator: &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
-		Memory:     &memory.Service{Pool: pool, Settings: values, Logger: logger},
+		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy, Origins: api.PoolOrigins{Pool: pool},
+		Translator: pipeline, Runner: pipeline, Runs: running,
+		Memory: &memory.Service{Pool: pool, Settings: values, Logger: logger},
+		Usage:  func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
 			return set, err

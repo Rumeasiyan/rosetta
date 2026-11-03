@@ -193,3 +193,12 @@ func History(ctx context.Context, q Querier) ([]HistoryRow, error) {
 		return x, err
 	})
 }
+
+// Names is every source the database knows, for choosing among on a screen.
+func Names(ctx context.Context, q Querier) ([]string, error) {
+	rows, err := q.Query(ctx, `SELECT name FROM source ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[string])
+}

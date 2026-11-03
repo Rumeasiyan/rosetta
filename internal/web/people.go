@@ -10,6 +10,7 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/audit"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/posts"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -70,6 +71,7 @@ func (a *App) grant(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	c := fromCtx(r)
 	f := r.PostForm
+	var to people.Person
 	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
 		today, err := people.Today(ctx, tx)
 		if err != nil {
@@ -79,7 +81,7 @@ func (a *App) grant(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		to, err := people.GrantRole(ctx, tx, f.Get("email"), c.sess.personID, req)
+		to, err = people.GrantRole(ctx, tx, f.Get("email"), c.sess.personID, req)
 		if err != nil {
 			return err
 		}
@@ -93,6 +95,10 @@ func (a *App) grant(w http.ResponseWriter, r *http.Request) {
 		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionRoleChange, ObjectType: "person",
 			ObjectRef: to.Subject, Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
 	})
+	// Looked up once the grant is kept, so a slow answer holds no connection (R-ADM-06).
+	if err == nil && a.deps.Posts != nil {
+		a.deps.Posts.Check(ctx, posts.Person{ID: to.ID, Subject: to.Subject, Email: to.Email})
+	}
 	a.afterRoleChange(w, r, err, "granted")
 }
 

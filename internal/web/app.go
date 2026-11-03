@@ -15,6 +15,8 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/posts"
+	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/jackc/pgx/v5"
@@ -53,7 +55,22 @@ type Deps struct {
 	TVA tva.Reader
 	// Sources is BUMBLEBEE's source list. Nil shows it as never read.
 	Sources SourceList
-	Logger  *slog.Logger
+	// Posts looks up a person's post through BIFROST, at sign-in and when a role is granted
+	// (R-ADM-06). Nil never looks: every post stays as it is.
+	Posts PostChecker
+	// Tester sends test requests from the screens (R-ADM-04). Nil refuses them.
+	Tester Tester
+	// NoSystem is today's refusals of requests with no known system (R-CAL-04). Nil counts none.
+	NoSystem func() map[reasons.Reason]int
+	// RunCounts is the background runs waiting and working, for these systems or for all (R-ADM-02).
+	// Nil shows none.
+	RunCounts func(systems []int64, all bool) (waiting, working int)
+	Logger    *slog.Logger
+}
+
+// PostChecker looks one person up and gives the post a session keeps for its audit entries.
+type PostChecker interface {
+	Check(ctx context.Context, p posts.Person) string
 }
 
 // Kicker starts sending what the outbox holds, without waiting for it.
@@ -110,6 +127,9 @@ func (a *App) Mount(mux *http.ServeMux) {
 	a.mountGate(mux)
 	a.mountGlossary(mux)
 	a.mountMemory(mux)
+	a.mountUsage(mux)
+	a.mountStatus(mux)
+	a.mountTest(mux)
 	mux.HandleFunc("/", a.notFound)
 }
 
@@ -133,10 +153,13 @@ func (c *current) has(role string) bool {
 
 func isAdmin(c *current) bool { return c.has(people.Administrator) }
 
-// actor is the signed-in person as an audit entry names them. Their post is not
-// known until E-CAL-05.
+// actor is the signed-in person as an audit entry names them, with the post found at sign-in.
 func (c *current) actor() audit.Actor {
-	return audit.Actor{PersonID: c.sess.personID, Subject: c.sess.subject, Name: c.sess.name, Post: audit.PostNotKnown}
+	post := c.sess.post
+	if post == "" {
+		post = audit.PostNotKnown
+	}
+	return audit.Actor{PersonID: c.sess.personID, Subject: c.sess.subject, Name: c.sess.name, Post: post}
 }
 
 // viewer is who the frame shows.
@@ -161,7 +184,7 @@ func nav(c *current) []NavItem {
 		items = append(items, NavItem{ID: "people", Word: "people", Href: "/people"}, NavItem{ID: "settings", Word: "settings", Href: "/settings"})
 	}
 	if seesSystems(c) {
-		items = append(items, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"})
+		items = append(items, NavItem{ID: "status", Word: "statusScreen", Href: "/status"}, NavItem{ID: "systems", Word: "systems", Href: "/systems"}, NavItem{ID: "sources", Word: "sources", Href: "/sources"}, NavItem{ID: "usage", Word: "usage", Href: "/usage"})
 	}
 	if isAdmin(c) {
 		items = append(items, NavItem{ID: "gate", Word: "gate", Href: "/gate"})
@@ -455,12 +478,18 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
+	// Looked up once the person is kept and before the session starts, so a role that ended is
+	// gone from the first page on. A failed look-up changes nothing and delays this at most a moment.
+	post := people.PostNotKnown
+	if a.deps.Posts != nil {
+		post = a.deps.Posts.Check(ctx, posts.Person{ID: person.ID, Subject: person.Subject, Email: person.Email})
+	}
 	// A browser signing in again leaves no older session or token behind.
 	if old, err := r.Cookie(SessionCookie); err == nil {
 		a.revoke(r.Context(), a.sessions.end(old.Value))
 	}
 	a.setLanguageCookie(w, person.Language)
-	a.setCookie(w, SessionCookie, a.sessions.create(person.ID, person.Subject, person.Name, person.Email, pd.Nonce, tokens), 0)
+	a.setCookie(w, SessionCookie, a.sessions.create(person.ID, person.Subject, person.Name, person.Email, post, pd.Nonce, tokens), 0)
 	http.Redirect(w, r, pd.next, http.StatusSeeOther)
 }
 

@@ -63,6 +63,6 @@
     <p class="soft">{{t .Lang "keyPublicNote"}}</p>
     <button class="pill solid" type="submit">{{t .Lang "keyIssue"}}</button>
   </form>
-  <p class="row-actions"><a class="pill" href="/systems">{{t .Lang "backToSystems"}}</a></p>
+  <p class="row-actions inline"><a class="pill" href="/systems/{{.Data.System.ID}}/test">{{t .Lang "testTitle"}}</a><a class="pill" href="/usage?group=day&system={{.Data.System.ID}}">{{t .Lang "usage"}}</a><a class="pill" href="/systems">{{t .Lang "backToSystems"}}</a></p>
 </div>
 {{end}}

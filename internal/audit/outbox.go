@@ -203,6 +203,30 @@ func deliver(ctx context.Context, s Sender, rows []row, logger *slog.Logger) (ma
 	return out, false
 }
 
+// Waiting counts what has not reached PENSIEVE and what it refused for good, for the status
+// screen: the only place, beyond the log, a person sees these.
+func Waiting(ctx context.Context, q interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}) (waiting, refused int, err error) {
+	err = q.QueryRow(ctx, `SELECT count(*) FILTER (WHERE refused_at IS NULL), count(*) FILTER (WHERE refused_at IS NOT NULL) FROM audit_outbox`).Scan(&waiting, &refused)
+	return waiting, refused, err
+}
+
+// DropExpired removes each entry past KeepFor, sent or not, which PENSIEVE would refuse as too old
+// (Annex A: at most 30 days), and says so in the log. A sent entry's row is gone already. It reports
+// how many went.
+func DropExpired(ctx context.Context, tx pgx.Tx, logger *slog.Logger, now time.Time) (int, error) {
+	tag, err := tx.Exec(ctx, `DELETE FROM audit_outbox WHERE occurred_at < $1`, now.Add(-KeepFor))
+	if err != nil {
+		return 0, err
+	}
+	n := int(tag.RowsAffected())
+	if n > 0 {
+		logger.Error("audit entries dropped after 30 days without reaching PENSIEVE", "count", n)
+	}
+	return n, nil
+}
+
 // Drain sends what is due, oldest first, and reports how many PENSIEVE now holds.
 // An entry that cannot go waits, and tells the next run when; an entry past KeepFor
 // is removed and reported, since PENSIEVE would refuse it as too old.
@@ -210,12 +234,8 @@ func Drain(ctx context.Context, tx pgx.Tx, s Sender, logger *slog.Logger, now ti
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	tag, err := tx.Exec(ctx, `DELETE FROM audit_outbox WHERE occurred_at < $1`, now.Add(-KeepFor))
-	if err != nil {
+	if _, err := DropExpired(ctx, tx, logger, now); err != nil {
 		return 0, err
-	}
-	if n := tag.RowsAffected(); n > 0 {
-		logger.Error("audit entries dropped after 30 days without reaching PENSIEVE", "count", n)
 	}
 	sent, handled := 0, 0
 	began := time.Now()

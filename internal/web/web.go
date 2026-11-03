@@ -174,6 +174,15 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"args":            tableArgs,
 		"memoryArgs":      memoryTableArgs,
 		"memoryStateWord": memoryStateWord,
+		"opWord":          opWord,
+		"alertWord":       alertWord,
+		"alertAbout":      alertAbout,
+		"flagLanguage":    func(_ i18n.Lang, code string) string { l, _ := i18n.Parse(code); return i18n.Name(l) },
+		"sensitivities":   func() []string { return testSensitivities },
+		"sensitivityWord": sensitivityWord,
+		"whyWord":         whyWord,
+		"timeWord":        timeWord,
+		"groupWord":       groupWord,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err

@@ -45,12 +45,27 @@ var (
 	RequestCharsMax   = Int{Name: "request_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingRequestChars", Unit: "unitChars", Source: "R-TRN-01"}
 	CacheDays         = Int{Name: "cache_days", Default: 30, Min: 1, Max: 365, Word: "settingCacheDays", Unit: "unitDays", Source: "R-TRN-08"}
 
+	// A background run's limits (R-TRN-12, R-TRN-13). RunsWorkedAtOnce is this build's own, not the
+	// PRD's: pieces go through BUMBLEBEE's queue, so only a few runs are worked at a time.
+	RunLimitMinutes       = Int{Name: "run_limit_minutes", Default: 30, Min: 1, Max: 240, Word: "settingRunLimit", Unit: "unitMinutes", Source: "R-TRN-12"}
+	RunsPerSystem         = Int{Name: "runs_per_system", Default: 5, Min: 1, Max: 500, Word: "settingRunsPerSystem", Unit: "unitRuns", Source: "R-TRN-12"}
+	RunsInAll             = Int{Name: "runs_in_all", Default: 50, Min: 1, Max: 500, Word: "settingRunsInAll", Unit: "unitRuns", Source: "R-TRN-12"}
+	RunsWorkedAtOnce      = Int{Name: "runs_worked_at_once", Default: 2, Min: 1, Max: 10, Word: "settingRunsWorked", Unit: "unitRuns", Source: "R-TRN-12"}
+	RunUncollectedMinutes = Int{Name: "run_uncollected_minutes", Default: 10, Min: 1, Max: 60, Word: "settingRunUncollected", Unit: "unitMinutes", Source: "R-TRN-13"}
+
 	GrammarCharsMax    = Int{Name: "grammar_chars_max", Default: 20000, Min: 1, Max: 200000, Word: "settingGrammarChars", Unit: "unitChars", Source: "R-GRM-02"}
 	GrammarHoldMinutes = Int{Name: "grammar_hold_minutes", Default: 10, Min: 1, Max: 1440, Word: "settingGrammarHold", Unit: "unitMinutes", Source: "R-GRM-05"}
 
 	GlossaryImportRows = Int{Name: "glossary_import_rows", Default: 5000, Min: 1, Max: 20000, Word: "settingGlossaryImportRows", Unit: "unitRows", Source: "R-GLO-07"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows}
+	UsageRecordYears = Int{Name: "usage_record_years", Default: 2, Min: 1, Max: 20, Word: "settingUsageYears", Unit: "unitYears", Source: "R-REC-04"}
+	DailyTotalYears  = Int{Name: "daily_total_years", Default: 5, Min: 1, Max: 50, Word: "settingTotalYears", Unit: "unitYears", Source: "R-REC-04"}
+
+	// PostLookUpsPerMinute paces the daily pass (E-CAL-05). BIFROST holds its limit per key, in
+	// its own settings, so this is ROSETTA's own and not a copy: lower it if BIFROST says too many.
+	PostLookUpsPerMinute = Int{Name: "post_look_ups_per_minute", Default: 30, Min: 1, Max: 600, Word: "settingPostLookUps", Unit: "unitRequests", Source: "R-ADM-06"}
+
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, RunLimitMinutes, RunsPerSystem, RunsInAll, RunsWorkedAtOnce, RunUncollectedMinutes, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, UsageRecordYears, DailyTotalYears, PostLookUpsPerMinute}
 )
 
 // Find is the setting with this name.
