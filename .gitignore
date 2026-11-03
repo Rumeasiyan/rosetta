@@ -14,3 +14,6 @@ __pycache__/
 .venv/
 node_modules/
 *.ipynb_checkpoints
+dev/keys/
+.claude/
+/design-lab/inspiration/
