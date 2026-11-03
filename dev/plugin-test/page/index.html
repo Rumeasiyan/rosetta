@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invented letter</title>
+<style>html, body, #editor { height: 100%; margin: 0; }</style>
+<script src="https://writedocument.epc.test/web-apps/apps/api/documents/api.js"></script>
+</head>
+<body>
+<div id="editor"></div>
+<script>
+new DocsAPI.DocEditor("editor", {
+  documentType: "word",
+  height: "100%",
+  width: "100%",
+  document: {
+    fileType: "docx",
+    key: "invented-" + Date.now(),
+    title: "invented.docx",
+    url: "http://caddy:8081/invented.docx",
+    permissions: { edit: true }
+  },
+  editorConfig: {
+    mode: "edit",
+    lang: "en",
+    callbackUrl: "http://caddy:8081/callback",
+    user: { id: "dev-officer", name: "Test Officer" },
+    customization: { autosave: false, compactHeader: true }
+  }
+});
+</script>
+</body>
+</html>

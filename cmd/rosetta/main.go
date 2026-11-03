@@ -23,6 +23,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
+	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/health"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
@@ -157,7 +158,9 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		return settings.Load(ctx, pool)
 	}, settings.RefreshEvery, logger)
 	provider := bumblebee.Client{URL: links.BumblebeeURL, Key: links.BumblebeeKey, HTTP: &http.Client{}}
+	held := &grammar.Held{}
 	book := &sources.Book{
+		Tick: func(ctx context.Context) { held.SweepWith(ctx, values.Get) },
 		Read: provider.Sources,
 		MaxAge: func(ctx context.Context) time.Duration {
 			return time.Duration(values.Get(ctx).Of(settings.SourceListSeconds)) * time.Second
@@ -185,12 +188,13 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		return sources.LoadPolicy(ctx, pool)
 	}, settings.RefreshEvery, logger)
 	cache := translate.Cache{Q: pool, Settings: values.Get}
+	fallback := &sources.Fallback{Book: book, Provider: provider, Grammars: provider, Policy: policy.Get, Logger: logger}
 	pipeline := &translate.Service{
 		Glossary: translate.None{}, // E-GLO-04
 		Memory:   translate.None{}, // E-MEM-02
 		Cache:    cache,
 		Keeper:   cache,
-		Sources:  &sources.Fallback{Book: book, Provider: provider, Policy: policy.Get, Logger: logger},
+		Sources:  fallback,
 		Settings: values.Get,
 		Version:  translate.GlossaryVersion(pool),
 		Logger:   logger,
@@ -198,6 +202,8 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
 		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
+		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger},
+		Origins: api.PoolOrigins{Pool: pool},
 	})
 
 	mux := http.NewServeMux()

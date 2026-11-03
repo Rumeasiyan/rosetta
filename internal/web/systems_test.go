@@ -2,8 +2,12 @@ package web
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"html/template"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -433,5 +437,122 @@ func TestLimitsStartFromTheSettingsAndChangeOnlyByTheAdministrator(t *testing.T)
 	owner.signIn(mine)
 	if p := owner.post(sysPath(owned)+"/limits", url.Values{"csrf": {owner.csrf()}, "per_minute": {"6000"}, "at_once": {"100"}}); p.status != 403 {
 		t.Fatal(p.status)
+	}
+}
+
+// ---- browser addresses (R-CAL-06) ---------------------------------------------
+
+func TestSystemScreenListsAddressesForTheAdministratorToChange(t *testing.T) {
+	list := []callers.Origin{{Origin: "https://writedocument.epc.test"}}
+	for _, l := range i18n.Langs {
+		admin := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", CSRF: "form-token", Viewer: &Viewer{Name: "Test"},
+			Data: systemData{System: someSystems()[0], Admin: true, Origins: list}})
+		for _, want := range []string{`action="/systems/7/origins"`, `action="/systems/7/origins/remove"`, `value="https://writedocument.epc.test"`, `<label for="origin">`, i18n.T(l, "originsTitle")} {
+			if !strings.Contains(admin, want) {
+				t.Errorf("%s: no %q", l, want)
+			}
+		}
+		owner := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", Viewer: &Viewer{Name: "Test"}, Data: systemData{System: someSystems()[0], Origins: list}})
+		if strings.Contains(owner, `/origins`) || !strings.Contains(owner, "https://writedocument.epc.test") {
+			t.Errorf("%s: an owner can change the list: %s", l, owner)
+		}
+		none := render(t, "system", Page{Lang: l, Path: "/systems/7", Title: "systems", Viewer: &Viewer{Name: "Test"}, Data: systemData{System: someSystems()[0]}})
+		if !strings.Contains(none, template.HTMLEscapeString(i18n.T(l, "noOrigins"))) {
+			t.Errorf("%s: an empty list says nothing", l)
+		}
+	}
+}
+
+func TestListingAddresses(t *testing.T) {
+	w := newWorld(t)
+	admin, who := w.signedInAdmin()
+	w.freshSystems()
+	t.Cleanup(w.freshSystems)
+	w.exec(`DELETE FROM audit_outbox`)
+	w.exec(`DELETE FROM change_history`)
+	ctx := context.Background()
+	mine := subject("owner")
+	var a, b int64
+	w.pool.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, owner_subject, tva_status, tva_checked_at) VALUES ('ORG-1', 'Invented', $1, 'live', now()) RETURNING id`, mine).Scan(&a)
+	w.pool.QueryRow(ctx, `INSERT INTO caller (tva_reference, name, tva_status, tva_checked_at) VALUES ('ORG-2', 'Invented', 'live', now()) RETURNING id`).Scan(&b)
+	token := admin.csrf()
+	add := func(id int64, origin string) page {
+		return admin.post(sysPath(id)+"/origins", url.Values{"csrf": {token}, "origin": {origin}})
+	}
+	const site = "https://writedocument.epc.test"
+	if p := add(a, " HTTPS://WriteDocument.epc.test/ "); !strings.Contains(p.body, i18n.T(i18n.EN, "originAdded")) || !strings.Contains(p.body, site) {
+		t.Fatalf("%d %s", p.status, p.body)
+	}
+	if p := add(a, site); !strings.Contains(p.body, i18n.T(i18n.EN, "settingUnchanged")) {
+		t.Fatal("the same again changes nothing")
+	}
+	if p := add(b, site); !strings.Contains(p.body, template.HTMLEscapeString(i18n.T(i18n.EN, "originTaken"))) {
+		t.Fatalf("%s", p.body)
+	}
+	const typed = "CALLERTEXTMARKER"
+	if p := add(a, "https://*."+typed); !strings.Contains(p.body, i18n.T(i18n.EN, "originBad")) || strings.Contains(p.body, typed) {
+		t.Fatal(p.body)
+	}
+	got, err := callers.FindOrigin(ctx, w.pool, site)
+	if err != nil || got.ID != a || got.Reference != "ORG-1" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if _, err := callers.FindOrigin(ctx, w.pool, "https://WRITEDOCUMENT.epc.test"); !errors.Is(err, callers.ErrNoSuchOrigin) {
+		t.Fatalf("the match is exact: %v", err)
+	}
+	if err := callers.CallerUsed(ctx, w.pool, a); err != nil {
+		t.Fatal(err)
+	}
+	var used bool
+	w.pool.QueryRow(ctx, `SELECT last_request_at IS NOT NULL FROM caller WHERE id = $1`, a).Scan(&used)
+	if !used {
+		t.Fatal("not noted")
+	}
+	// An owner sees the list and changes nothing, and each try is a denial.
+	owner := w.browser()
+	owner.signIn(mine)
+	if p := owner.get(sysPath(a)); p.status != 200 || !strings.Contains(p.body, site) || strings.Contains(p.body, "/origins") {
+		t.Fatalf("%d %s", p.status, p.body)
+	}
+	otoken := owner.csrf()
+	if p := owner.post(sysPath(a)+"/origins", url.Values{"csrf": {otoken}, "origin": {"https://other.epc.test"}}); p.status != 403 {
+		t.Fatal(p.status)
+	}
+	if p := owner.post(sysPath(a)+"/origins/remove", url.Values{"csrf": {otoken}, "origin": {site}}); p.status != 403 {
+		t.Fatal(p.status)
+	}
+	if p := admin.post(sysPath(a)+"/origins", url.Values{"csrf": {"wrong"}, "origin": {"https://other.epc.test"}}); p.status != 403 {
+		t.Fatal(p.status)
+	}
+	// Taken off, it is gone at once, and another may list it.
+	if p := admin.post(sysPath(a)+"/origins/remove", url.Values{"csrf": {token}, "origin": {site}}); !strings.Contains(p.body, i18n.T(i18n.EN, "originRemoved")) {
+		t.Fatal(p.body)
+	}
+	if _, err := callers.FindOrigin(ctx, w.pool, site); !errors.Is(err, callers.ErrNoSuchOrigin) {
+		t.Fatal(err)
+	}
+	if p := add(b, site); !strings.Contains(p.body, i18n.T(i18n.EN, "originAdded")) {
+		t.Fatal(p.body)
+	}
+	var changes []string
+	for _, e := range w.outbox() {
+		if e.ObjectType == "browser address" {
+			if e.Actor != who || e.Action != "setting change" {
+				t.Fatalf("%+v", e)
+			}
+			changes = append(changes, e.ObjectRef+" "+fmt.Sprint(e.Details["change"]))
+		}
+	}
+	want := []string{"ORG-1 " + site + " added", "ORG-1 " + site + " removed", "ORG-2 " + site + " added"}
+	if !slices.Equal(changes, want) {
+		t.Fatalf("%v", changes)
+	}
+	var n int
+	w.pool.QueryRow(ctx, `SELECT count(*) FROM change_history WHERE subject = 'caller origin'`).Scan(&n)
+	if n != 3 {
+		t.Fatal(n)
+	}
+	if strings.Contains(w.logs.String(), typed) {
+		t.Fatal(w.logs)
 	}
 }

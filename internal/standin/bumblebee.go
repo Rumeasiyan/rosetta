@@ -40,12 +40,14 @@ const defaultMaxText = 5000
 type bbSource struct {
 	name, version string
 	grammar       bool
+	score         int // grammar sources: the benchmark score in English
 }
 
 var bbSources = []bbSource{
 	{name: "standin-translate", version: "1"},
-	{name: "standin-grammar", version: "2", grammar: true},
+	{name: "standin-grammar", version: "2", grammar: true, score: 72},
 	{name: "standin-translate-b", version: "1"},
+	{name: "standin-grammar-b", version: "1", grammar: true, score: 55},
 }
 
 var bbRequestID = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
@@ -108,7 +110,7 @@ func (s *Server) bbSources(w http.ResponseWriter, r *http.Request) {
 		}
 		if src.grammar {
 			e["offers"] = []map[string]string{{"operation": "grammar", "from_language": "en"}}
-			e["scores"] = map[string]int{"en": 72}
+			e["scores"] = map[string]int{"en": src.score}
 		} else {
 			var offers []map[string]string
 			for _, from := range []string{"si", "ta", "en"} {

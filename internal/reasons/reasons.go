@@ -109,18 +109,41 @@ type detail struct {
 	Terms    []string          `json:"glossary_terms,omitempty"`
 }
 
+// retryAfter sets Retry-After on any failure that says when.
+func retryAfter(h http.Header, f *Failure, now time.Time) {
+	if f.RetryAt == nil {
+		return
+	}
+	wait := int(f.RetryAt.Sub(now).Seconds() + 0.999)
+	if wait < 1 {
+		wait = 1
+	}
+	h.Set("Retry-After", strconv.Itoa(wait))
+}
+
+// WriteText answers with the failure as plain text, for a reader who is shown the body as
+// it is: the grammar plug-in shows responseText (docs/plugin-findings.md). The reason and
+// reference go in headers, as no words of a form's own could carry them there.
+func WriteText(w http.ResponseWriter, requestRef string, f *Failure, message string, now time.Time) {
+	h := w.Header()
+	retryAfter(h, f, now)
+	h.Set("Content-Type", "text/plain; charset=utf-8")
+	h.Set("Cache-Control", "no-store")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Rosetta-Reason", string(f.Reason))
+	h.Set("X-Rosetta-Request-Ref", requestRef)
+	w.WriteHeader(f.Reason.Status())
+	w.Write([]byte(message))
+}
+
 // Write answers with the failure. Retry-After goes with any failure that says when.
 func Write(w http.ResponseWriter, requestRef string, f *Failure, now time.Time) {
 	d := detail{Reason: f.Reason, Messages: f.Reason.Messages(), Position: f.Position, Terms: f.Terms}
 	h := w.Header()
 	if f.RetryAt != nil {
 		d.RetryAt = f.RetryAt.Format(time.RFC3339)
-		wait := int(f.RetryAt.Sub(now).Seconds() + 0.999)
-		if wait < 1 {
-			wait = 1
-		}
-		h.Set("Retry-After", strconv.Itoa(wait))
 	}
+	retryAfter(h, f, now)
 	h.Set("Content-Type", "application/json")
 	h.Set("Cache-Control", "no-store")
 	w.WriteHeader(f.Reason.Status())

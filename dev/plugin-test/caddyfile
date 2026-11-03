@@ -1,0 +1,72 @@
+# The plug-in walk (E-GRM-07): one Caddy for three invented .epc.test names, with its own
+# local CA. rosetta.epc.test follows allspark's policy-on and strip-signin as JOINING.md
+# describes them. Local only: never a deployment.
+{
+	local_certs
+	skip_install_trust
+	admin off
+}
+
+(cerberus-check) {
+	# A visitor never supplies these; the check's answer sets them.
+	request_header -X-Cerberus-*
+	# E-ENB-10: the owning office's rule marks OPTIONS on the grammar paths open.
+	@checked not method OPTIONS
+	forward_auth @checked host.docker.internal:53190 {
+		uri /cerberus/check
+		header_up X-Forwarded-Host {host}
+		copy_headers X-Cerberus-Account X-Cerberus-Email X-Cerberus-Name X-Cerberus-Level X-Cerberus-Passkey
+	}
+}
+
+(strip-signin) {
+	request_header Cookie "(^|;\s*)(standin_session)=[^;]*" ""
+	request_header Cookie "^;\s*" ""
+}
+
+rosetta.epc.test {
+	tls internal
+	route {
+		import cerberus-check
+		import strip-signin
+		reverse_proxy host.docker.internal:53080
+	}
+}
+
+# The same guard in front of something that answers with what reached it, so that what the
+# strip leaves can be read. ROSETTA itself logs no headers.
+echo.epc.test {
+	tls internal
+	route {
+		import cerberus-check
+		import strip-signin
+		reverse_proxy localhost:8082
+	}
+}
+
+writedocument.epc.test {
+	tls internal
+	reverse_proxy documentserver:80
+}
+
+page.epc.test {
+	tls internal
+	root * /srv/page
+	file_server
+}
+
+# Inside the compose network: Document Server fetches the document here and calls back here.
+:8081 {
+	handle /callback {
+		header Content-Type application/json
+		respond `{"error":0}`
+	}
+	handle {
+		root * /srv/page
+		file_server
+	}
+}
+
+:8082 {
+	respond "cookie=[{http.request.header.Cookie}] account=[{http.request.header.X-Cerberus-Account}]"
+}

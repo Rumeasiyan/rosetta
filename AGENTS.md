@@ -29,7 +29,8 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/api` | The `/api/` path: key and signature on every request, refusals as denials. |
 | `internal/limits` | Requests a minute and at once for each calling system, in memory. |
 | `internal/translate` | The piece pipeline: mask, split, glossary, memory, cache, source, join; all or nothing. |
-| `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. |
+| `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
+| `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (`how-to-run.md`). |
 
 ## Commands
 
@@ -40,7 +41,7 @@ go test -p 1 ./...
 docker compose -f dev/compose.yaml down
 ```
 
-To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`.
+To run it and walk the screens from source, with the database up: `set -a; . ./.env.example; . dev/keys/paradox.env; set +a`, then `go run ./cmd/rosetta migrate`, `go run ./cmd/rosetta-standin` and `go run ./cmd/rosetta serve`, then open <http://localhost:53080> and sign in as `dev-admin` at the stand-in's form. Call a job with `go run ./cmd/rosetta-paradoxcall -key dev/keys/paradox.key -url http://localhost:53080 -job audit-catch-up`, and read what arrived with `curl localhost:53190/control/pensieve/received`. To translate: register a system on `/systems`, issue its key there, open a direction on `/gate`, then `POST /api/v1/translate` with `Authorization: Bearer <key>` and `{"from":"en","to":"ta","sensitivity":"ordinary","passages":["An invented letter."]}`, and read what BUMBLEBEE's stand-in was sent with `curl localhost:53190/control/bumblebee/received`. To check grammar as a browser would: list an address on a system's screen, then `curl localhost:53080/api/v2/check -H 'Origin: <address>' -H 'X-Cerberus-Account: dev-officer' -d 'language=en-GB' --data-urlencode 'text=We recieve letters.'`; on the server only Caddy sets that header.
 
 ## Constraints
 

@@ -205,32 +205,113 @@ func (f *Failure) Error() string { return "bumblebee: " + f.Reason }
 // documented shape, a key refused or no answer at all count as "unavailable", as
 // CALLERS.md has it for anything else.
 func (c Client) Translate(ctx context.Context, q Request) (Answer, error) {
-	raw, err := json.Marshal(map[string]string{"request_id": q.RequestID, "source": q.Source, "operation": OpTranslate, "from": q.From, "to": q.To, "text": q.Text})
+	body, err := c.request(ctx, map[string]string{"request_id": q.RequestID, "source": q.Source, "operation": OpTranslate, "from": q.From, "to": q.To, "text": q.Text})
 	if err != nil {
-		return Answer{}, &Failure{Reason: ReasonUnavailable}
+		return Answer{}, err
+	}
+	return parseAnswer(body)
+}
+
+// GrammarRequest is one source call: a grammar check of one masked piece. The language
+// is always en in this version (CALLERS.md).
+type GrammarRequest struct {
+	RequestID string // ROSETTA's request reference (R-REC-01)
+	Source    string
+	Text      string
+}
+
+// Suggestion is one finding, in UTF-16 units of the text as sent. Which ones a source may
+// give is CALLERS.md's; what ROSETTA trusts of it is for internal/grammar to decide.
+type Suggestion struct {
+	Start        int      `json:"start"`
+	Length       int      `json:"length"`
+	Message      string   `json:"message"`
+	Replacements []string `json:"replacements"`
+	Category     string   `json:"category"`
+}
+
+// GrammarAnswer is a source's findings, an empty list when it has none.
+type GrammarAnswer struct {
+	Suggestions []Suggestion
+	Source      string
+	Version     string
+}
+
+// Grammar sends one piece to one source. Errors are as Translate's.
+func (c Client) Grammar(ctx context.Context, q GrammarRequest) (GrammarAnswer, error) {
+	body, err := c.request(ctx, map[string]string{"request_id": q.RequestID, "source": q.Source, "operation": OpGrammar, "language": "en", "text": q.Text})
+	if err != nil {
+		return GrammarAnswer{}, err
+	}
+	return parseGrammar(body)
+}
+
+// request posts one call and reads its answer, whatever its status.
+func (c Client) request(ctx context.Context, call map[string]string) ([]byte, error) {
+	raw, err := json.Marshal(call)
+	if err != nil {
+		return nil, &Failure{Reason: ReasonUnavailable}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.URL, "/")+"/v1/requests", bytes.NewReader(raw))
 	if err != nil {
-		return Answer{}, &Failure{Reason: ReasonUnavailable}
+		return nil, &Failure{Reason: ReasonUnavailable}
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Key)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := c.http().Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return Answer{}, ctx.Err()
+			return nil, ctx.Err()
 		}
-		return Answer{}, &Failure{Reason: ReasonUnavailable}
+		return nil, &Failure{Reason: ReasonUnavailable}
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(res.Body, maxAnswer))
 	if err != nil {
 		if ctx.Err() != nil {
-			return Answer{}, ctx.Err()
+			return nil, ctx.Err()
 		}
-		return Answer{}, &Failure{Reason: ReasonUnavailable}
+		return nil, &Failure{Reason: ReasonUnavailable}
 	}
-	return parseAnswer(body)
+	return body, nil
+}
+
+// failureIn is the failure an answer holds, if any. A reason not in CALLERS.md is
+// "unavailable", and the explanation is never read.
+func failureIn(reason, retryAt string) *Failure {
+	f := &Failure{Reason: ReasonUnavailable}
+	switch reason {
+	case ReasonBusy, ReasonBlocked, ReasonChanged, ReasonTimeout, ReasonTooLong, ReasonUnsupported, ReasonSourceOff:
+		f.Reason = reason
+	}
+	if at, err := time.Parse(time.RFC3339, retryAt); err == nil {
+		f.RetryAt = &at
+	}
+	return f
+}
+
+// parseGrammar reads an answer on failure.reason, whatever the status was. An answer with
+// no list at all is not "no suggestions": that needs an empty one.
+func parseGrammar(body []byte) (GrammarAnswer, error) {
+	var out struct {
+		Suggestions *[]Suggestion `json:"suggestions"`
+		Source      string        `json:"source"`
+		Version     string        `json:"version"`
+		Failure     *struct {
+			Reason  string `json:"reason"`
+			RetryAt string `json:"retry_at"`
+		} `json:"failure"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return GrammarAnswer{}, &Failure{Reason: ReasonUnavailable}
+	}
+	if out.Failure != nil {
+		return GrammarAnswer{}, failureIn(out.Failure.Reason, out.Failure.RetryAt)
+	}
+	if out.Suggestions == nil {
+		return GrammarAnswer{}, &Failure{Reason: ReasonUnavailable}
+	}
+	return GrammarAnswer{Suggestions: *out.Suggestions, Source: out.Source, Version: out.Version}, nil
 }
 
 // parseAnswer reads an answer on failure.reason, whatever the status was.
@@ -248,15 +329,7 @@ func parseAnswer(body []byte) (Answer, error) {
 		return Answer{}, &Failure{Reason: ReasonUnavailable}
 	}
 	if out.Failure != nil {
-		f := &Failure{Reason: ReasonUnavailable}
-		switch r := out.Failure.Reason; r {
-		case ReasonBusy, ReasonBlocked, ReasonChanged, ReasonTimeout, ReasonTooLong, ReasonUnsupported, ReasonSourceOff:
-			f.Reason = r
-		}
-		if at, err := time.Parse(time.RFC3339, out.Failure.RetryAt); err == nil {
-			f.RetryAt = &at
-		}
-		return Answer{}, f
+		return Answer{}, failureIn(out.Failure.Reason, out.Failure.RetryAt)
 	}
 	if out.Text == nil {
 		return Answer{}, &Failure{Reason: ReasonUnavailable}

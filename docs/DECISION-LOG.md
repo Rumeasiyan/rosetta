@@ -2,6 +2,48 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The plug-in is edited, and keeps its public scripts
+
+The owner's decision for E-GRM-07: the plug-in runs with the tested edit, credentials on, and keeps loading its scripts from `onlyoffice.github.io`. The risks were stated with the question and are taken:
+
+- The public scripts run on each opening in the frame holding the officer's text, and may send the sign-in cookie.
+- Every other plug-in on that Document Server shares the frame's origin, so could call ROSETTA as the officer; CORS cannot tell them apart.
+- The edit is repeated by hand at each plug-in update.
+
+The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
+
+## Browser calls on the grammar paths
+
+Who is signed in comes from `X-Cerberus-Account`, which only Caddy sets, as the entry further down says; absent is not signed in, never a default. A system on the platform network could forge that header on these paths, and gains only a check counted to that person, never the screens. CORS names only an origin in `caller_origin`, compared exactly, with `Access-Control-Allow-Credentials: true`, on answers and on ROSETTA's own refusals, so the plug-in's panel can read them; never `*`. An origin not listed gets no CORS headers and "no key" with 401, also when it carries a good key, since R-NFR-10 accepts browser calls only from listed addresses; a server sends no `Origin`. A request with neither a key nor an `Origin` has no system to count to, and is refused the same way. A key with a listed origin goes by the key's rules and counts to the key's system. A key's refusal is the `/api/` JSON; a browser's is plain text in the language of `Accept-Language` if it names one of the three, else English, with `X-Rosetta-Reason` and `X-Rosetta-Request-Ref` in headers. Being signed out and being unlisted have their own words, as "no key" tells an officer nothing, but the reason is still "no key" from the fixed list. "No provider" and "timed out" have words saying check rather than translation.
+
+A preflight needs no session or key and uses no limit, answers 204 for a listed origin and is refused like any unlisted call, without a denial, so a page cannot fill the outbox by being opened. A real refused call is kept as a denial like a refused key, naming the system where one is known, and fixed words why. The limits per minute and at once are the system's own, and the languages list counts as a call too, since it costs the same to answer and comes from the same system.
+
+Addresses are listed on a system's screen, by the administrator only (R-CAL-06); an owner sees them. An address is `https://` and a host, with `http://` only on this machine, written one way, with no path or wildcard. One address counts to one system, so migration 004 makes `origin` unique and the second system to list it is refused. A change is history, in `change_history` as `caller origin`, an addition Annex A does not list, and an audit entry. R-CAL-06's default of the letter editor's address means no row until E-ENB-19 lists it: there is no system to hold it before then.
+
+B 9 has `POST` on the grammar paths checked by CERBERUS as a person's request, so a key caller from outside would be stopped there before reaching ROSETTA, though R-GRM-01 lets it call. A key caller on the platform network comes directly and is not affected. E-ENB-10 has to settle this if a system outside ever checks grammar with a key.
+
+`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so without the owner's edit CERBERUS sees nobody and no check reaches ROSETTA from it.
+
+## Grammar sources and fallback
+
+Grammar and translation share one way of trying sources, so a busy wait, a hold until `retry_at`, a resting source, a stale list and "too long" all behave the same, and a hold set by one operation holds a source for the other. Grammar has no gate. Its text is treated as personal, so it goes to any source once masked and is kept nowhere, whatever it holds. A source with no score counts as 0, so it comes after any with a positive score and before one the benchmark marks below zero. An empty list is an answer, and no later source is asked for a second opinion. The stand-in gains `standin-grammar-b`, scoring 55 to the first's 72, so fallback can be tested and walked. The answer's `fallback_used` is true if any piece used fallback. The order and switch screens have offered grammar since E-PRV-02.
+
+## Grammar text is kept nowhere
+
+The suggestions for an identical text are held in process memory only, for `grammar_hold_minutes` (default 10), so a restart forgets them. They are found by a SHA-256 of the text with a random salt made at the start, so even the hash means nothing elsewhere. What is held is the placed suggestions, with no text of the caller's beyond what a source put in a message or replacement; each `context` is made afresh from the text sent. An answer is held only when whole. The cap is `HeldBytes`, 8 MiB by estimate, oldest let go first; that figure is this build's and E-NFR-01 measures it, so it is a constant, not a setting. To be forgotten on time with nobody asking, what is too old is swept on each pass of the source list's timer (about every 30 seconds), through a `Tick` on the Book rather than a timer of its own (AGENTS C6). The same text from another officer or system gets the same held answer, as R-GRM-05 speaks of an identical text, not a person's.
+
+## What counts as placed exactly
+
+A suggestion is dropped, never moved, when it lies outside its piece, has no length, starts or ends between the two units of a character, or touches a stand-in in any way. That last one covers a span holding a whole stand-in as well as one inside it: such a finding is about a number the source never saw, and its replacement could only hold the mask. For the same reason a replacement holding a stand-in goes, and a suggestion whose message holds one goes. Suggestions come back in the order of the text, and one overlapping an earlier one is dropped, as the plug-in marks them one after another and would show it in the wrong place. Each piece is mapped by its own stand-ins, numbered from one, and then by where the piece begins in the whole text, since a stand-in's number and so its length differs between the two.
+
+## The check's form
+
+`POST /api/v2/check` and `GET /api/v2/languages` follow LanguageTool's public v2 form, read against the plug-in's own source. Beyond what the backlog lists, `language.name` is needed: the plug-in looks it up in the language list whenever there is a match, so it is always `English`, the name the list gives. Additions the plug-in ignores: `source` on each match (R-GRM-03), `offered` on each language, and `request_ref`, `fallback_used` and `sources` on the answer. A rule's `id` is `ROSETTA_` and the category, as sources give no rule of their own; `issueType` is LanguageTool's word for the category. Sinhala and Tamil are in the list as `Sinhala (not offered)` and `Tamil (not offered)`, since R-GRM-02 lists them, and picking one answers "unsupported". English's long code is `en-GB`. `auto`, `en` and any `en-*` are English, in any case; no `language` at all is "invalid request"; any other is "unsupported". `enabledOnly` is read by nothing. A key caller's refusal is the JSON shape of the rest of `/api/`.
+
+A text under the limit goes to a source whole, not sentence by sentence as translation does: R-GRM-02 asks for splitting only past what sources allow, a source reads a sentence better among its neighbours, and a letter costs one call and not one each sentence. Over the limit it breaks where `translate.Split` breaks it, then joins neighbours up to the limit. A piece with no letters outside its stand-ins is not sent. An empty text answers an empty list. Text that is not valid UTF-8 is "invalid request", as no position could be true of it. `grammar_chars_max` is R-GRM-02's 20,000, in code points.
+
+Each match's `context` is made from the text as sent while answering, 40 units either side, and never cuts a two-unit character. The plug-in puts that context into its panel as HTML; it replaced `<` before sending, so what comes back is what it sent, and ROSETTA does not escape it, which would move the offsets.
+
 ## What the R2 walk by eye changed
 
 A source switch in `/sources/history` read `true` and `false` in every language; it now reads on and off in the reader's. The gate's history at phone width showed labels with nothing after them on a closed decision; a label now comes only with its value. A true 360 pixels comes from the browser's own emulated width, measured as `window.innerWidth`, since `frame-ancestors 'none'` refuses the page inside a frame. E-ERR-01 and E-TRN-02 stay unticked for a native reader, as R-ERR-02 calls their words approved.

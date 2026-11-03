@@ -30,7 +30,10 @@ type Book struct {
 	MaxAge func(ctx context.Context) time.Duration
 	// Kept, when set, is told of each list read, for the database's copy. A failure
 	// there is logged and changes nothing here.
-	Kept   func(ctx context.Context, l bumblebee.List, at time.Time) error
+	Kept func(ctx context.Context, l bumblebee.List, at time.Time) error
+	// Tick, when set, is called on each pass of the timer, read or not: in-process tidying
+	// that needs no timer of its own (AGENTS C6).
+	Tick   func(ctx context.Context)
 	Logger *slog.Logger
 	Now    func() time.Time // time.Now when nil
 
@@ -108,6 +111,9 @@ func (b *Book) MaxText() int {
 func (b *Book) Run(ctx context.Context) {
 	for {
 		b.Refresh(ctx)
+		if b.Tick != nil {
+			b.Tick(ctx)
+		}
 		wait := max(b.MaxAge(ctx)/2, time.Second)
 		t := time.NewTimer(wait)
 		select {

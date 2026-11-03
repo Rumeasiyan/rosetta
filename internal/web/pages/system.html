@@ -28,6 +28,20 @@
     <tbody>{{range .Data.Limits}}<tr><td><span class="stack-label">{{t $.Lang "oldValue"}}: </span>{{.Old}}</td><td><span class="stack-label">{{t $.Lang "newValue"}}: </span>{{.New}}</td><td>{{.By}}</td><td>{{when .ChangedAt}}</td></tr>{{end}}</tbody>
   </table></div>{{end}}
 
+  <h2 class="fat section">{{t .Lang "originsTitle"}}</h2>
+  <p class="soft">{{t .Lang "originsNote"}}</p>
+  {{if .Data.Origins}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "originAddressShort"}}</th><th scope="col">{{t .Lang "when"}}</th>{{if .Data.Admin}}<th scope="col"><span class="hidden-label">{{t .Lang "originRemove"}}</span></th>{{end}}</tr></thead>
+    <tbody>{{range .Data.Origins}}<tr><td><strong>{{.Origin}}</strong></td><td><span class="stack-label">{{t $.Lang "when"}}: </span>{{when .AddedAt}}</td>{{if $.Data.Admin}}<td>
+      <form method="post" action="/systems/{{$.Data.System.ID}}/origins/remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="origin" value="{{.Origin}}"><button class="pill" type="submit">{{t $.Lang "originRemove"}}<span class="hidden-label">: {{.Origin}}</span></button></form></td>{{end}}</tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "noOrigins"}}</p>{{end}}
+  {{if .Data.Admin}}<form class="fields" method="post" action="/systems/{{.Data.System.ID}}/origins">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="origin">{{t .Lang "originAddress"}}</label>
+    <input id="origin" name="origin" autocomplete="off" inputmode="url" placeholder="https://" required>
+    <button class="pill" type="submit">{{t .Lang "originAdd"}}</button>
+  </form>{{end}}
+
   <h2 class="fat section">{{t .Lang "keys"}}</h2>
   <p class="soft">{{t .Lang "keysNote"}}</p>
   {{if .Data.Keys}}<div class="stack"><table>

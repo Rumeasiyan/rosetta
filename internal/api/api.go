@@ -62,8 +62,14 @@ type Deps struct {
 	Policy   func(ctx context.Context) sources.Policy
 	// Translator answers translation requests. Nil answers "no provider".
 	Translator Translator
-	Logger     *slog.Logger
-	Now        func() time.Time // time.Now when nil
+	// Grammar answers grammar checks. Nil answers "no provider".
+	Grammar GrammarChecker
+	// Origins finds who lists a browser's address (R-CAL-06). Nil lists none.
+	Origins Origins
+	// Usage hears of each grammar check, for the records E-REC-02 adds. Nil keeps nothing.
+	Usage  func(ctx context.Context, u GrammarUse)
+	Logger *slog.Logger
+	Now    func() time.Time // time.Now when nil
 }
 
 // Server is the path.
@@ -73,6 +79,7 @@ type Server struct {
 	counts   *Counts
 	limiter  *limits.Limiter
 	routes   *http.ServeMux
+	checks   *http.ServeMux
 }
 
 // New makes the path.
@@ -83,19 +90,27 @@ func New(deps Deps) *Server {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
-	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux()}
+	s := &Server{deps: deps, counts: NewCounts(deps.Now), limiter: &limits.Limiter{Now: deps.Now}, routes: http.NewServeMux(), checks: http.NewServeMux()}
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
 	})
+	s.checks.HandleFunc("GET "+languagesPath, s.languages)
+	s.checks.HandleFunc("POST "+checkPath, s.check)
+	s.checks.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		s.refuse(w, r, reasons.New(reasons.Invalid))
+	})
 	return s
 }
 
-// Mount adds the path to mux. Later paths, such as grammar's (B 9), take their own
-// longer patterns and never pass through here.
-func (s *Server) Mount(mux *http.ServeMux) { mux.Handle(Prefix, s.withKey(s.routes)) }
+// Mount adds the path to mux. Grammar's (B 9) takes its own longer pattern, so a mark on
+// the translation paths in CERBERUS never covers it.
+func (s *Server) Mount(mux *http.ServeMux) {
+	mux.Handle(Prefix, s.withKey(s.routes))
+	mux.Handle(GrammarPrefix, s.grammarEntry(s.checks))
+}
 
 // Counts is the refusals and failures by reason today, for the status screen (R-CAL-04,
 // R-ADM-02).
@@ -108,6 +123,10 @@ type Request struct {
 	Ref    string // the request reference (R-TRN-06, R-REC-01)
 	Caller callers.Caller
 	Body   []byte
+	// Browser says this came from an officer's browser (R-CAL-06), whose refusals are plain
+	// text, and Officer is who is signed in there.
+	Browser bool
+	Officer string
 }
 
 func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}).(*Request) }
@@ -209,6 +228,11 @@ func bearer(r *http.Request) (string, bool) {
 // answer. The caller's request does not wait long for it.
 func (s *Server) refuseKey(w http.ResponseWriter, r *http.Request, ref, system, why string) {
 	s.answer(w, ref, reasons.New(reasons.NoKey))
+	s.keepDenial(r, ref, system, why)
+}
+
+// keepDenial keeps a refused call as an audit entry, after it has been answered.
+func (s *Server) keepDenial(r *http.Request, ref, system, why string) {
 	if s.deps.Denied == nil {
 		return
 	}
@@ -227,7 +251,12 @@ func (s *Server) answer(w http.ResponseWriter, ref string, f *reasons.Failure) {
 
 // refuse answers a request that passed the key check.
 func (s *Server) refuse(w http.ResponseWriter, r *http.Request, f *reasons.Failure) {
-	s.answer(w, requestOf(r).Ref, f)
+	q := requestOf(r)
+	if q.Browser {
+		s.answerText(w, r, q.Ref, f, plainWord(f.Reason))
+		return
+	}
+	s.answer(w, q.Ref, f)
 }
 
 // Counts holds how many of each reason today, in memory. A request with no known key

@@ -714,3 +714,46 @@ func TestMjolnirSignOutEndsTheSignIn(t *testing.T) {
 		t.Fatalf("still signed in after signing out: %d", res.StatusCode)
 	}
 }
+
+func TestCerberusDecidesByTheSignInCookie(t *testing.T) {
+	ts, _ := start(t)
+	setMode(t, ts.URL, "cerberus", "cookie", map[string]string{"registered_origin": "https://writedocument.epc.test"})
+	ask := func(method string, cookie *http.Cookie, fetchMode ...string) *http.Response {
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/cerberus/check", nil)
+		req.Header.Set("X-Forwarded-Method", method)
+		if len(fetchMode) > 0 {
+			req.Header.Set("Sec-Fetch-Mode", fetchMode[0])
+		}
+		req.Header.Set("Origin", "https://writedocument.epc.test")
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+		c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res
+	}
+	res := ask(http.MethodPost, &http.Cookie{Name: signInCookie, Value: "dev-officer"})
+	if res.StatusCode != 200 || res.Header.Get("X-Cerberus-Account") != "dev-officer" {
+		t.Fatalf("signed in: %d %v", res.StatusCode, res.Header)
+	}
+	res = ask(http.MethodPost, nil)
+	if res.StatusCode != 401 || res.Header.Get("X-Cerberus-Account") != "" || res.Header.Get("Access-Control-Allow-Origin") != "https://writedocument.epc.test" {
+		t.Fatalf("signed out: %d %v", res.StatusCode, res.Header)
+	}
+	res = ask(http.MethodGet, nil, "navigate")
+	if res.StatusCode != 303 {
+		t.Fatalf("a page, signed out: %d", res.StatusCode)
+	}
+	res = ask(http.MethodGet, nil, "cors")
+	if res.StatusCode != 401 || res.Header.Get("Access-Control-Allow-Origin") != "https://writedocument.epc.test" {
+		t.Fatalf("a plug-in's GET, signed out: %d %v", res.StatusCode, res.Header)
+	}
+	res = ask(http.MethodPost, &http.Cookie{Name: "another_cookie", Value: "dev-officer"})
+	if res.StatusCode != 401 {
+		t.Fatalf("another cookie: %d", res.StatusCode)
+	}
+}
