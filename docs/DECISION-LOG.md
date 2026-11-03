@@ -42,7 +42,6 @@ The owner's decision for E-GRM-07: the plug-in runs with the tested edit, creden
 
 The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
 
-<<<<<<< HEAD
 ## The screens' audit, as far as it goes
 
 Run with `axe-core` 4.11 in headless Chrome over every screen each person opens: the administrator, a system owner and an officer with no role, at 1280 and a true emulated 360 pixels, in three languages, 124 runs against the WCAG 2.0, 2.1 and 2.2 A and AA rules and axe's best practices: no violation. Those rules are only what a machine can judge. Reflow at 320 pixels holds on every screen in Sinhala and Tamil. Tab reaches every control on `/usage` with a mark, once date fields had one of their own, since the browser focuses inside them. Weight and time, on Chrome's own throttling at 1 Mbps and 100 ms: 107 KiB and 1.1 seconds for the first page on an empty cache; after that the largest page is 46 KiB and the slowest 0.63 seconds, inside R-NFR-03's 200 KB. No screen asked for anything outside ROSETTA in any walk, and the policy would refuse it. Firefox 155 walks the same screens at 1280 and 360 with nothing overflowing.
@@ -148,8 +147,6 @@ Additions Annex A does not list (migration 008). `read` joins the operations, fo
 
 A failed request records the pieces answered before it failed, and the mismatch and languages it stated; what a source did on the failed piece itself is not counted. Only a language or sensitivity on the fixed lists is written, so nothing a caller typed reaches the table. `characters` counts code points of what was sent (for a memory addition, the source side). For a check, `from_language` is `en`, `to_language` empty; suggestions held in memory (R-GRM-05) count as `pieces_cache`, since they spared a source and Annex A has no nearer word; a check's pieces are the pieces sent. A memory addition's `pieces_memory` is what joined. A preflight is no request of anyone's and leaves nothing.
 
-=======
->>>>>>> r4-glossary-memory
 ## A published change, measured at 500,000 pieces
 
 It runs in the publishing transaction, cache and memory together, so a failure leaves nothing changed. For each language whose term changed, a cached piece is removed and a served memory entry marked if it holds the term there, old words or new, or is a translation into that language of a text holding the term in its own. So correcting the Tamil leaves an English to Sinhala entry alone, and a change to the type or note alone touches nothing. A cached piece that went out with the term stood in for holds no term and stays. `pg_trgm` matches substrings, so a longer word holding the term is marked too; a needless recheck costs a person a moment. The entry and version that marked an entry are kept beside it (migration 007, additions Annex A does not list), so the reviewer can see why. The audit entry for the version gives `cache_removed` and `memory_marked`, counts and no words.
