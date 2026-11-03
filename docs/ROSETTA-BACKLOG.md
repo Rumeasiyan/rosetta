@@ -1,6 +1,6 @@
 # ROSETTA backlog
 
-Source: `docs/ROSETTA-PRD.md` v1.6 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
+Source: `docs/ROSETTA-PRD.md` v1.7 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
 
 ## Definition of done (every story)
 
@@ -137,7 +137,8 @@ Notes:
 | 44 | [ ] | Wave 11 | E-CAL-05 | Daily flags, TVA refresh, post look-ups and role ends | R-CAL-02, R-CAL-05, R-ADM-06; s2; B 11, B 21 | Must | 39 |
 | 45 | [ ] | Wave 11 | E-ADM-06 | Alerts by email to the administrator and owners, from BUMBLEBEE's state | R-ADM-03; B 14 | Must | 41 |
 | 46 | [ ] | Wave 11 | E-GAT-02 | Run the shared test set against a source for the gate | R-GAT-01, R-NFR-14 | Must | 40 |
-| 47 | [ ] | Solo | E-NFR-01 | Capacity, speed and memory under load | R-NFR-01, R-NFR-02; §5 | Must | 44, 45, 46 |
+| 67 | [ ] | Solo | E-TRN-04 | A translation as a background run: start, ask, collect, give up | R-TRN-10, R-TRN-11, R-TRN-12, R-TRN-13, R-CAL-07, R-ERR-01, R-ERR-03, R-REC-01, R-ADM-02, R-NFR-08; B 3 | Must | 19, 38, 41, 43 |
+| 47 | [ ] | Solo | E-NFR-01 | Capacity, speed and memory under load | R-NFR-01, R-NFR-02; §5 | Must | 44, 45, 46, 67 |
 | 48 | [ ] | Wave 12 | E-NFR-02 | Continuity: BUMBLEBEE or every source down; restart mid-request | R-NFR-08, R-NFR-09 | Must | 47 |
 | 49 | [ ] | Wave 12 | E-NFR-03 | Screens audit: weak connection, devices, WCAG, no trackers | R-NFR-03, R-NFR-04, R-NFR-06, R-NFR-11 | Must | 47 |
 
@@ -151,7 +152,8 @@ Notes:
 - **E-CAL-05:** A language with no keeper is flagged here too (s2). Owners come from `systems.json` only. For granted roles it looks up one person's post by email through BIFROST, fact `scroll.staff-lookup`, as `docs/EXCHANGE.md` in BIFROST's repository gives it: when a role is granted, at sign-in, and in a daily pass over live roles. A person found earlier and now not found, or at another post at that office, loses the role, within a day even if they stay signed out. A person never found keeps it, flagged, with the post "not known"; the first time they are found, `post_ref` is filled and the flag clears. Only `found: false` means not found; every other status, refusal or silence, `no_list_held` included, is a failed look-up and changes nothing. `found: true` with no offices counts as found at no post. The daily pass paces itself under BIFROST's limit per key and honours `Retry-After`. The session keeps the post for audit entries; no list is stored. A person switched off is MJOLNIR's, not this story's.
 - **E-ADM-06:** One alert when a state changes, not one per failed request. Only ROSETTA's own owners. Silence from audit is PENSIEVE's to flag, and not alerted here.
 - **E-GAT-02:** A command that takes a test set and a source and writes the score the gate records. Test text is invented or supplied by volunteers, never real letters.
-- **E-NFR-01:** Against stand-ins with their slow modes: inside 250 MB with `GOMEMLIMIT` 200 MiB at capacity; grammar's held suggestions counted. Check `docker stats`, since ROSETTA is one of the 6 systems awake.
+- **E-TRN-04:** The shape agreed with SCOS Pro's session, for every caller (R-CAL-08): `POST /api/v1/translate/runs` with the body of `POST /api/v1/translate`, 202 with `run`, `state` and `ask_again_at`; `GET /api/v1/translate/runs/{run}`; `DELETE` the same. `run not known` is 404. GET and DELETE are signed as any call, with the digest of the empty body. The reference is random, and a run asked after by another system is `run not known`. The run uses the piece pipeline as it stands, a few worked at a time. Forgetting at its time is one timer for that run, not a job loop (AGENTS C6): keep it so. `docs/CALLERS.md` gains all of this; `run not known` joins E-ERR-01's messages. Walk a restart mid-run, then ask after the run. Search the log, tables and outbox for a marker in a personal run: none, ever.
+- **E-NFR-01:** Against stand-ins with their slow modes: inside 250 MB with `GOMEMLIMIT` 200 MiB at capacity; grammar's held suggestions and the most background runs (R-TRN-12) counted. Check `docker stats`, since ROSETTA is one of the 6 systems awake.
 
 ## R6 Go live
 
@@ -189,7 +191,7 @@ Notes:
 - **E-ENB-16:** Policy and frequency are PHOENIX's (RUNBOOK step 7); after a restore the cache is empty and refills (A.1).
 - **E-ENB-17:** `http://bumblebee:8080` on a network ROSETTA joins, whichever link layout the user settles (allspark#28, allspark#29). ROSETTA's key is shown once on BUMBLEBEE's machine and entered in the env file by the user. BUMBLEBEE's story E-ENB-20 is the other side.
 - **E-ENB-18:** With invented or volunteers' test text only. Evaluation needs E-GAT-02 run against each real source.
-- **E-ENB-19:** The `/api/` signature checked for real. The EP website joins later the same way, as a caller under R-CAL-08.
+- **E-ENB-19:** The `/api/` signature checked for real. Officers' translations go by background run if SCOS Pro's own owner adopts it; that is theirs to decide, and the direct path stays for them meanwhile. The EP website joins later the same way, as a caller under R-CAL-08.
 - **E-ENB-20:** SCOS Pro's session does the install on its server; the Check click is done by an officer on an invented letter first, then real ones. Same-site, credentials and timing as found in E-GRM-01 are confirmed on the real addresses.
 
 ## Not in the PRD

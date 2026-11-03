@@ -1,0 +1,61 @@
+{
+  "title": "ROSETTA references",
+  "families": [
+    {
+      "name": "Lexicon paper",
+      "note": "Warm paper, serif type, dictionary pages; quiet and bookish.",
+      "tiles": [
+        "27660284",
+        "6029129",
+        "23856674",
+        "27195399",
+        "27472069",
+        "24610498"
+      ]
+    },
+    {
+      "name": "Working document",
+      "note": "White, dense, a document beside a review panel; made for daily work.",
+      "tiles": [
+        "27783967",
+        "27786869",
+        "27790032",
+        "27553652",
+        "27810930"
+      ]
+    },
+    {
+      "name": "Civic portal",
+      "note": "Government blue, formal, plain lists and notices.",
+      "tiles": [
+        "26789442",
+        "27283906",
+        "26325619",
+        "25766810"
+      ]
+    },
+    {
+      "name": "Soft software",
+      "note": "Rounded, airy, pale tints; friendly modern software.",
+      "tiles": [
+        "27803763",
+        "27426045",
+        "27464103",
+        "27796807",
+        "27401316",
+        "14510113"
+      ]
+    },
+    {
+      "name": "Dark data",
+      "note": "Dark screens, charts, control-room feel.",
+      "tiles": [
+        "27664262",
+        "27535130",
+        "27510736",
+        "25109856",
+        "27551563"
+      ]
+    }
+  ]
+}
