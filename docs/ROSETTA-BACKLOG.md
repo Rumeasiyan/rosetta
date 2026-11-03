@@ -1,6 +1,6 @@
 # ROSETTA backlog
 
-Source: `docs/ROSETTA-PRD.md` v1.7 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
+Source: `docs/ROSETTA-PRD.md` v1.8 (requirements, Annex A data model, Annex B architecture). No process guide. Stories cite these; read them for the detail. `s2` is PRD section 2, `§5` the technology stack, `B n` link n in Annex B. IDs with `P-`, `K-` and `R-LKP` belong to PENSIEVE, CERBERUS and TVA.
 
 ## Definition of done (every story)
 
