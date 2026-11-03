@@ -39,9 +39,15 @@ jobs:
           files=$(find . -name '*.go' -not -path './vendor/*')
           if [ -z "$files" ]; then echo "no Go files"; exit 0; fi
           out=$(gofmt -l $files); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+      - name: the Go the image ships, from the Dockerfile
+        id: go-version
+        run: |
+          version=$(sed -n 's/^FROM golang:\([0-9.]*\).*/\1/p' Dockerfile)
+          if [ -z "$version" ]; then echo "No Go version in the Dockerfile"; exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ steps.go-version.outputs.version }}
       - name: go vet
         run: go vet ./...
       - name: start the database, as dev/compose.yaml gives it
