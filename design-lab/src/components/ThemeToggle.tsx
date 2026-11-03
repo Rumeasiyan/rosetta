@@ -2,7 +2,7 @@ import type { Theme } from '../lib/theme'
 
 /*
   Light/dark is a preview control belonging to the harness, so it lives in the top bar
-  beside the device switch — never inside a rendered screen, where it would become part of
+  beside the device switch - never inside a rendered screen, where it would become part of
   the direction being judged.
 */
 export function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {

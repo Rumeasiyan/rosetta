@@ -59,7 +59,7 @@ const EASINGS = [
 ]
 
 const FIELDS: Field[] = [
-  // Color — every one of these is themed.
+  // Color - every one of these is themed.
   { key: '--color-bg', label: 'Background', type: 'color', themed: true, group: 'Color' },
   { key: '--color-surface', label: 'Surface', type: 'color', themed: true, group: 'Color' },
   { key: '--color-elevated', label: 'Elevated', type: 'color', themed: true, group: 'Color' },
@@ -165,8 +165,8 @@ export function TweakBar({ theme }: { theme: Theme }) {
 
     /*
       Write the attribute ourselves before reading anything. React runs child effects before
-      parent ones, so this effect fires with the new `theme` prop while useTheme — which
-      lives in App, our parent — has not yet put `data-theme` on <html>. Reading computed
+      parent ones, so this effect fires with the new `theme` prop while useTheme - which
+      lives in App, our parent - has not yet put `data-theme` on <html>. Reading computed
       styles at that moment returns the OLD theme's values, which then show up as stale
       numbers in the panel and, worse, get exported into the wrong block. Setting it here is
       idempotent with what useTheme does a moment later.

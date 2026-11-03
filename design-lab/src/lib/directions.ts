@@ -23,9 +23,9 @@ export interface Direction {
 
 /*
   Add one entry per direction (see PROMPT_TEMPLATE.md). Each direction is its own set of
-  screens under src/directions/<id>/ — screens[0] is conventionally Page.tsx, additional
+  screens under src/directions/<id>/ - screens[0] is conventionally Page.tsx, additional
   screens live in src/directions/<id>/screens/<screenId>.tsx. Committed fully to its own
-  aesthetic — do not blend directions inside one component. Use scripts/new-direction.mjs
+  aesthetic - do not blend directions inside one component. Use scripts/new-direction.mjs
   and scripts/new-screen.mjs instead of hand-editing this file.
 
   Keyboard: number keys select a direction, Left/Right cycle directions, Up/Down cycle the

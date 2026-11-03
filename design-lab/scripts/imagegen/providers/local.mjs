@@ -2,7 +2,7 @@
   Self-hosted generation server over HTTP. No per-image cost and nothing leaves the machine,
   which makes it the cheapest way to give a direction real imagery instead of a placeholder.
 
-  Configured entirely from the environment — no host path or machine-specific location is
+  Configured entirely from the environment - no host path or machine-specific location is
   committed to this repo:
 
     IMAGE_GEN_BASE_URL   required, e.g. http://127.0.0.1:8189
@@ -33,7 +33,7 @@ function required(name) {
       `${name} is not set. The local provider needs the base URL of your generation server, ` +
         'e.g. IMAGE_GEN_BASE_URL=http://127.0.0.1:8189 (see .env.example).\n' +
         'If you are an agent: ask the human for this address. Do not scan ports, assume a ' +
-        'default host, or search the filesystem for a model directory — on an unfamiliar ' +
+        'default host, or search the filesystem for a model directory - on an unfamiliar ' +
         'machine you cannot know it, and guessing wrong wastes their GPU or hits something ' +
         'that is not theirs.',
     )
@@ -95,7 +95,7 @@ export async function generate({ prompt, output, width, height }) {
   if (!file.ok) throw new Error(`Fetching the output of job ${id} failed: ${file.status}`)
   await writeFile(output, Buffer.from(await file.arrayBuffer()))
 
-  /* The server echoes the values it actually resolved — including the seed it picked when
-     none was given — so record those, not what we asked for. */
+  /* The server echoes the values it actually resolved - including the seed it picked when
+     none was given - so record those, not what we asked for. */
   return { path: output, jobId: id, params: job.params ?? null }
 }

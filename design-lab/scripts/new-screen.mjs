@@ -2,7 +2,7 @@
 /*
   Scaffolds a new screen inside an existing direction: creates
   src/directions/<directionId>/screens/<screenId>.tsx and appends it to that
-  direction's `screens` array in src/lib/directions.ts. Mirrors new-direction.mjs —
+  direction's `screens` array in src/lib/directions.ts. Mirrors new-direction.mjs -
   see USAGE.md for the multi-screen workflow.
 
   Usage:
@@ -24,7 +24,7 @@ function usage() {
 
 if (!directionId || !screenId || directionId.startsWith('--') || screenId.startsWith('--')) usage()
 if (!/^[a-z0-9-]+$/.test(screenId)) {
-  console.error(`Invalid screen id "${screenId}" — use lowercase letters, digits, hyphens (e.g. detail, settings-2).`)
+  console.error(`Invalid screen id "${screenId}" - use lowercase letters, digits, hyphens (e.g. detail, settings-2).`)
   process.exit(1)
 }
 
@@ -40,11 +40,11 @@ const screensDir = resolve(dirPath, 'screens')
 const screenPath = resolve(screensDir, `${screenId}.tsx`)
 
 if (!existsSync(dirPath)) {
-  console.error(`${dirPath} doesn't exist — create the direction first with scripts/new-direction.mjs.`)
+  console.error(`${dirPath} doesn't exist - create the direction first with scripts/new-direction.mjs.`)
   process.exit(1)
 }
 if (existsSync(screenPath)) {
-  console.error(`${screenPath} already exists — pick a different screen id or edit it directly.`)
+  console.error(`${screenPath} already exists - pick a different screen id or edit it directly.`)
   process.exit(1)
 }
 
@@ -53,7 +53,7 @@ let registry = readFileSync(DIRECTIONS_TS, 'utf8')
 const idMarker = `id: '${directionId}',`
 const directionIdx = registry.indexOf(idMarker)
 if (directionIdx === -1) {
-  console.error(`"${directionId}" is not registered in src/lib/directions.ts — run scripts/new-direction.mjs first.`)
+  console.error(`"${directionId}" is not registered in src/lib/directions.ts - run scripts/new-direction.mjs first.`)
   process.exit(1)
 }
 
@@ -95,7 +95,7 @@ writeFileSync(
         Fill in from your prompt's Aesthetic/Placement (see PROMPT_TEMPLATE.md). Bind every
         color/font/radius to the CSS custom properties in src/tokens.css, and size type in
         em so the TweakBar's Font Scale slider moves it. Check the design in both themes
-        (press D). If it needs an image, generate a real one with scripts/imagegen/index.mjs —
+        (press D). If it needs an image, generate a real one with scripts/imagegen/index.mjs -
         never leave a placeholder image/icon/stock photo in.
       </p>
     </div>

@@ -2,7 +2,7 @@ import type { Screen } from '../lib/directions'
 
 /*
   Vertical rail on the left of the preview, listing the active direction's screens.
-  Renders nothing for a single-screen direction — a nav with one item is just a label.
+  Renders nothing for a single-screen direction - a nav with one item is just a label.
   Up/Down cycle the selection; the handler lives in src/lib/useKeyboardNav.ts so screens
   and directions can't disagree about the arrow keys.
 */

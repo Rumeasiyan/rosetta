@@ -27,7 +27,7 @@ function usage() {
 
 if (!id || id.startsWith('--')) usage()
 if (!/^[a-z0-9-]+$/.test(id)) {
-  console.error(`Invalid id "${id}" — use lowercase letters, digits, hyphens (e.g. v2, v3a).`)
+  console.error(`Invalid id "${id}" - use lowercase letters, digits, hyphens (e.g. v2, v3a).`)
   process.exit(1)
 }
 
@@ -43,7 +43,7 @@ const dirPath = resolve(ROOT, `src/directions/${id}`)
 const pagePath = resolve(dirPath, 'Page.tsx')
 
 if (existsSync(pagePath)) {
-  console.error(`${pagePath} already exists — pick a different id or edit it directly.`)
+  console.error(`${pagePath} already exists - pick a different id or edit it directly.`)
   process.exit(1)
 }
 
@@ -59,7 +59,7 @@ if (!key) {
   const usedKeys = new Set([...registry.matchAll(/key:\s*'(\d)'/g)].map((m) => m[1]))
   key = '123456789'.split('').find((k) => !usedKeys.has(k))
   if (!key) {
-    console.error('No unused number key 1-9 left — pass --key explicitly (shortcuts stop at 9).')
+    console.error('No unused number key 1-9 left - pass --key explicitly (shortcuts stop at 9).')
     process.exit(1)
   }
 }
@@ -83,7 +83,7 @@ writeFileSync(
         Fill in from your prompt's Aesthetic/Placement (see PROMPT_TEMPLATE.md). Bind every
         color/font/radius to the CSS custom properties in src/tokens.css, and size type in
         em so the TweakBar's Font Scale slider moves it. Check the design in both themes
-        (press D). If it needs an image, generate a real one with scripts/imagegen/index.mjs —
+        (press D). If it needs an image, generate a real one with scripts/imagegen/index.mjs -
         never leave a placeholder image/icon/stock photo in.
       </p>
     </div>

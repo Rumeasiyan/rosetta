@@ -13,7 +13,7 @@ import type { Direction } from './directions'
 
   Arrow keys are preventDefault-ed so they don't scroll the page. The INPUT/TEXTAREA guard
   matters more than it looks: TweakBar's sliders are <input type="range">, which is driven
-  by the arrow keys — without the guard, nudging a slider would also change direction.
+  by the arrow keys - without the guard, nudging a slider would also change direction.
 */
 
 function cycle<T>(items: T[], currentIndex: number, delta: number): T | undefined {
