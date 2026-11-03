@@ -11,6 +11,7 @@ var messages = map[string]text{
 	"signInNote": {"Sign in with your provincial account.", "ඔබේ පළාත් ගිණුමෙන් පිවිසෙන්න.", "உங்கள் மாகாண கணக்கினால் உள்நுழைக."},
 
 	"signInFailed":      {"The sign-in did not finish. Please try again.", "පිවිසීම අවසන් වූයේ නැත. නැවත උත්සාහ කරන්න.", "உள்நுழைவு நிறைவடையவில்லை. மீண்டும் முயற்சிக்கவும்."},
+	"activityLost":      {"You have been away too long and must sign in again. Keep what you typed: sign in in a new tab, then come back to this one.", "ඔබ දිගු වේලාවක් නොසිටි බැවින් නැවත පිවිසිය යුතුයි. ඔබ ටයිප් කළ දේ තබා ගන්න: නව පටිත්තකින් පිවිස මෙම පටිත්තට නැවත එන්න.", "நீங்கள் நீண்ட நேரம் செயலின்றி இருந்ததால் மீண்டும் உள்நுழைய வேண்டும். தட்டச்சு செய்ததை வைத்திருங்கள்: புதிய தாவலில் உள்நுழைந்து, இந்தத் தாவலுக்குத் திரும்புங்கள்."},
 	"signInUnavailable": {"The sign-in service is not answering. Your work is safe: please try again in a moment.", "පිවිසුම් සේවාව පිළිතුරු නොදේ. ඔබේ වැඩ ආරක්ෂිතයි: මොහොතකින් නැවත උත්සාහ කරන්න.", "உள்நுழைவுச் சேவை பதிலளிக்கவில்லை. உங்கள் பணி பாதுகாப்பாக உள்ளது: சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்."},
 	"expired":           {"Your session has ended. Please sign in again.", "ඔබේ සැසිය අවසන් වී ඇත. නැවත පිවිසෙන්න.", "உங்கள் அமர்வு முடிந்தது. மீண்டும் உள்நுழைக."},
 	"badForm":           {"That form has expired. Please go back and try again.", "එම පෝරමය කල් ඉකුත් වී ඇත. ආපසු ගොස් නැවත උත්සාහ කරන්න.", "அந்தப் படிவம் காலாவதியானது. பின்சென்று மீண்டும் முயற்சிக்கவும்."},
