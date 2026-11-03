@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Files committed to main by mistake
+
+Local files went into a commit on main by a broad add, and were removed by rewriting main's history, with the owner's yes: reference images of other people's work, a local stand-in's public key and a test document. No credential or personal data was among them. The old commits are on no branch but stay reachable through pull requests #25 and #26 and by SHA, as the owner chose not to ask GitHub Support to purge them. CI now refuses such files, and main ignores them.
+
 ## Background runs
 
 E-TRN-04, in `internal/runs` and `internal/api/runs.go`. The shape is the one agreed with SCOS Pro's session. Choices it left open:
