@@ -4,7 +4,7 @@
 
 UI Design Lab is an open-source **UI/UX design harness**: a Vite + React 19 + Tailwind v4
 template you clone per project to explore several distinct aesthetic *directions* for the
-same screen at once — each direction fully committed to its own look — then tune the
+same screen at once - each direction fully committed to its own look - then tune the
 shared design tokens (color, type, radius, spacing, motion) live with sliders and copy
 the result straight back into CSS.
 
@@ -44,16 +44,16 @@ instead of guessing values in a text editor.
 | Feature | What you get |
 |---|---|
 | **Side-by-side design directions** | One folder per aesthetic direction. Switch with a tab bar, number keys `1`-`9`, `←`/`→`, or press `G` for a grid showing every direction at once. |
-| **Three worked samples to start from** | Editorial, Brutalist, and Soft directions — three screens each, built from the same tokens — showing what a finished direction looks like. One command deletes them all when you're ready to design. |
+| **Three worked samples to start from** | Editorial, Brutalist, and Soft directions - three screens each, built from the same tokens - showing what a finished direction looks like. One command deletes them all when you're ready to design. |
 | **Live design-token tuning** | ~30 controls over the real CSS custom properties in `src/tokens.css`: the full palette (colour pickers, per theme), typography (face, weight, tracking, leading, scale, measure), shape, depth, and motion. "Copy CSS" exports both theme blocks. |
 | **Device preview frames** | Render any screen at mobile (390px), tablet (834px), or desktop width without resizing your browser. |
-| **Light / dark preview** | Every color token has a light-theme value. Toggle with `D` — the control sits in the harness's top bar, never inside the design being judged. |
+| **Light / dark preview** | Every color token has a light-theme value. Toggle with `D` - the control sits in the harness's top bar, never inside the design being judged. |
 | **Multi-screen flows** | A direction can hold several screens (Home → Detail → Settings), listed in a left sidebar and stepped through with `↑`/`↓`. |
 | **Motion as a first-class token** | Duration, easing, and reveal distance are tokens; `--motion-on` gates everything and defaults off under `prefers-reduced-motion`. |
-| **Real assets, not placeholders** | Pluggable image generation — `codex exec` (no API key), a self-hosted local server (no per-image cost), or the OpenAI Images API. A direction is not done until it carries real imagery. |
+| **Real assets, not placeholders** | Pluggable image generation - `codex exec` (no API key), a self-hosted local server (no per-image cost), or the OpenAI Images API. A direction is not done until it carries real imagery. |
 | **Scripted video generation** | `scripts/videogen/` with a pluggable provider dispatcher. Defaults to `manual`: no API call, no cost. |
 | **Inspiration before design** | `pnpm inspiration` pulls Dribbble references and design-system screenshots into a local board of numbered tiles grouped by style family, so the human picks what they like before any direction is built. |
-| **A prompt pattern that works** | `PROMPT_TEMPLATE.md` — the Aesthetic / Reference / Intent / Guardrails structure for driving an AI agent to produce genuinely distinct directions, plus a worked example. |
+| **A prompt pattern that works** | `PROMPT_TEMPLATE.md` - the Aesthetic / Reference / Intent / Guardrails structure for driving an AI agent to produce genuinely distinct directions, plus a worked example. |
 
 ## Who it's for
 
@@ -67,7 +67,7 @@ instead of guessing values in a text editor.
 ## Requirements
 
 - Node.js (22+ recommended)
-- [pnpm](https://pnpm.io) — this repo is **pnpm-only**. `npm install` and `yarn install`
+- [pnpm](https://pnpm.io) - this repo is **pnpm-only**. `npm install` and `yarn install`
   are blocked by a `preinstall` guard (`only-allow pnpm`).
 
 ## Quick start
@@ -90,7 +90,7 @@ node scripts/remove-samples.mjs
 ```
 
 That removes all three sample folders and their registry entries and scaffolds a blank
-`v1`. Do it before you start — a sample sitting in the tab bar next to your real work
+`v1`. Do it before you start - a sample sitting in the tab bar next to your real work
 makes the side-by-side comparison meaningless.
 
 ### Keyboard
@@ -110,26 +110,26 @@ For the full screen-by-screen walkthrough of running a session, see
 
 ## How it's organized
 
-- **`src/tokens.css`** — single source of design truth. Every color/font/radius/spacing
+- **`src/tokens.css`** - single source of design truth. Every color/font/radius/spacing
   a direction uses should be a CSS custom property here, not a hardcoded value in a
   component. Holds two groups: the `--color-*`/`--font-*`/`--radius`/`--gap`/`--motion-*`
   tokens the directions use, and a separate `--chrome-*` set for the harness's own UI.
   Both have a full light-theme override block.
-- **`src/directions/`** — one folder per aesthetic direction, each committed to its own
+- **`src/directions/`** - one folder per aesthetic direction, each committed to its own
   aesthetic and made up of one or more **screens** (`Page.tsx` as the default, more under
   `screens/<screenId>.tsx`). Register new ones in `src/lib/directions.ts`. Ships with
-  three `sample: true` directions — see [`src/directions/README.md`](src/directions/README.md).
-- **`src/components/DirectionToggle.tsx`** — tab bar to switch/compare directions live.
+  three `sample: true` directions - see [`src/directions/README.md`](src/directions/README.md).
+- **`src/components/DirectionToggle.tsx`** - tab bar to switch/compare directions live.
   Number keys 1-9 jump directly to a direction, `G` toggles the all-directions grid view.
   A filter input appears once there are more directions than fit comfortably (>6).
-- **`src/components/ScreenNav.tsx`** — left sidebar listing the active direction's
+- **`src/components/ScreenNav.tsx`** - left sidebar listing the active direction's
   screens (`↑`/`↓` to move); only shows up when a direction has more than one.
-- **`src/lib/useKeyboardNav.ts`** — every keyboard shortcut, in one handler, so
+- **`src/lib/useKeyboardNav.ts`** - every keyboard shortcut, in one handler, so
   directions and screens can't disagree about the arrow keys.
-- **`src/lib/theme.ts`** — light/dark state; flips a `data-theme` attribute that
+- **`src/lib/theme.ts`** - light/dark state; flips a `data-theme` attribute that
   `tokens.css` overrides against.
-- **`src/components/DeviceFrame.tsx`** — mobile/tablet/desktop preview frames.
-- **`src/components/TweakBar.tsx`** — live-adjust tokens (radius, gap, font scale,
+- **`src/components/DeviceFrame.tsx`** - mobile/tablet/desktop preview frames.
+- **`src/components/TweakBar.tsx`** - live-adjust tokens (radius, gap, font scale,
   motion) by eye; "Copy CSS" exports the current values back into `tokens.css` shape.
 
 ## Inspiration first
@@ -158,16 +158,16 @@ them, never commit them, never put one in a direction.
 
 ## Adding a new direction
 
-1. `node scripts/new-direction.mjs v2 --label "V2" --sub "Short description"` — creates
+1. `node scripts/new-direction.mjs v2 --label "V2" --sub "Short description"` - creates
    `src/directions/v2/Page.tsx` as the direction's default screen and registers it in
    `src/lib/directions.ts` in one step.
 2. Fill in the page, binding every visual value to a `var(--token-name)` from
    `tokens.css` (add new tokens there and to `TweakBar.tsx`'s `FIELDS` list if you need
-   new tunable knobs). Size type in `em` — `DeviceFrame` derives the preview's base font
+   new tunable knobs). Size type in `em` - `DeviceFrame` derives the preview's base font
    size from `--font-scale`, and a `rem` would ignore the slider. Check the result in
    both themes.
 3. Same intent/guardrails across all directions in a session; each direction fully
-   commits to its own aesthetic — never blend two directions in one component. See
+   commits to its own aesthetic - never blend two directions in one component. See
    [`PROMPT_TEMPLATE.md`](PROMPT_TEMPLATE.md) for the prompt pattern to drive this.
 
 ## Adding a screen to a direction
@@ -188,7 +188,7 @@ Number keys and `←`/`→` still select *directions*, not screens.
 **A direction is not finished until it carries real imagery.** This is a positive
 requirement, not just a ban on placeholders.
 
-A screen built only from type, borders, and flat colour blocks reads as machine-generated —
+A screen built only from type, borders, and flat colour blocks reads as machine-generated -
 and that is precisely the judgement a design review exists to make. If you cannot tell
 whether a direction is good or just *empty*, it needs assets. Photography, illustration,
 texture, pattern, a logotype, a background gradient mesh: whatever the aesthetic calls for.
@@ -206,7 +206,7 @@ runs inside this project and reads its "never generate without asking" rule, so 
 the flag it stops to ask for confirmation and saves nothing; the script then fails with an
 error naming the flag. An agent passes it only after your recorded yes.
 
-**If an AI agent is doing the work, it must ask you before running this** — for every
+**If an AI agent is doing the work, it must ask you before running this** - for every
 provider, not just the paid one. `codex` spends your ChatGPT Plus session, `openai` bills
 per image, and `local` occupies your GPU. An agent must also never guess where a local
 generation server lives: on a machine it has just cloned onto, it cannot know, so if
@@ -221,28 +221,28 @@ Set `IMAGE_GEN_PROVIDER` in `.env` (copy from `.env.example`):
 | Provider | Cost | Setup |
 |---|---|---|
 | `codex` *(default)* | None beyond your existing ChatGPT Plus subscription | `codex` CLI installed and logged in (`codex login`). No API key. |
-| `local` | None — runs on your own GPU | Set `IMAGE_GEN_BASE_URL` to your generation server. |
+| `local` | None - runs on your own GPU | Set `IMAGE_GEN_BASE_URL` to your generation server. |
 | `openai` | Paid per image | Set `OPENAI_API_KEY`. |
 
 The `local` provider talks to any server exposing `POST /api/generate` →
 `GET /api/jobs/{id}` → `GET /api/jobs/{id}/output?index=0`.
-[story-panel-studio](https://github.com/Rumeasiyan/story-panel-studio) is one such server —
+[story-panel-studio](https://github.com/Rumeasiyan/story-panel-studio) is one such server -
 self-hosted SDXL/FLUX generation on a consumer GPU, so a direction can have as many
 revisions of an image as it needs at no marginal cost.
 
 **No host path is committed to this repo.** The local provider is configured entirely from
 `.env`, so the location of your server stays yours. Note that such servers typically have
-**no authentication** — keep `IMAGE_GEN_BASE_URL` on loopback unless you have put auth in
+**no authentication** - keep `IMAGE_GEN_BASE_URL` on loopback unless you have put auth in
 front of it.
 
-**Verification status:** `codex` and `local` are both **unverified end-to-end** — see open
+**Verification status:** `codex` and `local` are both **unverified end-to-end** - see open
 issues #2 and #13.
 
 ## Motion
 
 **A direction must make a deliberate motion decision.** Same logic as imagery: either it
 moves, or its stillness is a stated aesthetic choice. What fails review is a direction that
-simply never considered motion — a completely inert interface reads as a screenshot and
+simply never considered motion - a completely inert interface reads as a screenshot and
 can't be judged for feel.
 
 Every transition must be built from the motion tokens:
@@ -255,13 +255,13 @@ style={{
 className="hover:-translate-y-[calc(var(--reveal-distance)*0.15*var(--motion-on))]"
 ```
 
-A hardcoded `transition: 200ms ease` is the motion equivalent of a hardcoded hex — it makes
+A hardcoded `transition: 200ms ease` is the motion equivalent of a hardcoded hex - it makes
 the TweakBar's Motion group a lie. Check by flipping Motion off: the direction must
 actually stop moving.
 
 `--motion-on` defaults to `0` under `prefers-reduced-motion: reduce`, so honouring the OS
 setting is automatic for any direction that gates its motion properly. The TweakBar can
-still switch it back on — the preference is the default, not a lock.
+still switch it back on - the preference is the default, not a lock.
 
 ## Visuals first
 
@@ -280,7 +280,7 @@ node scripts/videogen/index.mjs "golden-hour clouds built from binary digits" --
 ```
 
 **Off by default.** With no `VIDEO_GEN_PROVIDER` set (or set to `manual`), this calls no
-API and costs nothing — it prints the composed prompt for you to paste into Google Flow
+API and costs nothing - it prints the composed prompt for you to paste into Google Flow
 (Veo, already covered by an AI Pro subscription's Flow credits) by hand.
 
 To turn on paid automation for a specific project, set in `.env` (copy from
@@ -291,7 +291,7 @@ VIDEO_GEN_PROVIDER=replicate   # or: openrouter, atlascloud
 REPLICATE_API_TOKEN=...
 ```
 
-**The three paid providers are unverified guesses against real API docs** — see open
+**The three paid providers are unverified guesses against real API docs** - see open
 issue #3 before trusting their request/response shapes.
 
 ## FAQ
@@ -305,7 +305,7 @@ sliders. You clone it per design project rather than installing it as a dependen
 
 ### What problem does it solve?
 
-Choosing a visual direction from static mockups is unreliable — you can't feel spacing,
+Choosing a visual direction from static mockups is unreliable - you can't feel spacing,
 motion, or type scale in a PNG. UI Design Lab renders every candidate as a real,
 interactive React screen under identical content and identical device widths, so the
 comparison is fair, then lets you tune the winner's tokens by eye and export the result.
@@ -326,13 +326,13 @@ actual token values are all live, and the tuned output is CSS you paste into a p
 ### Do I need an AI agent to use it?
 
 No. The harness is plain Vite + React + Tailwind and works fine hand-authored. It is
-*optimized* for AI-assisted sessions — `PROMPT_TEMPLATE.md` gives a prompt structure that
-reliably produces distinct directions — but nothing requires an agent.
+*optimized* for AI-assisted sessions - `PROMPT_TEMPLATE.md` gives a prompt structure that
+reliably produces distinct directions - but nothing requires an agent.
 
 ### Do the image and video generation scripts cost money?
 
 Image generation defaults to the `codex` provider, billed against your existing ChatGPT
-Plus session with no separate API key. The `local` provider costs nothing per image — it
+Plus session with no separate API key. The `local` provider costs nothing per image - it
 runs on your own GPU. Only the `openai` provider is paid per image, and it is opt-in.
 Video generation is **off by default**
 (`VIDEO_GEN_PROVIDER=manual`): it composes a prompt for you to paste into Google Flow by
@@ -347,7 +347,7 @@ it.
 
 ### Can I use it commercially?
 
-Yes. It is MIT licensed — clone it, modify it, ship client work from it. See
+Yes. It is MIT licensed - clone it, modify it, ship client work from it. See
 [`LICENSE`](LICENSE).
 
 ### Why does it insist on generated images?
@@ -360,8 +360,8 @@ excuse to skip it.
 
 ### How do I delete the sample directions?
 
-`node scripts/remove-samples.mjs`. It deletes every direction marked `sample: true` —
-folders and registry entries — and scaffolds a blank `v1` if that leaves nothing behind.
+`node scripts/remove-samples.mjs`. It deletes every direction marked `sample: true` -
+folders and registry entries - and scaffolds a blank `v1` if that leaves nothing behind.
 Directions you created yourself are never touched. Pass `--dry-run` to see what it would
 remove first.
 
@@ -382,7 +382,7 @@ tuning UI or the "Copy CSS" export.
 ## Project status
 
 Functional (builds and lints clean), **pre-1.0**. Several pieces are unverified in a real
-browser or against real API docs — run `gh issue list --label unverified`, or see
+browser or against real API docs - run `gh issue list --label unverified`, or see
 [`AGENTS.md`](AGENTS.md) for the full picture. Once every `unverified` issue is closed,
 this cuts `1.0.0`.
 
@@ -396,7 +396,7 @@ repo.
 |---|---|
 | [`USAGE.md`](USAGE.md) | Step-by-step walkthrough of running a design session. |
 | [`PROMPT_TEMPLATE.md`](PROMPT_TEMPLATE.md) | The Aesthetic / Reference / Intent / Guardrails prompt pattern, plus a worked example. |
-| [`AGENTS.md`](AGENTS.md) | Conventions, hard constraints, and versioning policy — for human and AI contributors alike. |
+| [`AGENTS.md`](AGENTS.md) | Conventions, hard constraints, and versioning policy - for human and AI contributors alike. |
 | [`DECISIONS.md`](DECISIONS.md) | Load-bearing design decisions and the reasoning behind them. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to set up, what a PR must satisfy. |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each version. |
@@ -404,7 +404,7 @@ repo.
 
 ## Contributing
 
-Contributions are welcome — read [`CONTRIBUTING.md`](CONTRIBUTING.md) first, especially
+Contributions are welcome - read [`CONTRIBUTING.md`](CONTRIBUTING.md) first, especially
 the hard rules (tokens are the single source of truth; directions never blend; no
 placeholder art). Open an issue before starting non-trivial work.
 

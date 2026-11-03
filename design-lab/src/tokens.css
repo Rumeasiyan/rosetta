@@ -16,7 +16,7 @@
   legible when the light theme is on.
 
   Anything tunable here must have a matching entry in TweakBar.tsx's FIELDS list, and any
-  --color-* token must also appear in the :root[data-theme='light'] block — a token defined
+  --color-* token must also appear in the :root[data-theme='light'] block - a token defined
   only in :root silently keeps its dark value in light mode.
 */
 :root {
@@ -35,8 +35,8 @@
   /* ── type ───────────────────────────────────────────────────────────────── */
   /*
     Three shared faces, not one per direction. A direction differentiates itself by WHICH
-    face it leans on — display for editorial heads, mono throughout for brutalist, body for
-    soft — plus weight, tracking and leading. That is what keeps one token set able to
+    face it leans on - display for editorial heads, mono throughout for brutalist, body for
+    soft - plus weight, tracking and leading. That is what keeps one token set able to
     serve genuinely different aesthetics.
   */
   --font-display: 'Iowan Old Style', Palatino, Georgia, serif;
@@ -63,7 +63,7 @@
   --shadow: 0 var(--shadow-y) calc(var(--shadow-y) * 2.5) rgb(0 0 0 / var(--shadow-strength));
 
   /* ── motion ─────────────────────────────────────────────────────────────── */
-  --motion-on: 1; /* 0 or 1 — multiply a transform/duration by it to gate motion off */
+  --motion-on: 1; /* 0 or 1 - multiply a transform/duration by it to gate motion off */
   --motion-duration: 1; /* multiplier */
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --reveal-distance: 22px;
@@ -104,7 +104,7 @@
 /*
   A direction's motion must be gated by --motion-on, so honouring the OS-level preference is
   a single override rather than something every direction has to remember. The TweakBar can
-  still switch motion back on from here — an explicit inline style beats this block, which
+  still switch motion back on from here - an explicit inline style beats this block, which
   is the right precedence: the preference is the default, not a lock.
 */
 @media (prefers-reduced-motion: reduce) {

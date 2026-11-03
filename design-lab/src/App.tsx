@@ -52,7 +52,7 @@ export default function App() {
           {showAll ? 'All directions' : (active?.label ?? 'No direction')}
           {!showAll && active?.sample && (
             <span className="ml-2 text-[var(--color-accent)]">
-              sample — delete before building
+              sample - delete before building
             </span>
           )}
         </span>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 /*
-  Light/dark is a harness-level preview control, not part of any direction's design — the
+  Light/dark is a harness-level preview control, not part of any direction's design - the
   toggle lives in the top bar, never inside a rendered screen. It flips a `data-theme`
   attribute on <html>; `src/tokens.css` does the rest via its
   `:root[data-theme='light']` override block.
@@ -16,7 +16,7 @@ function readStoredTheme(): Theme {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark') return stored
   } catch {
-    // Private-mode browsers throw on storage access — fall through to the default.
+    // Private-mode browsers throw on storage access - fall through to the default.
   }
   return 'dark'
 }

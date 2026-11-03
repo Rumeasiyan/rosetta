@@ -11,7 +11,7 @@ const WIDTHS: Record<DeviceMode, string> = {
 /*
   The preview's base font-size is derived from --font-scale, which is what makes the
   TweakBar's Font Scale slider do anything. Directions must therefore size type in `em`,
-  not rem/px — a rem resolves against the document root and would ignore this entirely.
+  not rem/px - a rem resolves against the document root and would ignore this entirely.
   The scale deliberately stops at this boundary so the harness chrome never resizes.
 */
 export function DeviceFrame({ mode, children }: { mode: DeviceMode; children: ReactNode }) {

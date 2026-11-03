@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /*
-  Image-gen dispatcher. Reads IMAGE_GEN_PROVIDER from the environment (default: "codex" —
+  Image-gen dispatcher. Reads IMAGE_GEN_PROVIDER from the environment (default: "codex" -
   wraps `codex exec`'s built-in image tool, billed against your existing ChatGPT Plus
   session, no separate API key).
 
   If you are an agent: ASK THE HUMAN BEFORE RUNNING THIS. Every provider costs them
-  something — `codex` spends their ChatGPT Plus session, `openai` bills per image, `local`
+  something - `codex` spends their ChatGPT Plus session, `openai` bills per image, `local`
   occupies their GPU. Propose the prompts, paths and provider, then wait. See AGENTS.md.
 
   Images are not optional decoration in this harness. A direction built only from type and
   CSS boxes reads as machine-generated, which is exactly what a design review is meant to
-  catch — so generate real assets rather than leaving a gap or a grey placeholder. See the
+  catch - so generate real assets rather than leaving a gap or a grey placeholder. See the
   "Assets" section of README.md.
 
   Usage:
@@ -18,9 +18,9 @@
     IMAGE_GEN_PROVIDER=local node scripts/imagegen/index.mjs "prompt" src/directions/v1/hero.png
 
   Providers:
-    codex   (default) `codex exec` image tool — no API key, uses your codex login
-    local   a self-hosted generation server over HTTP — set IMAGE_GEN_BASE_URL
-    openai  the OpenAI Images API — set OPENAI_API_KEY
+    codex   (default) `codex exec` image tool - no API key, uses your codex login
+    local   a self-hosted generation server over HTTP - set IMAGE_GEN_BASE_URL
+    openai  the OpenAI Images API - set OPENAI_API_KEY
 
   --approved: pass it only when the human has said yes to this exact batch (prompts, paths,
   provider) and that yes is recorded in the conversation. The codex provider then tells
@@ -89,7 +89,7 @@ try {
     approved,
   })
 } catch (error) {
-  /* A stack trace here is noise — the useful part is always the message (a missing key, an
+  /* A stack trace here is noise - the useful part is always the message (a missing key, an
      unreachable server, a rejected prompt). */
   console.error(`[imagegen] ${providerName} provider failed: ${error.message}`)
   process.exit(1)

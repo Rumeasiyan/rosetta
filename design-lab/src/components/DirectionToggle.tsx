@@ -3,7 +3,7 @@ import type { Direction } from '../lib/directions'
 
 /*
   Top tab bar: one tab per registered direction, plus the grid toggle. Keyboard shortcuts
-  are NOT handled here — they live in src/lib/useKeyboardNav.ts, because directions
+  are NOT handled here - they live in src/lib/useKeyboardNav.ts, because directions
   (Left/Right, 1-9) and screens (Up/Down) have to share one handler.
 */
 export function DirectionToggle({
@@ -61,7 +61,7 @@ export function DirectionToggle({
                 {d.label}
                 {d.sample && (
                   <span
-                    title="Template example — delete with: node scripts/remove-samples.mjs"
+                    title="Template example - delete with: node scripts/remove-samples.mjs"
                     className="rounded-sm border border-[var(--color-accent)] px-1 text-[9px] font-semibold uppercase tracking-wide text-[var(--color-accent)]"
                   >
                     Sample

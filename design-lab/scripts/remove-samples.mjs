@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
-  Deletes every direction marked `sample: true` — the example directions that ship with
-  the ui-design-lab template — and their registry entries, then scaffolds a blank `v1` if
+  Deletes every direction marked `sample: true` - the example directions that ship with
+  the ui-design-lab template - and their registry entries, then scaffolds a blank `v1` if
   that leaves you with nothing.
 
   Run this once, before you start designing. Leaving a sample in the tab bar next to your
@@ -11,7 +11,7 @@
   Usage:
     node scripts/remove-samples.mjs [--dry-run]
 
-  Directions you created yourself are never touched — only entries carrying `sample: true`.
+  Directions you created yourself are never touched - only entries carrying `sample: true`.
 */
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -29,7 +29,7 @@ const source = readFileSync(DIRECTIONS_TS, 'utf8')
 const ARRAY_OPEN = 'export const directions: Direction[] = ['
 const openIndex = source.indexOf(ARRAY_OPEN)
 if (openIndex === -1) {
-  console.error(`Could not find "${ARRAY_OPEN}" in src/lib/directions.ts — has it been restructured?`)
+  console.error(`Could not find "${ARRAY_OPEN}" in src/lib/directions.ts - has it been restructured?`)
   process.exit(1)
 }
 
@@ -49,7 +49,7 @@ const body = source.slice(bodyStart, bodyEnd)
 */
 const entries = body.match(/^ {2}\{\n[\s\S]*?^ {2}\},\n/gm) ?? []
 if (entries.length === 0) {
-  console.log('No direction entries found — nothing to remove.')
+  console.log('No direction entries found - nothing to remove.')
   process.exit(0)
 }
 
@@ -96,14 +96,14 @@ if (existsSync(DIRECTIONS_README)) {
 }
 
 if (kept.length === 0) {
-  console.log('\nNo directions left — scaffolding a blank v1.')
+  console.log('\nNo directions left - scaffolding a blank v1.')
   const result = spawnSync(
     process.execPath,
     [resolve(ROOT, 'scripts/new-direction.mjs'), 'v1', '--label', 'V1', '--sub', 'First direction'],
     { stdio: 'inherit' },
   )
   if (result.status !== 0) {
-    console.error('Failed to scaffold v1 — run: node scripts/new-direction.mjs v1 --label "V1"')
+    console.error('Failed to scaffold v1 - run: node scripts/new-direction.mjs v1 --label "V1"')
     process.exit(1)
   }
 }

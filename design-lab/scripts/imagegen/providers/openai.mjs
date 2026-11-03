@@ -1,5 +1,5 @@
 /*
-  OpenAI Images API. Costs money per image — opt in per project by setting
+  OpenAI Images API. Costs money per image - opt in per project by setting
   IMAGE_GEN_PROVIDER=openai.
 
     OPENAI_API_KEY   required
@@ -26,7 +26,7 @@ export async function generate({ prompt, output, width, height }) {
 
   /* The only provider here that bills per call. Say so, every time, so a run that was
      started on the agent's initiative is at least visible in the log. */
-  console.error('[imagegen] openai is a PAID provider — this call bills your API account.')
+  console.error('[imagegen] openai is a PAID provider - this call bills your API account.')
 
   const response = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',

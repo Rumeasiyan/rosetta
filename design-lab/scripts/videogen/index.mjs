@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /*
-  Video-gen dispatcher. Reads VIDEO_GEN_PROVIDER from the environment (default: "manual" —
+  Video-gen dispatcher. Reads VIDEO_GEN_PROVIDER from the environment (default: "manual" -
   no API call, no cost, prints the prompt for you to paste into Google Flow by hand).
   Set VIDEO_GEN_PROVIDER=replicate|openrouter|atlascloud to turn on a paid API for a
-  specific project — off by default is intentional, see .env.example and DECISIONS.md for
+  specific project - off by default is intentional, see .env.example and DECISIONS.md for
   why.
 
   Usage:

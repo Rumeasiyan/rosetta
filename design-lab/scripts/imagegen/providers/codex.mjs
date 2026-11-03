@@ -1,5 +1,5 @@
 /*
-  Default provider. Wraps `codex exec`'s built-in image tool — billed against your existing
+  Default provider. Wraps `codex exec`'s built-in image tool - billed against your existing
   ChatGPT Plus session, so no separate API key and no per-image charge. See DECISIONS.md for
   why this rather than a paid image API.
 

@@ -32,17 +32,17 @@ exists). Newest first.
   "Inspiration first" section.
 - See `DECISIONS.md` 2026-11-01 "Inspiration board before any direction".
 
-## 0.6.1 — 2026-08-27
+## 0.6.1 - 2026-08-27
 
 - **New constraint: no generation without asking.** An agent must ask the human before
-  running image or video generation, for *every* provider — `codex` spends a ChatGPT Plus
+  running image or video generation, for *every* provider - `codex` spends a ChatGPT Plus
   session, `openai` bills per image, and `local` occupies a GPU. One confirmation covers
   one stated batch, never a session. Agents must also never select or switch a paid
   provider on their own initiative. Previously nothing said this, and 0.6.0's "a direction
   is not done until it carries real generated imagery" actively read as a licence to
   generate unprompted.
 - **New constraint: never guess where a local generation server lives.** If
-  `IMAGE_GEN_BASE_URL` is unset, ask — no port scanning, no assumed default host, no
+  `IMAGE_GEN_BASE_URL` is unset, ask - no port scanning, no assumed default host, no
   hunting the filesystem for a model directory. A fresh clone on an unfamiliar machine
   cannot know the address, and neither necessarily does the human off the top of their
   head. `local.mjs`'s error message now says so directly.
@@ -53,7 +53,7 @@ exists). Newest first.
   and makes the TweakBar's Motion group a lie.
 - `--motion-on` now defaults to `0` under `prefers-reduced-motion: reduce`, so any
   direction that gates motion properly honours the OS setting for free. The TweakBar can
-  still switch it back on — the preference is the default, not a lock.
+  still switch it back on - the preference is the default, not a lock.
 - `scripts/imagegen/index.mjs` carries the consent rule in its header comment, and the
   `openai` provider prints a "this call bills your API account" line on every run.
 - Rules mirrored into `AGENTS.md`, `CLAUDE.md` (subagent brief), `CONTRIBUTING.md`,
@@ -61,13 +61,13 @@ exists). Newest first.
 - See `DECISIONS.md` 2026-08-27 "Generation requires consent; motion is a required
   decision".
 
-## 0.6.0 — 2026-08-27
+## 0.6.0 - 2026-08-27
 
 - **Breaking (token shape):** `src/tokens.css` roughly tripled. New tokens:
   `--color-elevated`, `--color-accent-fg`, `--font-body`, `--weight-display`,
   `--weight-body`, `--tracking-display`, `--tracking-body`, `--leading-display`,
   `--leading-body`, `--measure`, `--border-width`, `--pad`, `--shadow-strength`,
-  `--shadow-y`, `--shadow`, `--motion-ease`. `--font-serif` was **removed** — the shared
+  `--shadow-y`, `--shadow`, `--motion-ease`. `--font-serif` was **removed** - the shared
   `--font-display` is now the serif, and a direction differentiates itself by which of the
   three faces it leans on rather than by owning a private one.
 - TweakBar went from 6 controls to ~30, in five collapsible groups, with two new field
@@ -78,7 +78,7 @@ exists). Newest first.
 - Image generation is now pluggable: `scripts/imagegen.mjs` became
   `scripts/imagegen/index.mjs` plus `providers/{codex,local,openai}.mjs`, dispatched on
   `IMAGE_GEN_PROVIDER` (default `codex`, unchanged behaviour). The `local` provider talks
-  to a self-hosted generation server configured only via `IMAGE_GEN_BASE_URL` — no host
+  to a self-hosted generation server configured only via `IMAGE_GEN_BASE_URL` - no host
   path is committed.
 - The asset rule is now a positive requirement: a direction is not done until it carries
   real generated imagery. Avoiding imagery entirely now fails the rule the same way a grey
@@ -88,7 +88,7 @@ exists). Newest first.
 - Fixed a React effect-ordering bug surfaced while verifying the above: child effects run
   before parent ones, so TweakBar's effect fired with the new `theme` prop while `useTheme`
   (in `App`) had not yet written `data-theme` to `<html>`. Every computed read in that
-  effect therefore returned the previous theme's values — the panel showed stale numbers
+  effect therefore returned the previous theme's values - the panel showed stale numbers
   and "Copy CSS" wrote them into the wrong block. TweakBar now sets the attribute itself
   before reading.
 - Removed the last references to the maintainer's private planning notes from
@@ -96,7 +96,7 @@ exists). Newest first.
 - See `DECISIONS.md` 2026-08-27 "Rich token set, per-theme tuning, assets as a
   requirement", issue #12.
 
-## 0.5.0 — 2026-08-27
+## 0.5.0 - 2026-08-27
 
 - **Breaking (token shape):** `src/tokens.css` gained a `:root[data-theme='light']`
   override block and a separate `--chrome-*` token set for the harness's own UI. A
@@ -111,7 +111,7 @@ exists). Newest first.
 - Added three sample directions (Editorial, Brutalist, Soft), three screens each, marked
   `sample: true` and badged in the tab bar. `scripts/remove-samples.mjs` deletes every
   sample and scaffolds a blank `v1`.
-- Fixed: the TweakBar's Font Scale slider did nothing — nothing read `--font-scale`.
+- Fixed: the TweakBar's Font Scale slider did nothing - nothing read `--font-scale`.
   `DeviceFrame` now derives the preview's base font size from it, so directions must size
   type in `em`.
 - Fixed: TweakBar held authored CSS ("8px") in state rather than a bare number, so every
@@ -121,7 +121,7 @@ exists). Newest first.
 - See `DECISIONS.md` 2026-08-27 "Left screen rail, arrow-key nav, light theme, shipped
   samples", issue #11.
 
-## 0.4.0 — 2026-08-26
+## 0.4.0 - 2026-08-26
 
 - Renamed `design-template` -> `ui-design-lab` (repo, package name, docs). Open-sourced
   under MIT: added `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`,
@@ -131,7 +131,7 @@ exists). Newest first.
   Vite favicon and page title (closes #4). See `DECISIONS.md` 2026-08-26 "Renamed to
   `ui-design-lab`, went public under MIT", issue #8.
 
-## 0.3.0 — 2026-08-17
+## 0.3.0 - 2026-08-17
 
 - Added multi-screen support per direction (`Direction.screens: Screen[]`, breaking
   change to `src/lib/directions.ts`'s shape), `ScreenNav` component, and
@@ -139,23 +139,23 @@ exists). Newest first.
   past 6 directions). See `DECISIONS.md` 2026-08-17 "Multi-screen directions + direction
   filter", issue #7.
 
-## 0.2.1 — 2026-08-17
+## 0.2.1 - 2026-08-17
 
 - Added a hard "never use placeholder images/assets" constraint (generate real ones via
   `scripts/imagegen.mjs` instead). Updated `AGENTS.md`, `README.md`, `USAGE.md`, and the
   stub generated by `scripts/new-direction.mjs`. See `DECISIONS.md` 2026-08-17 "No
   placeholder images/assets in directions".
 
-## 0.2.0 — 2026-08-17
+## 0.2.0 - 2026-08-17
 
 - Switched to pnpm (`packageManager` field, `preinstall` guard blocking npm/yarn,
   `pnpm-lock.yaml` replacing `package-lock.json`). Deleted `HANDOFF.md`, moved its open
   items to GitHub issues #1-#5. Rewrote `README.md` for accuracy. See `DECISIONS.md`
   2026-08-17 "Switch to pnpm, retire HANDOFF.md in favor of issues".
 
-## 0.1.0 — 2026-08-17
+## 0.1.0 - 2026-08-17
 
 - Added `AGENTS.md`, `CLAUDE.md` shim, `DECISIONS.md`, this changelog, and versioning
   conventions. No functional app code changed. Bumped from `0.0.0` because the harness
   is functional (builds/typechecks clean) even though `HANDOFF.md` lists unverified
-  items — see `DECISIONS.md` 2026-08-17 "Agent docs, versioning, no tracker".
+  items - see `DECISIONS.md` 2026-08-17 "Agent docs, versioning, no tracker".
