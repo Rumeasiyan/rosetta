@@ -28,6 +28,11 @@ var Operations = []string{OpTranslate, OpGrammar, OpMemoryAdd, OpTest, OpRead}
 // Answered is the outcome of a request that was answered; any other is a reason (R-ERR-01).
 const Answered = "answered"
 
+// GivenUp is the outcome of a background run its system gave up (R-TRN-11). It is no reason from
+// R-ERR-01: nothing refused or failed. Annex A names only answered and the reasons; see the decision
+// log.
+const GivenUp = "given up"
+
 // Querier is what these run through: a pool or a transaction.
 type Querier interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)

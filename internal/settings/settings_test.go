@@ -54,6 +54,10 @@ func TestDefaultsAreThePRDs(t *testing.T) {
 	if v.Of(RequestLimitSeconds) != 60 || v.Of(CallerIdleDays) != 90 || v.Of(FailureAlertPercent) != 20 {
 		t.Fatalf("%v", v)
 	}
+	// R-TRN-12 and R-TRN-13's figures.
+	if v.Of(RunLimitMinutes) != 30 || v.Of(RunsPerSystem) != 5 || v.Of(RunsInAll) != 50 || v.Of(RunUncollectedMinutes) != 10 {
+		t.Fatalf("%v", v)
+	}
 	if (Values{}).Of(CallerIdleDays) != 90 {
 		t.Fatal("no value is the default")
 	}
