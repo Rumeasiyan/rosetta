@@ -2,6 +2,15 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The plug-in is edited, and keeps its public scripts
+
+The owner's decision for E-GRM-07: the plug-in runs with the tested edit, credentials on, and keeps loading its scripts from `onlyoffice.github.io`. The risks were stated with the question and are taken:
+
+- The public scripts run on each opening in the frame holding the officer's text, and may send the sign-in cookie.
+- Every other plug-in on that Document Server shares the frame's origin, so could call ROSETTA as the officer; CORS cannot tell them apart.
+- The edit is repeated by hand at each plug-in update.
+
+The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
 ## A published change, measured at 500,000 pieces
 
 It runs in the publishing transaction, cache and memory together, so a failure leaves nothing changed. For each language whose term changed, a cached piece is removed and a served memory entry marked if it holds the term there, old words or new, or is a translation into that language of a text holding the term in its own. So correcting the Tamil leaves an English to Sinhala entry alone, and a change to the type or note alone touches nothing. A cached piece that went out with the term stood in for holds no term and stays. `pg_trgm` matches substrings, so a longer word holding the term is marked too; a needless recheck costs a person a moment. The entry and version that marked an entry are kept beside it (migration 007, additions Annex A does not list), so the reviewer can see why. The audit entry for the version gives `cache_removed` and `memory_marked`, counts and no words.
@@ -88,7 +97,7 @@ Addresses are listed on a system's screen, by the administrator only (R-CAL-06);
 
 B 9 has `POST` on the grammar paths checked by CERBERUS as a person's request, so a key caller from outside would be stopped there before reaching ROSETTA, though R-GRM-01 lets it call. A key caller on the platform network comes directly and is not affected. E-ENB-10 has to settle this if a system outside ever checks grammar with a key.
 
-`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so until its `$.ajax` is changed or the owner decides otherwise, CERBERUS sees nobody and no check reaches ROSETTA from it.
+`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so without the owner's edit CERBERUS sees nobody and no check reaches ROSETTA from it.
 
 ## Grammar sources and fallback
 
