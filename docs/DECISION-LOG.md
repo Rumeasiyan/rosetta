@@ -2,6 +2,16 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The plug-in is edited, and keeps its public scripts
+
+The owner's decision for E-GRM-07: the plug-in runs with the tested edit, credentials on, and keeps loading its scripts from `onlyoffice.github.io`. The risks were stated with the question and are taken:
+
+- The public scripts run on each opening in the frame holding the officer's text, and may send the sign-in cookie.
+- Every other plug-in on that Document Server shares the frame's origin, so could call ROSETTA as the officer; CORS cannot tell them apart.
+- The edit is repeated by hand at each plug-in update.
+
+The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
+
 ## Browser calls on the grammar paths
 
 Who is signed in comes from `X-Cerberus-Account`, which only Caddy sets, as the entry further down says; absent is not signed in, never a default. A system on the platform network could forge that header on these paths, and gains only a check counted to that person, never the screens. CORS names only an origin in `caller_origin`, compared exactly, with `Access-Control-Allow-Credentials: true`, on answers and on ROSETTA's own refusals, so the plug-in's panel can read them; never `*`. An origin not listed gets no CORS headers and "no key" with 401, also when it carries a good key, since R-NFR-10 accepts browser calls only from listed addresses; a server sends no `Origin`. A request with neither a key nor an `Origin` has no system to count to, and is refused the same way. A key with a listed origin goes by the key's rules and counts to the key's system. A key's refusal is the `/api/` JSON; a browser's is plain text in the language of `Accept-Language` if it names one of the three, else English, with `X-Rosetta-Reason` and `X-Rosetta-Request-Ref` in headers. Being signed out and being unlisted have their own words, as "no key" tells an officer nothing, but the reason is still "no key" from the fixed list. "No provider" and "timed out" have words saying check rather than translation.
@@ -12,7 +22,7 @@ Addresses are listed on a system's screen, by the administrator only (R-CAL-06);
 
 B 9 has `POST` on the grammar paths checked by CERBERUS as a person's request, so a key caller from outside would be stopped there before reaching ROSETTA, though R-GRM-01 lets it call. A key caller on the platform network comes directly and is not affected. E-ENB-10 has to settle this if a system outside ever checks grammar with a key.
 
-`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so until its `$.ajax` is changed or the owner decides otherwise, CERBERUS sees nobody and no check reaches ROSETTA from it.
+`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so without the owner's edit CERBERUS sees nobody and no check reaches ROSETTA from it.
 
 ## Grammar sources and fallback
 
