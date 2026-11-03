@@ -1,7 +1,9 @@
 # ROSETTA's levels and idle limits, in the form of CERBERUS's docs/JOINING.md.
 # Give this to the administrator at joining and whenever it changes (E-ENB-10).
 # ROSETTA keeps no idle timer; CERBERUS enforces these. Timed refreshes carry
-# X-Timer-Request and do not count as activity. No level requires a passkey.
+# X-Timer-Request and do not count as activity. Every signed-in screen sends
+# CERBERUS's activity signal to <part>/activity, or /activity at the base, so a
+# person reading or typing is not signed out. No level requires a passkey.
 system: ROSETTA # confirm against ROSETTA's reference in the register (E-ENB-11)
 level: sensitive # glossary, as an officer or keeper uses it
 idle: 60

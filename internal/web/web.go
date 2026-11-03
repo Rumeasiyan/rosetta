@@ -163,6 +163,7 @@ func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 		"langs":           func() []i18n.Lang { return i18n.Langs },
 		"langName":        i18n.Name,
 		"staticPath":      func(name string) string { return StaticPrefix + name },
+		"activityPath":    activityPath,
 		"when":            When,
 		"day":             anyDay,
 		"roleWord":        RoleWord,

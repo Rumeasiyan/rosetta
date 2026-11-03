@@ -6,7 +6,8 @@
 <title>{{t .Lang .Title}} - ROSETTA</title>
 <link rel="icon" href="{{staticPath "favicon.ico"}}">
 <link rel="stylesheet" href="{{staticPath "rosetta.css"}}">
-<script src="{{staticPath "htmx.min.js"}}" defer></script>{{end}}
+<script src="{{staticPath "htmx.min.js"}}" defer></script>
+<script src="{{staticPath "activity.js"}}" defer></script>{{end}}
 
 {{define "flash"}}{{if .Flash}}<p class="note {{.FlashTone}}" role="status">{{t .Lang .Flash}}</p>{{end}}{{end}}
 
@@ -24,7 +25,8 @@
     {{if .Viewer}}<span class="who">{{.Viewer.Name}}</span>
     <form method="post" action="/signout" hx-boost="false"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="pill" type="submit">{{t .Lang "signOut"}}</button></form>{{end}}
   </div>
-</header>{{end}}
+</header>
+{{if .Viewer}}<p class="note warn" id="activity" data-url="{{activityPath .Path}}" role="alert" hidden>{{t .Lang "activityLost"}}</p>{{end}}{{end}}
 
 {{define "frame"}}<!doctype html>
 <html lang="{{.Lang}}">

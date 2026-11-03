@@ -120,6 +120,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	mux.HandleFunc("POST /signout", a.signout)
 	mux.HandleFunc("GET /lang/{lang}", a.setLanguage)
 	mux.Handle("GET /{$}", a.signedIn(a.home))
+	a.mountActivity(mux)
 	a.mountPeople(mux)
 	a.mountSettings(mux)
 	a.mountSystems(mux)
