@@ -38,6 +38,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/posts"
+	"github.com/Rumeasiyan/rosetta/internal/runs"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/terms"
@@ -284,13 +285,18 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Settings: values.Get,
 		Logger:   logger,
 	}
+	// Background runs live here and nowhere else (R-TRN-13). A stop forgets them all at once; Wait
+	// comes before the database closes, so a record being written is finished first.
+	running := &runs.Book{Logger: logger, Limits: func(ctx context.Context) runs.Limits { return runs.LimitsOf(values.Get(ctx)) }}
+	defer running.Wait()
+	defer running.Stop()
 	forTests := *pipeline
 	forTests.Keeper = nil
 	calls := api.New(api.Deps{
 		TestTranslator: &forTests,
 		Counts:         noSystem,
 		Keys:           api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
-		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
+		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline, Runner: pipeline, Runs: running,
 		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
 			return set, err
@@ -300,7 +306,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Usage:   func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 	})
 
-	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, Tester: calls, Posts: post, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, RunCounts: running.Counts, Tester: calls, Posts: post, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
@@ -358,6 +364,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	case err := <-done:
 		return err
 	case <-ctx.Done():
+		running.Stop() // lost with the stop, leaving no record (R-NFR-08, R-REC-01)
 		sctx, cancel := context.WithTimeout(context.Background(), ShutdownGrace)
 		defer cancel()
 		time.AfterFunc(ShutdownGrace-AnswerMargin, endRequests)

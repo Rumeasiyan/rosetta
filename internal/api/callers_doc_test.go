@@ -39,6 +39,8 @@ func TestCallersPageHoldsEveryReasonAndLimit(t *testing.T) {
 	for s, figure := range map[settings.Int]string{
 		settings.PassagesMax: "200, a setting", settings.PassageCharsMax: "5,000, a setting", settings.RequestCharsMax: "20,000, a setting", settings.GrammarCharsMax: "20,000, a setting",
 		settings.CallerPerMinute: "60 to start", settings.CallerAtOnce: "5 to start", settings.RequestLimitSeconds: "60 seconds, a setting",
+		settings.RunLimitMinutes: "30 minutes, a setting", settings.RunsPerSystem: "5 for each system, a setting", settings.RunsInAll: "50 in all, a setting",
+		settings.RunUncollectedMinutes: "10 minutes, a setting",
 	} {
 		line := figure + " "
 		if !strings.Contains(doc, line) && !strings.Contains(doc, figure+", ") {
@@ -124,7 +126,7 @@ func TestTheExampleOnThePageRuns(t *testing.T) {
 
 func wantRun(t *testing.T, out string) {
 	t.Helper()
-	for _, want := range []string{`GET /api/v1/gate: {"directions"`, `POST /api/v1/translate: {"request_ref"`, `"glossary_version"`, `POST /api/v1/memory: {"request_ref"`, `"pieces":1`, `POST /api/v2/check: {"software"`, `"offset":3`, `GET /api/v2/languages: [`} {
+	for _, want := range []string{`GET /api/v1/gate: {"directions"`, `POST /api/v1/translate: {"request_ref"`, `"glossary_version"`, `POST /api/v1/memory: {"request_ref"`, `"pieces":1`, `POST /api/v1/translate/runs: {"run":"run-`, `GET /api/v1/translate/runs/run-`, `refused, reason "run not known"`, `: given up, forgotten`, `POST /api/v2/check: {"software"`, `"offset":3`, `GET /api/v2/languages: [`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("no %q in\n%s", want, out)
 		}

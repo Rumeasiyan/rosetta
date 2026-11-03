@@ -50,6 +50,17 @@ var reasonWords = map[string]string{
 	usage.Answered: "whyAnswered", string(reasons.NoKey): "whyNoKey", string(reasons.OverLimit): "whyOverLimit", string(reasons.Invalid): "whyInvalid",
 	string(reasons.TooLong): "whyTooLong", string(reasons.Unsupported): "whyUnsupported", string(reasons.HumanRequired): "whyHumanRequired",
 	string(reasons.NoProvincial): "whyNoProvincial", string(reasons.MaskingLost): "whyMaskingLost", string(reasons.NoProvider): "whyNoProvider", string(reasons.TimedOut): "whyTimedOut",
+	string(reasons.RunNotKnown): "whyRunNotKnown", usage.GivenUp: "whyGivenUp",
+}
+
+// notAnswered is every outcome but answered, in the screens' order: the fixed list, then a run
+// given up, which is no reason (R-TRN-11).
+func notAnswered() []string {
+	out := make([]string, 0, len(reasons.All)+1)
+	for _, r := range reasons.All {
+		out = append(out, string(r))
+	}
+	return append(out, usage.GivenUp)
 }
 
 func whyWord(outcome string) string {
@@ -121,9 +132,9 @@ type reasonCount struct {
 // reasonsOf is a row's reasons, in the fixed list's order.
 func reasonsOf(r usage.Row) []reasonCount {
 	var out []reasonCount
-	for _, reason := range reasons.All {
-		if n := r.Reasons[string(reason)]; n > 0 {
-			out = append(out, reasonCount{string(reason), n})
+	for _, reason := range notAnswered() {
+		if n := r.Reasons[reason]; n > 0 {
+			out = append(out, reasonCount{reason, n})
 		}
 	}
 	return out
@@ -319,8 +330,8 @@ func (a *App) usageExport(w http.ResponseWriter, r *http.Request) {
 	for _, b := range usage.Buckets {
 		head = append(head, i18n.T(lang, timeWord(b.Name)))
 	}
-	for _, reason := range reasons.All {
-		head = append(head, i18n.T(lang, whyWord(string(reason))))
+	for _, reason := range notAnswered() {
+		head = append(head, i18n.T(lang, whyWord(reason)))
 	}
 	rows := [][]string{head}
 	line := func(label string, x usage.Row) []string {
@@ -329,8 +340,8 @@ func (a *App) usageExport(w http.ResponseWriter, r *http.Request) {
 		for _, n := range x.Buckets {
 			out = append(out, num(n))
 		}
-		for _, reason := range reasons.All {
-			out = append(out, num(x.Reasons[string(reason)]))
+		for _, reason := range notAnswered() {
+			out = append(out, num(x.Reasons[reason]))
 		}
 		return out
 	}

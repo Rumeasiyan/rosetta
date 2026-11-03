@@ -130,6 +130,57 @@ A request is all or nothing. Either every passage comes back in the same order, 
 | `passages[].label` | Only where `machine` is true. Show it beside the text, in the reader's language (R-TRN-07) |
 | `passages[].terms_not_placed` | Only when a source lost a glossary term: each as published, for the reader to place (R-GLO-03) |
 
+## A long translation: background runs
+
+A direct request must finish inside the request limit. Personal text is never cached, so a long personal request that times out starts again each time and may never finish. A background run takes the same request, answers straight away, and works for up to the run limit while you ask after it (R-TRN-10). Direct requests stay. Only systems call this, server to server; never an officer's browser. There is no call back: you ask.
+
+| Call | Does |
+|---|---|
+| `POST /api/v1/translate/runs` | Starts a run. Takes exactly the body of `POST /api/v1/translate` |
+| `GET /api/v1/translate/runs/{run}` | Says how it goes. Once it has ended, hands the answer over, once |
+| `DELETE /api/v1/translate/runs/{run}` | Gives it up: it is forgotten at once |
+
+All three use your key and are signed as every call is. A `GET` or `DELETE` has no body, so what is signed is the digest of the empty body, which must still come: `Content-Digest: sha-256=:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=:`.
+
+### Starting
+
+Answered `202`:
+
+```json
+{"run": "run-...", "state": "waiting", "ask_again_at": "<RFC 3339>"}
+```
+
+`state` is `waiting` or `working`, as in the table below. The reference is random. The request is checked at once and refused as a direct request would be, with the same reason, status and position: `invalid request`, `too long`, `no provincial provider`, `human translation required`, `no provider` while nothing could be called, and `no key`. Past the limits on runs below it is `over limit`, with `retry_at`. Glossary terms, the memory and the cache are read when you start, under the glossary version the answer will state.
+
+### Asking
+
+While it works, answered `200`, and never any text:
+
+```json
+{"state": "working", "pieces_done": 12, "pieces_total": 40, "ask_again_at": "<RFC 3339>"}
+```
+
+| `state` | Means |
+|---|---|
+| `waiting` | Taken on, waiting its turn: only a few runs are worked at a time |
+| `working` | Pieces are going to a source |
+
+Keep to `ask_again_at`, which is ROSETTA's reckoning from the pieces so far. Asking counts against neither your requests a minute nor your requests at once (R-CAL-07), and neither does giving up. Only the `POST` that starts a run counts, and only while it is answered. An ask leaves no usage record of its own.
+
+An answer with `state` is still going; an answer without it is the end. Once a run has ended, the next ask answers exactly what `POST /api/v1/translate` would have answered, status and body: `200` and [the answer](#the-answer), or the failure's status and [its body](#failures), with `position` and `reason` (R-TRN-11). Its `request_ref` is the run's own, which every call to a source carried and its usage record holds. All of that is handed over once and then forgotten, so keep it before you do anything else with it; a connection lost during that answer loses the answer, and you send the request again (R-TRN-05).
+
+### Giving up
+
+`DELETE` answers `204` with no body, and the run is forgotten at once. Pieces already sent to a source cannot be called back. A second `DELETE` or an ask after it is `run not known`.
+
+### When it is not known
+
+`run not known` is `404`. It means any of these, and the answer does not say which: the run was handed over, given up, not collected in time, or lost when ROSETTA restarted (R-NFR-08), or the reference is not one of your system's. Another system's run reads just like one that was never there. Send the request again (R-TRN-05). Ordinary text picks up what the cache kept; personal text starts from the beginning.
+
+### Holding
+
+A run's text, its masks and its answer are held only in the service's memory, never in the database, on a disk, in a record or in a log (R-TRN-13). They go when the answer is handed over, when you give up, when the uncollected limit passes, and at any restart. Personal text stays uncached; confidential text is refused as ever (R-MSK-01). Ordinary text goes through the translation cache as a direct request's does (R-TRN-08), its numbers masked. A graceful stop loses every run just as a crash does. A run is one usage record, written when it ends, however it ends; a run lost to a restart leaves none (R-REC-01).
+
 ## Sending approved text: `POST /api/v1/memory`
 
 Text a person approved in your system joins the shared memory, and answers every system from then on (R-MEM-01, R-MEM-02). Your own record of the approval stays the authoritative one.
@@ -215,7 +266,7 @@ Decide on `reason`, not on the HTTP status or the words. `position` counts from 
 | `reason` | HTTP | Means | What to do |
 |---|---|---|---|
 | `no key` | 401 | No key, an unknown or turned-off key, a bad signature, a key with no public key from outside, or a system no longer live or may join. Recorded as a denial | Fix the key or the signature. Do not retry as it stands |
-| `over limit` | 429 | Past your requests a minute or at once. Not a denial. `retry_at` says when | Wait, then send again |
+| `over limit` | 429 | Past your requests a minute or at once, or the limits on runs. Not a denial. `retry_at` says when | Wait, then send again |
 | `invalid request` | 400 | Not a request ROSETTA can read: a field missing or wrong, an address that is not there | Fix the request |
 | `too long` | 413 | Past a limit below; `position` if one passage is at fault | Send less |
 | `unsupported` | 422 | A language not offered for a check | Do not retry |
@@ -223,7 +274,8 @@ Decide on `reason`, not on the HTTP status or the words. `position` counts from 
 | `no provincial provider` | 403 | Confidential text | Do not send it here |
 | `masking lost` | 502 | A source lost or changed a stand-in, so the value could not be put back (R-MSK-03) | Send again; if it persists, tell a person |
 | `no provider` | 503 | Every allowed source failed, or BUMBLEBEE is down. `retry_at` is the earliest a source is expected | Keep working without it, and try later |
-| `timed out` | 504 | Past the request limit below | Send again (R-TRN-05) |
+| `timed out` | 504 | Past the request limit below, or a run past its limit | Send again (R-TRN-05) |
+| `run not known` | 404 | ROSETTA does not hold this run: handed over, given up, not collected, lost in a restart, or not your system's | Send it again (R-TRN-05) |
 
 ## Limits
 
@@ -239,16 +291,20 @@ These are ROSETTA's own, and the Office can change those marked a setting. Each 
 | Requests a minute | 60 to start, your system's own (`caller_requests_per_minute`) | `over limit` |
 | Requests at once | 5 to start, your system's own (`caller_requests_at_once`) | `over limit` |
 | One request in all | 60 seconds, a setting (`request_limit_seconds`) | `timed out` |
+| One background run, from when it is taken on, waiting included | 30 minutes, a setting (`run_limit_minutes`) | `timed out`, handed over when you ask |
+| Runs at once | 5 for each system, a setting (`runs_per_system`) | `over limit`, with `retry_at` |
+| Runs at once | 50 in all, a setting (`runs_in_all`) | `over limit`, with `retry_at` |
+| An answer waiting to be collected | 10 minutes, a setting (`run_uncollected_minutes`) | Forgotten, then `run not known` |
 | Live keys | 2 for each system | Refused on the screen |
 | A signature's time | 5 minutes either way | `no key` |
 
-Characters are Unicode code points; a check's positions are UTF-16 units. A minute is any 60 seconds. A refused request counts against no limit.
+Characters are Unicode code points; a check's positions are UTF-16 units. A minute is any 60 seconds. A refused request counts against no limit. A run counts against the limits on runs until it is forgotten, so one that has ended still counts until you collect it or give it up.
 
 A system with no request for 90 days (a setting, `caller_idle_days`) is flagged to the administrator, and so is one no longer live or may join (R-CAL-05).
 
 ## What ROSETTA keeps
 
-A usage record of every request: your system, the officer if signed in, the operation, sensitivity, languages, counts, sources, time taken, outcome and reference (R-REC-01). Never the text or the answer. Your system's owner reads it on `/usage`. Refused keys go to the provincial audit record as denials; usage stays in ROSETTA.
+A usage record of every request: your system, the officer if signed in, the operation, sensitivity, languages, counts, sources, time taken, outcome and reference (R-REC-01). Never the text or the answer. A background run is one request with one record, written when it ends; its outcome is `given up` if you gave it up. Your system's owner reads it on `/usage`. Refused keys go to the provincial audit record as denials; usage stays in ROSETTA.
 
 ## When this page changes
 
@@ -256,7 +312,7 @@ Changes only add to what exists (R-ADM-07). A change that would break a caller r
 
 ## A copy-and-run example
 
-Standard library only. It reads the gate, translates, adds to the memory and checks grammar, signing when `ROSETTA_PRIVATE_KEY` is set, and shows each failure's reason. A failed call is printed, not fatal, since a closed gate is an answer.
+Standard library only. It reads the gate, translates directly and as a background run, adds to the memory and checks grammar, signing when `ROSETTA_PRIVATE_KEY` is set, and shows each failure's reason. A failed call is printed, not fatal, since a closed gate is an answer.
 
 <!-- markdownlint-disable MD010 -->
 ```go
@@ -305,12 +361,11 @@ func sign(r *http.Request, body []byte, apiKey string, key ed25519.PrivateKey) {
 	r.Header.Set("Signature", "rosetta=:"+std.EncodeToString(ed25519.Sign(key, []byte(base)))+":")
 }
 
-// call sends one request and prints what came back. It says a call could not be made at all as an
-// error; a refusal is an answer, read from its reason.
-func call(method, path, contentType string, body []byte, apiKey string, key ed25519.PrivateKey) error {
+// send makes one call and gives its status and body.
+func send(method, path, contentType string, body []byte, apiKey string, key ed25519.PrivateKey) (int, []byte, error) {
 	r, err := http.NewRequest(method, strings.TrimRight(os.Getenv("ROSETTA_URL"), "/")+path, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 	r.Header.Set("Authorization", "Bearer "+apiKey)
 	if contentType != "" {
@@ -322,11 +377,21 @@ func call(method, path, contentType string, body []byte, apiKey string, key ed25
 	client := http.Client{Timeout: 70 * time.Second} // past the request limit, so its answer arrives
 	res, err := client.Do(r)
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(res.Body)
-	if res.StatusCode != http.StatusOK {
+	raw, err := io.ReadAll(res.Body)
+	return res.StatusCode, raw, err
+}
+
+// call sends one request and prints what came back. It says a call could not be made at all as an
+// error; a refusal is an answer, read from its reason.
+func call(method, path, contentType string, body []byte, apiKey string, key ed25519.PrivateKey) ([]byte, error) {
+	status, raw, err := send(method, path, contentType, body, apiKey, key)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK && status != http.StatusAccepted {
 		var failure struct {
 			RequestRef string `json:"request_ref"`
 			Error      struct {
@@ -336,9 +401,67 @@ func call(method, path, contentType string, body []byte, apiKey string, key ed25
 		}
 		json.Unmarshal(raw, &failure)
 		fmt.Printf("%s %s: refused, reason %q, try again %q, reference %s\n", method, path, failure.Error.Reason, failure.Error.RetryAt, failure.RequestRef)
-		return nil
+		return nil, nil
 	}
 	fmt.Printf("%s %s: %s\n", method, path, raw)
+	return raw, nil
+}
+
+// backgroundRun starts a run, keeps to the time it is told, and collects the answer, which is
+// handed over once. A second ask then says the run is not known. A second run is started and given up.
+func backgroundRun(body []byte, apiKey string, key ed25519.PrivateKey) error {
+	const runs = "/api/v1/translate/runs"
+	raw, err := call(http.MethodPost, runs, "application/json", body, apiKey, key)
+	if err != nil || raw == nil {
+		return err
+	}
+	var started struct {
+		Run        string `json:"run"`
+		AskAgainAt string `json:"ask_again_at"`
+	}
+	if err := json.Unmarshal(raw, &started); err != nil {
+		return err
+	}
+	at := started.AskAgainAt
+	for {
+		next, err := time.Parse(time.RFC3339, at)
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Until(next))
+		raw, err := call(http.MethodGet, runs+"/"+started.Run, "", nil, apiKey, key)
+		if err != nil {
+			return err
+		}
+		var state struct {
+			State      string `json:"state"`
+			AskAgainAt string `json:"ask_again_at"`
+		}
+		if raw != nil {
+			json.Unmarshal(raw, &state)
+		}
+		if state.State == "" { // no state: this was the end, handed over
+			break
+		}
+		at = state.AskAgainAt
+	}
+	if _, err := call(http.MethodGet, runs+"/"+started.Run, "", nil, apiKey, key); err != nil {
+		return err
+	}
+	raw, err = call(http.MethodPost, runs, "application/json", body, apiKey, key)
+	if err != nil || raw == nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, &started); err != nil {
+		return err
+	}
+	status, _, err := send(http.MethodDelete, runs+"/"+started.Run, "", nil, apiKey, key)
+	if err != nil {
+		return err
+	}
+	if status == http.StatusNoContent {
+		fmt.Printf("DELETE %s/%s: given up, forgotten\n", runs, started.Run)
+	}
 	return nil
 }
 
@@ -381,10 +504,14 @@ func main() {
 		{http.MethodPost, "/api/v2/check", "application/x-www-form-urlencoded", []byte(check)},
 		{http.MethodGet, "/api/v2/languages", "", nil},
 	} {
-		if err := call(c.method, c.path, c.contentType, c.body, apiKey, key); err != nil {
+		if _, err := call(c.method, c.path, c.contentType, c.body, apiKey, key); err != nil {
 			fmt.Fprintln(os.Stderr, "the call could not be made:", err)
 			os.Exit(1)
 		}
+	}
+	if err := backgroundRun(translation, apiKey, key); err != nil {
+		fmt.Fprintln(os.Stderr, "the call could not be made:", err)
+		os.Exit(1)
 	}
 }
 ```

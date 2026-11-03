@@ -22,6 +22,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/memory"
+	"github.com/Rumeasiyan/rosetta/internal/runs"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/standin"
@@ -97,11 +98,14 @@ func newPathWorld(t *testing.T) *pathWorld {
 	cache := translate.Cache{Q: pool, Settings: values}
 	published := &glossary.Book{Q: pool}
 	fallback := &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: policy, Logger: logger}
+	pipeline := &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger}
+	running := &runs.Book{Logger: logger, Limits: func(ctx context.Context) runs.Limits { return runs.LimitsOf(values(ctx)) }}
+	t.Cleanup(func() { running.Stop(); running.Wait() })
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy, Origins: api.PoolOrigins{Pool: pool},
-		Translator: &translate.Service{Glossary: published, Memory: memory.Served{Q: pool}, Cache: cache, Keeper: cache, Sources: fallback, Settings: values, Logger: logger},
-		Memory:     &memory.Service{Pool: pool, Settings: values, Logger: logger},
-		Usage:      func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
+		Translator: pipeline, Runner: pipeline, Runs: running,
+		Memory: &memory.Service{Pool: pool, Settings: values, Logger: logger},
+		Usage:  func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 		Grammar: &grammar.Service{Sources: fallback, Settings: values, Held: &grammar.Held{}, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
 			_, set, err := published.Terms(ctx, "en", "en")
 			return set, err

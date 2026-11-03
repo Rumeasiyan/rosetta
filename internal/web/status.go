@@ -82,8 +82,12 @@ type statusData struct {
 	Refusals int64
 	Failures int64
 	Reasons  []statusReason
-	Admin    bool
-	NoSystem []statusReason
+	// Runs given up today: neither a refusal nor a failure (R-TRN-11).
+	GivenUp int64
+	// The background runs waiting and working, as counts (R-ADM-02). A system owner's are their own.
+	RunsWaiting, RunsWorking int
+	Admin                    bool
+	NoSystem                 []statusReason
 	// What has not reached PENSIEVE, which only a screen and the log can show (the decision on the
 	// audit outbox); silence from audit is PENSIEVE's own to flag.
 	OutboxWaiting, OutboxRefused int
@@ -125,7 +129,11 @@ func (a *App) statusPage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	d.Requests = today[usage.Answered]
+	d.GivenUp = today[usage.GivenUp]
+	d.Requests = today[usage.Answered] + d.GivenUp
+	if a.deps.RunCounts != nil {
+		d.RunsWaiting, d.RunsWorking = a.deps.RunCounts(ids, d.Admin)
+	}
 	for _, reason := range reasons.All {
 		n := today[string(reason)]
 		d.Requests += n

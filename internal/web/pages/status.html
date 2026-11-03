@@ -22,6 +22,7 @@
     <li>{{t .Lang "statusRequests"}}: <strong>{{.Data.Requests}}</strong></li>
     <li>{{t .Lang "statusRefusals"}}: <strong>{{.Data.Refusals}}</strong></li>
     <li>{{t .Lang "statusFailures"}}: <strong>{{.Data.Failures}}</strong></li>
+    {{if .Data.GivenUp}}<li>{{t .Lang "statusGivenUp"}}: <strong>{{.Data.GivenUp}}</strong></li>{{end}}
   </ul>
   {{if .Data.Reasons}}<div class="stack section-gap"><table>
     <thead><tr><th scope="col">{{t .Lang "reason"}}</th><th scope="col">{{t .Lang "statusKind"}}</th><th scope="col">{{t .Lang "usageRequests"}}</th></tr></thead>
@@ -32,6 +33,8 @@
   {{if .Data.NoSystem}}<h3 class="order-title section-gap">{{t .Lang "statusNobody"}}</h3>
   <p class="soft">{{t .Lang "statusNobodyNote"}}</p>
   <ul class="chips">{{range .Data.NoSystem}}<li>{{t $.Lang (whyWord .Reason)}}: <strong>{{.Count}}</strong></li>{{end}}</ul>{{end}}
+  <h2 class="fat section">{{t .Lang "statusRuns"}}</h2>
+  <ul class="chips"><li>{{t .Lang "statusRunsWaiting"}}: <strong>{{.Data.RunsWaiting}}</strong></li><li>{{t .Lang "statusRunsWorking"}}: <strong>{{.Data.RunsWorking}}</strong></li></ul>
   {{if .Data.Admin}}<h2 class="fat section">{{t .Lang "flagsTitle"}}</h2>
   {{if .Data.Flagged}}<ul class="row-list">
     {{range .Data.FlaggedSystems}}<li><a href="/systems/{{.ID}}">{{.Name}}</a>: {{t $.Lang (flagWord .Flag)}}</li>{{end}}

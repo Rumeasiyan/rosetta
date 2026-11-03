@@ -23,6 +23,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/limits"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
+	"github.com/Rumeasiyan/rosetta/internal/runs"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/usage"
@@ -66,6 +67,10 @@ type Deps struct {
 	// TestTranslator answers tests from the screens: the same pipeline as Translator, keeping
 	// nothing (Annex A). Nil answers "no provider".
 	TestTranslator Translator
+	// Runner and Runs start background runs and hold them in memory (R-TRN-10, R-TRN-13). Nil
+	// answers "no provider".
+	Runner RunStarter
+	Runs   *runs.Book
 	// Memory keeps approved text. Nil answers "no provider".
 	Memory MemoryAdder
 	// Grammar answers grammar checks. Nil answers "no provider".
@@ -106,6 +111,9 @@ func New(deps Deps) *Server {
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
+	s.routes.HandleFunc("POST "+runsPath, s.runStart)
+	s.routes.HandleFunc("GET "+runsPath+"/{run}", s.runAsk)
+	s.routes.HandleFunc("DELETE "+runsPath+"/{run}", s.runGiveUp)
 	s.routes.HandleFunc("POST /api/v1/memory", s.memoryAdd)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
@@ -140,8 +148,10 @@ type Request struct {
 	// text, and Officer is who is signed in there.
 	Browser bool
 	Officer string
-	// Use is this request's usage record, written when it has been answered (R-REC-01).
-	Use *usage.Record
+	// Use is this request's usage record, written when it has been answered (R-REC-01), unless
+	// NoRecord says it is part of a background run, which is one request, recorded when it ends.
+	Use      *usage.Record
+	NoRecord bool
 }
 
 func requestOf(r *http.Request) *Request { return r.Context().Value(requestKey{}).(*Request) }
@@ -152,6 +162,9 @@ func NewRef() string { return "r-" + oidc.Random() }
 
 // operationOf names the work the address stands for, whatever came of the request.
 func operationOf(r *http.Request) string {
+	if r.URL.Path == runsPath && r.Method == http.MethodPost {
+		return usage.OpTranslate
+	}
 	switch r.URL.Path {
 	case "/api/v1/translate":
 		return usage.OpTranslate
@@ -192,7 +205,13 @@ func (s *Server) withKey(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ref := NewRef()
 		rec := &usage.Record{Ref: ref, Operation: operationOf(r), Outcome: usage.Answered}
-		defer s.keepUse(r, rec, s.deps.Now())
+		q := &Request{Ref: ref, Use: rec}
+		started := s.deps.Now()
+		defer func() {
+			if !q.NoRecord {
+				s.keepUse(r, rec, started)
+			}
+		}()
 		key, ok := bearer(r)
 		if !ok {
 			s.refuseKey(w, r, rec, "", "No key was sent")
@@ -242,14 +261,18 @@ func (s *Server) withKey(next http.Handler) http.Handler {
 			s.deps.Logger.Error("a key's use was not noted", "request_ref", ref)
 		}
 		// Over a limit is no denial (E-REC-02's note): the key was good. Limits are read
-		// with the key, so a change is in force at once.
-		release, wait, allowed := s.limiter.Acquire(h.Caller.ID, h.Caller.PerMinute, h.Caller.AtOnce)
-		if !allowed {
-			s.answer(w, rec, reasons.New(reasons.OverLimit).Until(s.deps.Now().Add(wait)))
-			return
+		// with the key, so a change is in force at once. Asking after a run counts against
+		// neither (R-CAL-07).
+		if !askingAfterRun(r) {
+			release, wait, allowed := s.limiter.Acquire(h.Caller.ID, h.Caller.PerMinute, h.Caller.AtOnce)
+			if !allowed {
+				s.answer(w, rec, reasons.New(reasons.OverLimit).Until(s.deps.Now().Add(wait)))
+				return
+			}
+			defer release()
 		}
-		defer release()
-		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, requestKey{}, &Request{Ref: ref, Caller: h.Caller, Body: body, Use: rec})))
+		q.Caller, q.Body = h.Caller, body
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, requestKey{}, q)))
 	})
 }
 

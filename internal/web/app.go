@@ -62,7 +62,10 @@ type Deps struct {
 	Tester Tester
 	// NoSystem is today's refusals of requests with no known system (R-CAL-04). Nil counts none.
 	NoSystem func() map[reasons.Reason]int
-	Logger   *slog.Logger
+	// RunCounts is the background runs waiting and working, for these systems or for all (R-ADM-02).
+	// Nil shows none.
+	RunCounts func(systems []int64, all bool) (waiting, working int)
+	Logger    *slog.Logger
 }
 
 // PostChecker looks one person up and gives the post a session keeps for its audit entries.

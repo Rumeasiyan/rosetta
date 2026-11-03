@@ -30,10 +30,11 @@ const (
 	MaskingLost   Reason = "masking lost"
 	NoProvider    Reason = "no provider"
 	TimedOut      Reason = "timed out"
+	RunNotKnown   Reason = "run not known"
 )
 
 // All is the whole list, in the order of R-ERR-01.
-var All = []Reason{NoKey, OverLimit, Invalid, TooLong, Unsupported, HumanRequired, NoProvincial, MaskingLost, NoProvider, TimedOut}
+var All = []Reason{NoKey, OverLimit, Invalid, TooLong, Unsupported, HumanRequired, NoProvincial, MaskingLost, NoProvider, TimedOut, RunNotKnown}
 
 // statuses and words are each reason's HTTP status and message key. Callers decide
 // on the reason; the status only says the same thing to the HTTP layer.
@@ -42,11 +43,12 @@ var (
 		NoKey: http.StatusUnauthorized, OverLimit: http.StatusTooManyRequests, Invalid: http.StatusBadRequest,
 		TooLong: http.StatusRequestEntityTooLarge, Unsupported: http.StatusUnprocessableEntity, HumanRequired: http.StatusConflict,
 		NoProvincial: http.StatusForbidden, MaskingLost: http.StatusBadGateway, NoProvider: http.StatusServiceUnavailable,
-		TimedOut: http.StatusGatewayTimeout,
+		TimedOut: http.StatusGatewayTimeout, RunNotKnown: http.StatusNotFound,
 	}
 	words = map[Reason]string{
 		NoKey: "reasonNoKey", OverLimit: "reasonOverLimit", Invalid: "reasonInvalid", TooLong: "reasonTooLong", Unsupported: "reasonUnsupported",
 		HumanRequired: "reasonHumanRequired", NoProvincial: "reasonNoProvincial", MaskingLost: "reasonMaskingLost", NoProvider: "reasonNoProvider", TimedOut: "reasonTimedOut",
+		RunNotKnown: "reasonRunNotKnown",
 	}
 )
 
