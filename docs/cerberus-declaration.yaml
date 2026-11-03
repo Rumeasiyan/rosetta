@@ -1,0 +1,55 @@
+# ROSETTA's levels and idle limits, in the form of CERBERUS's docs/JOINING.md.
+# Give this to the administrator at joining and whenever it changes (E-ENB-10).
+# ROSETTA keeps no idle timer; CERBERUS enforces these. Timed refreshes carry
+# X-Timer-Request and do not count as activity. No level requires a passkey.
+system: ROSETTA # confirm against ROSETTA's reference in the register (E-ENB-11)
+level: sensitive # glossary, as an officer or keeper uses it
+idle: 60
+parts:
+  # Grammar checks from the officer's browser. An officer writes for long
+  # between checks, and a refusal breaks the plug-in's panel.
+  - path: /api/v2/
+    level: sensitive
+    idle: 480
+  - path: /api/v2/check
+    method: OPTIONS
+    open: the browser's CORS preflight carries no sign-in
+  - path: /api/v2/languages
+    method: OPTIONS
+    open: the browser's CORS preflight carries no sign-in
+  # Other systems and PARADOX, each proving itself.
+  - path: /api/v1/
+    open: API for other systems, checked by its own key and signature
+  - path: /jobs/
+    open: PARADOX's signed calls
+  # Administration and personal data.
+  - path: /people
+    level: highly_sensitive
+    idle: 30
+  - path: /settings
+    level: highly_sensitive
+    idle: 30
+  - path: /gate
+    level: highly_sensitive
+    idle: 30
+  - path: /sources
+    level: highly_sensitive
+    idle: 30
+  - path: /status
+    level: highly_sensitive
+    idle: 30
+  - path: /systems
+    level: highly_sensitive
+    idle: 30
+  - path: /usage
+    level: highly_sensitive
+    idle: 30
+  - path: /memory
+    level: highly_sensitive
+    idle: 30
+  - path: /glossary/import
+    level: highly_sensitive
+    idle: 30
+  - path: /glossary/export
+    level: highly_sensitive
+    idle: 30

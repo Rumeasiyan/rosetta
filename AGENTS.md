@@ -68,4 +68,4 @@ To run it and walk the screens from source, with the database up: `set -a; . ./.
 | C7 | Database only through PgBouncer in transaction mode, pool 5; session entry for migrations. | STACK 4 |
 | C8 | No dates, prices or em dashes in this repository. British English. | Owner |
 
-Merging: stories land on a release branch; the owner says yes per release (`docs/STANDARDS.md` section 4).
+Merging: stories land on a release branch, and the owner's standing rule is that commit, push, merge and version tags need no question: report after (`docs/STANDARDS.md` section 4). This repository is public, so read every pull request's file list before merging.
