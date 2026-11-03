@@ -6,7 +6,7 @@ Two forms of the plug-in were run. **A:** addresses edited only. **B:** A, plus 
 
 ## The edit a Document Server's installer makes
 
-Ready for the owner's decision. In `scripts/langTool.js` of the plug-in as fetched, four lines, of which two are new (the file indents with tabs, shown here as spaces). On epc.lk the address is `https://rosetta.epc.lk`.
+The owner took this edit. In `scripts/langTool.js` of the plug-in as fetched, four lines, of which two are new (the file indents with tabs, shown here as spaces). On epc.lk the address is `https://rosetta.epc.lk`.
 
 ```diff
 -    var serviceUrl       = "https://api.languagetoolplus.com/v2/check";
@@ -34,16 +34,17 @@ Ready for the owner's decision. In `scripts/langTool.js` of the plug-in as fetch
 
 The folder goes into `/var/www/onlyoffice/documentserver/sdkjs-plugins/`, named by the plug-in's GUID, `{7CDB02C9-A0BF-4B56-9A1A-71C860B8498F}`. Document Server then lists it by itself in `/plugins.json`, with no restart and no image rebuild. Without credentials on, nobody is signed in and every check is refused. The edit must be made again whenever the plug-in is updated.
 
-What the owner should weigh with it:
+The owner took the edit knowing these risks, and kept the public scripts rather than a local copy:
 
 - **The plug-in's frame has the editor's origin**, so any plug-in on that Document Server could call ROSETTA as the officer if it turned credentials on. CORS cannot tell them apart.
-- **It loads three scripts and styles from the public internet** on each opening (below). They run in the frame that holds the officer's text and may send the cookie. The Document Server has its own copy under `sdkjs-plugins/v1/`; changing `index.html` to use it would be a further edit, not walked.
+- **It loads three scripts and styles from the public internet** on each opening (below). They run in the frame that holds the officer's text and may send the cookie. The Document Server has its own copy under `sdkjs-plugins/v1/`; changing `index.html` to use it would be a further edit, not walked and not taken.
+- **The edit is repeated by hand** at each plug-in update; until it is, nobody is signed in and every check is refused.
 
 ## What was read, and what was watched
 
 | Question | Read from the source | Watched | Consequence |
 |---|---|---|---|
-| Does it send credentials? | No: no `xhrFields`. | **Confirmed.** Run A: no `Cookie` on either call, though the sign-in cookie was set for `.epc.test`. Run B: `Cookie` on both. | As shipped no sign-in reaches ROSETTA. The owner's decision. |
+| Does it send credentials? | No: no `xhrFields`. | **Confirmed.** Run A: no `Cookie` on either call, though the sign-in cookie was set for `.epc.test`. Run B: `Cookie` on both. | As shipped no sign-in reaches ROSETTA. The owner took the edit. |
 | Can it be pointed at ROSETTA unchanged? | No: the address is in `serviceUrl` and `getLanguages()`. | **Confirmed.** | R-GRM-01's "unchanged" means the file's addresses change. |
 | Which origin is the plug-in's frame? | Assumed the editor's. | **Confirmed.** `self.origin` in the frame is `https://writedocument.epc.test`; its parent is the editor on that origin, and the page above is another. `Origin` on the calls is the same, and `Referer` is that address and `/`. | The address to list on the system is the editor's, not the page's. |
 | Does a check send a preflight? | No: a form POST and a plain GET. | **Confirmed.** No `OPTIONS` in any run, credentials on or off. | The `OPTIONS` mark stays harmless. ROSETTA's named origin with credentials allowed lets the browser read the answer: seen. |
@@ -81,7 +82,7 @@ Signed in, cookie set, plug-in otherwise stock. `GET /api/v2/languages` and, on 
 
 ## A hazard in the plug-in itself
 
-**Insert to document acts on the selection as it is when clicked, with the whole field's text.** While mistakes stand, the plug-in stops following the selection. An officer who checks one passage, clicks elsewhere and then inserts overwrites the new selection with the checked passage. In the walk, selecting the second line after a check and inserting put the three checked lines in its place, so the letter held them twice. From the source, with nothing selected it inserts at the cursor. This is stock behaviour and the edit above does not change it.
+**Insert to document acts on the selection as it is when clicked, with the whole field's text.** While mistakes stand, the plug-in stops following the selection. An officer who checks one passage, clicks elsewhere and then inserts overwrites the new selection with the checked passage. In the walk, selecting the second line after a check and inserting put the three checked lines in its place, so the letter held them twice. From the source, with nothing selected it inserts at the cursor. This is stock behaviour and the edit above does not change it. Open with the owner.
 
 ## What remains unproven
 

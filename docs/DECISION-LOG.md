@@ -2,6 +2,15 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## The plug-in is edited, and keeps its public scripts
+
+The owner's decision for E-GRM-07: the plug-in runs with the tested edit, credentials on, and keeps loading its scripts from `onlyoffice.github.io`. The risks were stated with the question and are taken:
+
+- The public scripts run on each opening in the frame holding the officer's text, and may send the sign-in cookie.
+- Every other plug-in on that Document Server shares the frame's origin, so could call ROSETTA as the officer; CORS cannot tell them apart.
+- The edit is repeated by hand at each plug-in update.
+
+The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
 ## The screens' audit, as far as it goes
 
 Run with `axe-core` 4.11 in headless Chrome over every screen each person opens: the administrator, a system owner and an officer with no role, at 1280 and a true emulated 360 pixels, in three languages, 124 runs against the WCAG 2.0, 2.1 and 2.2 A and AA rules and axe's best practices: no violation. Those rules are only what a machine can judge. Reflow at 320 pixels holds on every screen in Sinhala and Tamil. Tab reaches every control on `/usage` with a mark, once date fields had one of their own, since the browser focuses inside them. Weight and time, on Chrome's own throttling at 1 Mbps and 100 ms: 107 KiB and 1.1 seconds for the first page on an empty cache; after that the largest page is 46 KiB and the slowest 0.63 seconds, inside R-NFR-03's 200 KB. No screen asked for anything outside ROSETTA in any walk, and the policy would refuse it. Firefox 155 walks the same screens at 1280 and 360 with nothing overflowing.
@@ -193,7 +202,7 @@ Addresses are listed on a system's screen, by the administrator only (R-CAL-06);
 
 B 9 has `POST` on the grammar paths checked by CERBERUS as a person's request, so a key caller from outside would be stopped there before reaching ROSETTA, though R-GRM-01 lets it call. A key caller on the platform network comes directly and is not affected. E-ENB-10 has to settle this if a system outside ever checks grammar with a key.
 
-`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so until its `$.ajax` is changed or the owner decides otherwise, CERBERUS sees nobody and no check reaches ROSETTA from it.
+`Deps.Usage` is the hook E-REC-02 fills, called once for each check with no text in it. The stock plug-in sends no credentials as shipped (`docs/plugin-findings.md`), so without the owner's edit CERBERUS sees nobody and no check reaches ROSETTA from it.
 
 ## Grammar sources and fallback
 
