@@ -11,6 +11,7 @@ The owner's decision for E-GRM-07: the plug-in runs with the tested edit, creden
 - The edit is repeated by hand at each plug-in update.
 
 The edit and the evidence are in `docs/plugin-findings.md`. For the owner: the frozen PRD still says the plug-in works "unchanged" (section 1, R-GRM-01, section 5), and Annex B link 2 says text is sent only on a Check click, which the walk partly refuted. Those words are not changed here. The hazard of Insert after moving the selection stays open.
+
 ## A published change, measured at 500,000 pieces
 
 It runs in the publishing transaction, cache and memory together, so a failure leaves nothing changed. For each language whose term changed, a cached piece is removed and a served memory entry marked if it holds the term there, old words or new, or is a translation into that language of a text holding the term in its own. So correcting the Tamil leaves an English to Sinhala entry alone, and a change to the type or note alone touches nothing. A cached piece that went out with the term stood in for holds no term and stays. `pg_trgm` matches substrings, so a longer word holding the term is marked too; a needless recheck costs a person a moment. The entry and version that marked an entry are kept beside it (migration 007, additions Annex A does not list), so the reviewer can see why. The audit entry for the version gives `cache_removed` and `memory_marked`, counts and no words.
