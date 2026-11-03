@@ -8,11 +8,12 @@ system: ROSETTA # confirm against ROSETTA's reference in the register (E-ENB-11)
 level: sensitive # glossary, as an officer or keeper uses it
 idle: 60
 parts:
-  # Grammar checks from the officer's browser. An officer writes for long
-  # between checks, and a refusal breaks the plug-in's panel.
+  # Grammar checks from the officer's browser. No idle limit, by the owner's
+  # ruling: the editor sends no activity signal, and a person typing there is
+  # active. The level's limit on a sign-in's age still applies.
   - path: /api/v2/
     level: sensitive
-    idle: 480
+    idle: none
   - path: /api/v2/check
     method: OPTIONS
     open: the browser's CORS preflight carries no sign-in
