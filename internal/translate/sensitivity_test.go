@@ -7,10 +7,17 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 )
 
 // spyAnswerer notes what it is asked.
 type spyAnswerer struct{ asked []string }
+
+// Terms is what the pipeline asks the glossary: being asked is what is counted.
+func (a *spyAnswerer) Terms(_ context.Context, _, _ string) (int, *terms.Set, error) {
+	a.asked = append(a.asked, "terms")
+	return 0, nil, nil
+}
 
 func (a *spyAnswerer) Answer(_ context.Context, l Lookup) (Hit, bool, error) {
 	a.asked = append(a.asked, l.Normal)

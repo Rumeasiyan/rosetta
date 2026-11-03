@@ -23,15 +23,20 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/Rumeasiyan/rosetta/internal/config"
 	"github.com/Rumeasiyan/rosetta/internal/db"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/health"
+	"github.com/Rumeasiyan/rosetta/internal/hedwig"
 	"github.com/Rumeasiyan/rosetta/internal/jobs"
+	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/Rumeasiyan/rosetta/internal/sources"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 	"github.com/Rumeasiyan/rosetta/internal/translate"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/web"
+	"github.com/jackc/pgx/v5"
 )
 
 const usage = `usage:
@@ -177,7 +182,12 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	defer stopReading()
 	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
 	defer outbox.Wait()
-	screens, err := web.New(web.Deps{Pool: pool, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	notices := &glossary.Notifier{Pool: pool, PublicURL: public, Logger: logger}
+	if links.HedwigURL != "" {
+		notices.Sender = hedwig.Client{URL: links.HedwigURL, Key: links.HedwigKey}
+	}
+	defer notices.Wait()
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}
@@ -189,21 +199,25 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	}, settings.RefreshEvery, logger)
 	cache := translate.Cache{Q: pool, Settings: values.Get}
 	fallback := &sources.Fallback{Book: book, Provider: provider, Grammars: provider, Policy: policy.Get, Logger: logger}
+	published := &glossary.Book{Q: pool}
 	pipeline := &translate.Service{
-		Glossary: translate.None{}, // E-GLO-04
-		Memory:   translate.None{}, // E-MEM-02
+		Glossary: published,
+		Memory:   memory.Served{Q: pool},
 		Cache:    cache,
 		Keeper:   cache,
 		Sources:  fallback,
 		Settings: values.Get,
-		Version:  translate.GlossaryVersion(pool),
 		Logger:   logger,
 	}
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,
 		Snapshot: book.Snapshot, Policy: policy.Get, Translator: pipeline,
-		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger},
+		Grammar: &grammar.Service{Sources: fallback, Settings: values.Get, Held: held, Logger: logger, Glossary: func(ctx context.Context) (*terms.Set, error) {
+			_, set, err := published.Terms(ctx, "en", "en")
+			return set, err
+		}},
 		Origins: api.PoolOrigins{Pool: pool},
+		Memory:  &memory.Service{Pool: pool, Settings: values.Get, Kick: outbox.Kick, Logger: logger},
 	})
 
 	mux := http.NewServeMux()
@@ -214,7 +228,14 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		jobs.Job{Name: "nightly", Run: jobs.Nothing},    // E-REC-03
 		jobs.Job{Name: "partitions", Run: jobs.Nothing}, // E-REC-03
 		jobs.Job{Name: "daily", Run: jobs.Nothing},      // E-CAL-05
-		jobs.Job{Name: "audit-catch-up", Run: outbox.Job},
+		jobs.Job{Name: "audit-catch-up", Run: func(ctx context.Context, tx pgx.Tx, run string) (int, error) {
+			sent, err := outbox.Job(ctx, tx, run)
+			if err != nil {
+				return sent, err
+			}
+			told, err := notices.Job(ctx, tx, run)
+			return sent + told, err
+		}},
 	), logger))
 
 	ln, err := net.Listen("tcp", cfg.Listen)

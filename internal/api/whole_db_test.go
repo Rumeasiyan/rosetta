@@ -73,7 +73,7 @@ func TestTheWholePathAgainstTheDatabase(t *testing.T) {
 	cache := translate.Cache{Q: pool, Settings: values}
 	calls := api.New(api.Deps{
 		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy,
-		Translator: &translate.Service{Glossary: translate.None{}, Memory: translate.None{}, Cache: cache, Keeper: cache,
+		Translator: &translate.Service{Memory: translate.None{}, Cache: cache, Keeper: cache,
 			Sources:  &sources.Fallback{Book: book, Provider: client, Policy: policy, Logger: logger},
 			Settings: values, Version: translate.GlossaryVersion(pool), Logger: logger},
 	})

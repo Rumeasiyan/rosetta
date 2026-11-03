@@ -6,13 +6,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/text/unicode/norm"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 )
 
 // Normalise is the one way text is normalised before it is compared or stored
 // (R-NFR-05): the same word is always matched, whichever way it was typed. What goes to
 // a source and comes back in an answer is left as it was written.
-func Normalise(s string) string { return norm.NFC.String(s) }
+func Normalise(s string) string { return terms.Normalise(s) }
 
 // Span is a piece of a text, in bytes.
 type Span struct {

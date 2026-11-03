@@ -1,0 +1,22 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "glossaryImport"}}</h1><p class="hero-line">{{t .Lang "glossaryImportNote"}}</p></div>
+<div class="content wide">
+  {{template "flash" .}}
+  {{with .Data.Done}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t $.Lang "glossaryImportRows"}}</th><th scope="col">{{t $.Lang "glossaryImportAccepted"}}</th><th scope="col">{{t $.Lang "glossaryImportRefused"}}</th></tr></thead>
+    <tbody><tr><td><span class="stack-label">{{t $.Lang "glossaryImportRows"}}: </span>{{.Rows}}</td><td><span class="stack-label">{{t $.Lang "glossaryImportAccepted"}}: </span>{{.Accepted}}</td><td><span class="stack-label">{{t $.Lang "glossaryImportRefused"}}: </span>{{len .Refused}}</td></tr></tbody>
+  </table></div>
+  {{if .Refused}}<h2 class="fat section">{{t $.Lang "glossaryImportRefused"}}</h2>
+  <ul class="row-list">{{range .Refused}}<li><strong>{{t $.Lang "glossaryImportRowWord"}} {{.Row}}:</strong> {{t $.Lang .Word}}</li>{{end}}</ul>{{end}}
+  <div class="inline row-actions"><a class="pill solid" href="/glossary/waiting">{{t $.Lang "glossaryWaiting"}}</a></div>{{end}}
+  <h2 class="fat section">{{t .Lang "glossaryImportFile"}}</h2>
+  <p class="soft">{{t .Lang "glossaryImportLimit"}}: {{.Data.Limit}}</p>
+  <form class="fields" method="post" action="/glossary/import" enctype="multipart/form-data" hx-boost="false">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="file">{{t .Lang "glossaryImportFile"}}</label>
+    <input id="file" name="file" type="file" accept=".xlsx" required>
+    <button class="pill solid" type="submit">{{t .Lang "glossaryImportSend"}}</button>
+  </form>
+</div>
+{{end}}

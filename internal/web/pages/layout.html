@@ -2,7 +2,7 @@
      "page", calling "frame", and "main". */}}
 {{define "head"}}<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"historyCacheSize":0,"refreshOnHistoryMiss":true,"responseHandling":[{"code":"204","swap":false},{"code":"...","swap":true}]}'>
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"attributesToSettle":["class","width","height"],"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"historyCacheSize":0,"refreshOnHistoryMiss":true,"responseHandling":[{"code":"204","swap":false},{"code":"...","swap":true}]}'>
 <title>{{t .Lang .Title}} - ROSETTA</title>
 <link rel="icon" href="{{staticPath "favicon.ico"}}">
 <link rel="stylesheet" href="{{staticPath "rosetta.css"}}">
@@ -35,3 +35,21 @@
 <main id="main">{{template "main" .}}</main>
 </body>
 </html>{{end}}
+
+{{define "glossary-table"}}{{$lang := .Lang}}<div class="stack"><table>
+  <thead><tr>{{range langs}}<th scope="col" lang="{{.}}">{{langName .}}</th>{{end}}<th scope="col">{{t $lang "glossaryType"}}</th><th scope="col">{{t $lang "glossaryState"}}</th></tr></thead>
+  <tbody>{{range .Entries}}{{$e := .}}<tr>
+    {{range $i, $x := .Terms}}<td lang="{{$x.Language}}">{{if $x.Text}}<a href="/glossary/{{$e.ID}}"><strong>{{$x.Text}}</strong></a>{{else}}<a class="soft" href="/glossary/{{$e.ID}}">{{t $lang "glossaryNotWritten"}}</a>{{end}}</td>{{end}}
+    <td><span class="stack-label">{{t $lang "glossaryType"}}: </span>{{t $lang (typeWord .Type)}}</td>
+    <td><span class="stack-label">{{t $lang "glossaryState"}}: </span>{{t $lang (statusWord .Status)}}</td>
+  </tr>{{end}}</tbody>
+</table></div>{{end}}
+
+{{define "memory-table"}}{{$lang := .Lang}}<div class="stack"><table>
+  <thead><tr><th scope="col">{{t $lang "memorySource"}}</th><th scope="col">{{t $lang "memoryAsApproved"}}</th><th scope="col">{{t $lang "glossaryState"}}</th></tr></thead>
+  <tbody>{{range .Entries}}<tr>
+    <td lang="{{.From}}"><a href="/memory/{{.ID}}"><strong>{{.Source}}</strong></a></td>
+    <td lang="{{.To}}"><span class="stack-label">{{t $lang "memoryAsApproved"}}: </span>{{.Approved}}</td>
+    <td><span class="stack-label">{{t $lang "glossaryState"}}: </span>{{t $lang (memoryStateWord .State)}}</td>
+  </tr>{{end}}</tbody>
+</table></div>{{end}}

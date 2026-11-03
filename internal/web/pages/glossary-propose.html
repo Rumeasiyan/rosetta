@@ -1,0 +1,20 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+{{$e := .Data.Entry}}
+<div class="hero"><h1 class="fat hero-title">{{if $e}}{{t .Lang "glossaryCorrect"}}{{else}}{{t .Lang "glossaryPropose"}}{{end}}</h1><p class="hero-line">{{if $e}}{{t .Lang "glossaryCorrectNote"}}{{else}}{{t .Lang "glossaryProposeNote"}}{{end}}</p></div>
+<div class="content">
+  {{template "flash" .}}
+  <form class="fields" method="post" action="/glossary/propose">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    {{if $e}}<input type="hidden" name="replaces" value="{{$e.ID}}">{{end}}
+    {{range $i, $l := langs}}<label for="text-{{$l}}" lang="{{$l}}">{{langName $l}}</label>
+    <input id="text-{{$l}}" name="text_{{$l}}" lang="{{$l}}" maxlength="500" autocomplete="off"{{if $e}} value="{{($e.Term $l).Text}}"{{end}}>{{end}}
+    <label for="type">{{t .Lang "glossaryType"}}</label>
+    <select id="type" name="type" required>{{range .Data.Types}}<option value="{{.}}"{{if $e}}{{if eq . $e.Type}} selected{{end}}{{end}}>{{t $.Lang (typeWord .)}}</option>{{end}}</select>
+    <label for="note">{{t .Lang "glossaryNote"}}</label>
+    <textarea id="note" name="note" rows="3" maxlength="500">{{if $e}}{{$e.Note}}{{end}}</textarea>
+    <button class="pill solid" type="submit">{{t .Lang "glossarySend"}}</button>
+  </form>
+  <div class="inline row-actions"><a class="pill" href="/glossary/mine">{{t .Lang "glossaryMine"}}</a></div>
+</div>
+{{end}}

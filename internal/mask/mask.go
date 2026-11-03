@@ -28,6 +28,7 @@ type Kind string
 const (
 	Card  Kind = "card"
 	Phone Kind = "phone"
+	Term  Kind = "term" // a glossary term, protected from a source (E-GLO-04)
 )
 
 // ErrLost says the source lost or changed a stand-in (R-MSK-03). It holds no text.
@@ -38,7 +39,8 @@ type Item struct {
 	Token     string
 	Value     string
 	Kind      Kind
-	Start     int // in Masked.Text
+	Answer    string // a term's published translation: what its stand-in becomes in an answer
+	Start     int    // in Masked.Text
 	End       int
 	OrigStart int // in the original text
 	OrigEnd   int
@@ -121,16 +123,23 @@ func wordByte(b byte) bool {
 // tokenFor is the stand-in with number n.
 func tokenFor(n int) string { return fmt.Sprintf("⟦M%d⟧", n) }
 
+// termTokenFor is the stand-in for a glossary term: the same family, so one check covers both.
+func termTokenFor(n int) string { return fmt.Sprintf("⟦G%d⟧", n) }
+
 // numberer hands out stand-ins, skipping any the text already holds as written.
 type numberer struct {
 	text string
 	next int
+	make func(int) string
 }
 
 func (n *numberer) token() string {
+	if n.make == nil {
+		n.make = tokenFor
+	}
 	for {
 		n.next++
-		if t := tokenFor(n.next); !strings.Contains(n.text, t) {
+		if t := n.make(n.next); !strings.Contains(n.text, t) {
 			return t
 		}
 	}
@@ -208,6 +217,7 @@ func (m Masked) Slice(start, end int) Masked {
 	}
 	rest.WriteString(m.Text[last:end])
 	num := numberer{text: rest.String()}
+	terms := numberer{text: rest.String(), make: termTokenFor}
 
 	var b strings.Builder
 	var items []Item
@@ -215,16 +225,99 @@ func (m Masked) Slice(start, end int) Masked {
 	shift := 0 // how far the original text has moved inside this part
 	for _, it := range inside {
 		b.WriteString(m.Text[last:it.Start])
-		token := num.token()
+		token := ""
+		if it.Kind == Term {
+			token = terms.token()
+		} else {
+			token = num.token()
+		}
 		at := b.Len()
 		b.WriteString(token)
 		from := it.Start + shift - start
-		items = append(items, Item{Token: token, Value: it.Value, Kind: it.Kind, Start: at, End: b.Len(), OrigStart: from, OrigEnd: from + len(it.Value)})
+		items = append(items, Item{Token: token, Value: it.Value, Kind: it.Kind, Answer: it.Answer, Start: at, End: b.Len(), OrigStart: from, OrigEnd: from + len(it.Value)})
 		shift += len(it.Value) - (it.End - it.Start)
 		last = it.End
 	}
 	b.WriteString(m.Text[last:end])
 	return Masked{Text: b.String(), Items: items}
+}
+
+// Protection is one glossary term to protect, in bytes of Masked.Text.
+type Protection struct {
+	Start, End int
+	Answer     string
+}
+
+// Protect replaces glossary terms with their own stand-ins, ⟦G1⟧, ⟦G2⟧, so a source cannot change
+// them. They must be in order and apart, and never touch a masked value. An item keeps the term as
+// written, so Plain and Unprotected give the text back.
+func (m Masked) Protect(list []Protection) Masked {
+	if len(list) == 0 {
+		return m
+	}
+	num := numberer{text: m.Text, make: termTokenFor}
+	var b strings.Builder
+	var items []Item
+	last := 0
+	old := m.Items
+	flush := func(until int) {
+		for len(old) > 0 && old[0].Start < until {
+			it := old[0]
+			old = old[1:]
+			b.WriteString(m.Text[last:it.Start])
+			last = it.End
+			at := b.Len()
+			b.WriteString(it.Token)
+			it.Start, it.End = at, b.Len()
+			items = append(items, it)
+		}
+	}
+	for _, p := range list {
+		flush(p.Start)
+		b.WriteString(m.Text[last:p.Start])
+		token := num.token()
+		at := b.Len()
+		b.WriteString(token)
+		value := m.Text[p.Start:p.End]
+		items = append(items, Item{Token: token, Value: value, Kind: Term, Answer: p.Answer, Start: at, End: b.Len(), OrigStart: p.Start, OrigEnd: p.End})
+		last = p.End
+	}
+	flush(len(m.Text) + 1)
+	b.WriteString(m.Text[last:])
+	return Masked{Text: b.String(), Items: items}
+}
+
+// Unprotected is the text with its terms as written again and its masked values still masked, as
+// the memory holds a piece.
+func (m Masked) Unprotected() Masked {
+	var b strings.Builder
+	var items []Item
+	last := 0
+	for _, it := range m.Items {
+		b.WriteString(m.Text[last:it.Start])
+		last = it.End
+		if it.Kind == Term {
+			b.WriteString(it.Value)
+			continue
+		}
+		at := b.Len()
+		b.WriteString(it.Token)
+		it.Start, it.End = at, b.Len()
+		items = append(items, it)
+	}
+	b.WriteString(m.Text[last:])
+	return Masked{Text: b.String(), Items: items}
+}
+
+// Terms is the protected terms, in the order of the text.
+func (m Masked) Terms() []Item {
+	var out []Item
+	for _, it := range m.Items {
+		if it.Kind == Term {
+			out = append(out, it)
+		}
+	}
+	return out
 }
 
 // Restore puts the values back into a source's answer. Each stand-in must be there
@@ -287,6 +380,9 @@ func units(s string) int {
 
 // Units is the length of s in UTF-16 units, the units the editor counts (R-GRM-03).
 func Units(s string) int { return units(s) }
+
+// StandIns is everything of a stand-in's shape in s, in order.
+func StandIns(s string) []string { return tokenPattern.FindAllString(s, -1) }
 
 // WithoutStandIns is s with anything of a stand-in's shape taken out, whether ROSETTA's or
 // not: what of it is the writer's own words.

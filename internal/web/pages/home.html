@@ -12,5 +12,6 @@
   <ul>{{range .Data.Owned}}<li>{{.Name}} ({{.Reference}})</li>{{end}}</ul>{{end}}
   {{else}}<p>{{t .Lang "noRole"}}</p>{{end}}
   <p class="soft">{{t .Lang "proposal"}}</p>
+  <div class="inline row-actions"><a class="pill solid" href="/glossary/propose">{{t .Lang "glossaryPropose"}}</a><a class="pill" href="/glossary/mine">{{t .Lang "glossaryMine"}}</a></div>
 </div>
 {{end}}

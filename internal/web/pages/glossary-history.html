@@ -1,0 +1,8 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "history"}}</h1></div>
+<div class="content wide">
+  {{template "glossary-table" (args .Lang .Data.Entries)}}
+  <div class="inline row-actions"><a class="pill" href="/glossary/{{.Data.ID}}">{{t .Lang "glossary"}}</a></div>
+</div>
+{{end}}

@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
-	"golang.org/x/text/unicode/norm"
+	"github.com/Rumeasiyan/rosetta/internal/terms"
 )
 
 // A failed source call goes to the next source in order (R-PRV-03). What each reason
@@ -273,7 +273,7 @@ func acceptable(answer, sent string) bool {
 	if answer == "" {
 		return false
 	}
-	if norm.NFC.String(answer) != norm.NFC.String(strings.TrimSpace(sent)) {
+	if terms.Normalise(answer) != terms.Normalise(strings.TrimSpace(sent)) {
 		return true
 	}
 	return !strings.ContainsFunc(standIn.ReplaceAllString(sent, ""), unicode.IsLetter)

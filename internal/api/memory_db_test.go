@@ -1,0 +1,328 @@
+package api_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+)
+
+type pair = map[string]string
+
+func (w *pathWorld) remember(body map[string]any) (int, map[string]any) {
+	w.t.Helper()
+	raw, _ := json.Marshal(body)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/memory", bytes.NewReader(raw))
+	r.Header.Set("Authorization", "Bearer "+w.key)
+	rec := httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	var out map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		w.t.Fatal(rec.Body.String())
+	}
+	return rec.Code, out
+}
+
+func approved(passages ...pair) map[string]any {
+	return map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "approver_post": "An invented post", "passages": passages}
+}
+
+type memoryRow struct {
+	source, hash, approved, post, state string
+	version                             int
+	replacedBy                          *int64
+	on                                  time.Time
+}
+
+func (w *pathWorld) memoryRows() []memoryRow {
+	w.t.Helper()
+	rows, err := w.pool.Query(context.Background(), `SELECT source_text, source_hash, approved_text, approver_post, state, glossary_version, replaced_by_id, approved_on FROM memory_entry ORDER BY id`)
+	if err != nil {
+		w.t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []memoryRow
+	for rows.Next() {
+		var r memoryRow
+		if err := rows.Scan(&r.source, &r.hash, &r.approved, &r.post, &r.state, &r.version, &r.replacedBy, &r.on); err != nil {
+			w.t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// R-MEM-01, R-MEM-02: approved text is split into pieces and joins the memory, with the approver's post,
+// the calling system, the date and the glossary version. A newer approval replaces the older, whose
+// words go. An audit entry says what was done and holds no text.
+func TestApprovedTextJoinsTheMemory(t *testing.T) {
+	w := newPathWorld(t)
+	w.publish("term", "Invented Term", "පදය", "சொல்")
+	const secret = "Memorymarkertext"
+	code, out := w.remember(approved(pair{"source": secret + " one. Two here.\n\nThree.", "approved": "ஒன்று " + secret + ". இரண்டு.\n\nமூன்று."}, pair{"source": "Café list.", "approved": "பட்டியல்."}))
+	if code != 200 || out["pieces"] != float64(4) || len(out["not_kept"].([]any)) != 0 || out["glossary_version"] != float64(1) || out["request_ref"] == nil {
+		t.Fatalf("%d %v", code, out)
+	}
+	rows := w.memoryRows()
+	if len(rows) != 4 {
+		t.Fatalf("%+v", rows)
+	}
+	if r := rows[1]; r.source != "Two here." || r.approved != "இரண்டு." || r.post != "An invented post" || r.state != "served" || r.version != 1 || r.on.IsZero() {
+		t.Fatalf("%+v", r)
+	}
+	if rows[3].source != "Café list." {
+		t.Fatalf("not normalised (R-NFR-05): %q", rows[3].source)
+	}
+	var caller int64
+	if err := w.pool.QueryRow(context.Background(), `SELECT DISTINCT caller_id FROM memory_entry`).Scan(&caller); err != nil || caller == 0 {
+		t.Fatal(err)
+	}
+	// A newer approval of the same piece replaces the older, and takes its words away.
+	code, out = w.remember(approved(pair{"source": "Two here.", "approved": "புதிய இரண்டு."}))
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	rows = w.memoryRows()
+	if len(rows) != 5 || rows[1].state != "replaced" || rows[1].source != "" || rows[1].approved != "" || rows[1].replacedBy == nil || rows[4].approved != "புதிய இரண்டு." || rows[4].state != "served" {
+		t.Fatalf("%+v", rows)
+	}
+	// R-REC-02: each addition is an entry, by the system, with no text.
+	ctx := context.Background()
+	var n, withText int
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE details->>'object_type' = 'memory' AND action = 'creation' AND details->>'post' = 'system'),
+		count(*) FILTER (WHERE details::text LIKE '%' || $1 || '%' OR details::text LIKE '%An invented post%' OR details::text LIKE '%Two here%') FROM audit_outbox`, secret).Scan(&n, &withText); err != nil {
+		t.Fatal(err)
+	}
+	if n < 2 || withText != 0 {
+		t.Fatalf("%d entries, %d with text", n, withText)
+	}
+	if strings.Contains(w.logs.String(), secret) || strings.Contains(w.logs.String(), "invented post") {
+		t.Fatal(w.logs.String())
+	}
+}
+
+// R-MEM-03: personal and confidential text is refused as "invalid request" and never kept, and text marked
+// ordinary holding a card is personal (R-MSK-04), wherever it is. So is anything else that cannot be taken.
+func TestWhatTheMemoryRefuses(t *testing.T) {
+	w := newPathWorld(t)
+	good := pair{"source": "A piece.", "approved": "ஒரு துண்டு."}
+	const secret = "Memoryrefusedmarker"
+	for name, c := range map[string]struct {
+		body map[string]any
+		code int
+	}{
+		"personal":        {map[string]any{"from": "en", "to": "ta", "sensitivity": "personal", "approver_post": "A post", "passages": []pair{{"source": secret, "approved": secret}}}, 400},
+		"confidential":    {map[string]any{"from": "en", "to": "ta", "sensitivity": "confidential", "approver_post": "A post", "passages": []pair{good}}, 400},
+		"no sensitivity":  {map[string]any{"from": "en", "to": "ta", "approver_post": "A post", "passages": []pair{good}}, 400},
+		"card in source":  {approved(good, pair{"source": secret + " 123456789V.", "approved": "x."}), 400},
+		"new card":        {approved(pair{"source": "A number.", "approved": secret + " 199012345678."}), 400},
+		"no post":         {map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "passages": []pair{good}}, 400},
+		"a card for post": {map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "approver_post": "123456789V", "passages": []pair{good}}, 400},
+		"same language":   {map[string]any{"from": "en", "to": "en", "sensitivity": "ordinary", "approver_post": "A post", "passages": []pair{good}}, 400},
+		"other language":  {map[string]any{"from": "en", "to": "fr", "sensitivity": "ordinary", "approver_post": "A post", "passages": []pair{good}}, 400},
+		"no passages":     {map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "approver_post": "A post", "passages": []pair{}}, 400},
+		"blank side":      {approved(pair{"source": "A piece.", "approved": "  "}), 400},
+		"missing side":    {approved(pair{"source": "A piece."}), 400},
+		"stand-in shape":  {approved(pair{"source": "A ⟦M1⟧ piece.", "approved": "x ⟦M1⟧."}), 400},
+		"a future date":   {map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "approver_post": "A post", "approved_on": "2999-01-01", "passages": []pair{good}}, 400},
+		"not a date":      {map[string]any{"from": "en", "to": "ta", "sensitivity": "ordinary", "approver_post": "A post", "approved_on": "soon", "passages": []pair{good}}, 400},
+		"too long":        {approved(pair{"source": strings.Repeat("a", 5001), "approved": "x"}), 413},
+	} {
+		code, out := w.remember(c.body)
+		if code != c.code {
+			t.Errorf("%s: %d %v", name, code, out)
+		}
+		if strings.Contains(jsonText(out), secret) {
+			t.Errorf("%s: the answer holds the text: %v", name, out)
+		}
+	}
+	if rows := w.memoryRows(); len(rows) != 0 {
+		t.Fatalf("kept: %+v", rows)
+	}
+	if strings.Contains(w.logs.String(), secret) || strings.Contains(w.logs.String(), "123456789V") {
+		t.Fatal(w.logs.String())
+	}
+	// A body that is not JSON, and no key at all.
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/memory", strings.NewReader(`{"from": `+secret))
+	r.Header.Set("Authorization", "Bearer "+w.key)
+	rec := httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	if rec.Code != 400 || strings.Contains(rec.Body.String(), secret) {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodPost, "/api/v1/memory", strings.NewReader(`{}`))
+	rec = httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	if rec.Code != 401 {
+		t.Fatal(rec.Code)
+	}
+	var n int
+	if err := w.pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_outbox WHERE details::text LIKE '%' || $1 || '%'`, secret).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("%d %v", n, err)
+	}
+}
+
+// Pieces that do not line up are left out and named; the rest join. Numbers masking recognises are kept
+// as stand-ins, and must be on both sides.
+func TestPiecesThatDoNotLineUp(t *testing.T) {
+	w := newPathWorld(t)
+	code, out := w.remember(approved(
+		pair{"source": "One. Two.", "approved": "ஒன்றும் இரண்டும்."},
+		pair{"source": "Ring 0771234567 or 011 2345678 now.", "approved": "இப்போது 0112345678 அல்லது 0771234567 அழைக்க."},
+		pair{"source": "Ring 0771234567.", "approved": "வேறு 0719999999."},
+		pair{"source": "A number 12.", "approved": "இல்லை."},
+		pair{"source": "12 3.", "approved": "12 3."},
+	))
+	if code != 200 || out["pieces"] != float64(2) {
+		t.Fatalf("%d %v", code, out)
+	}
+	notKept := out["not_kept"].([]any)
+	if len(notKept) != 2 || notKept[0] != float64(0) || notKept[1] != float64(2) {
+		t.Fatalf("%v", notKept)
+	}
+	rows := w.memoryRows()
+	if len(rows) != 2 || rows[0].source != "Ring ⟦M1⟧ or ⟦M2⟧ now." || rows[0].approved != "இப்போது ⟦M2⟧ அல்லது ⟦M1⟧ அழைக்க." {
+		t.Fatalf("%+v", rows)
+	}
+	for _, r := range rows {
+		if strings.Contains(r.source+r.approved, "0771234567") {
+			t.Fatalf("a number was kept: %+v", r)
+		}
+	}
+}
+
+func origins(p map[string]any) map[string]any { return p["origins"].(map[string]any) }
+
+// R-TRN-04, R-TRN-07, R-MEM-02, R-GAT-02: approved text answers without any source, for every calling
+// system, under a closed gate, marked as checked by a person with no label. Each number comes back as
+// the caller wrote it.
+func TestServedFromMemoryMarkedAsCheckedByAPerson(t *testing.T) {
+	w := newPathWorld(t)
+	code, out := w.remember(approved(pair{"source": "The office is closed. Ring 0771234567.", "approved": "அலுவலகம் மூடப்பட்டுள்ளது. 0771234567 அழைக்க."}))
+	if code != 200 || out["pieces"] != float64(2) {
+		t.Fatalf("%d %v", code, out)
+	}
+	// The gate is closed for every source, and nothing goes out.
+	code, out = w.translate("ordinary", "The office is closed. Ring 0719999999.")
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	p := passageOf(out, 0)
+	if p["text"] != "அலுவலகம் மூடப்பட்டுள்ளது. 0719999999 அழைக்க." || p["machine"] != false || p["checked_by_person"] != true || p["label"] != nil || origins(p)["memory"] != float64(2) {
+		t.Fatalf("%v", p)
+	}
+	if strings.Contains(w.received(), "/v1/requests") {
+		t.Fatal("a source was called")
+	}
+	// BUMBLEBEE gone: it still answers (R-NFR-09). Personal text is served and kept nowhere; another way
+	// of typing it is the same piece (R-NFR-05).
+	w.mode("unavailable")
+	if code, out := w.translate("personal", "The office is closed."); code != 200 || origins(passageOf(out, 0))["memory"] != float64(1) {
+		t.Fatalf("%d %v", code, out)
+	}
+	w.mode("normal")
+	// Partly from memory: the passage carries the label, and says where each piece came from (R-TRN-06, R-TRN-07).
+	w.open("en", "ta")
+	code, out = w.translate("ordinary", "The office is closed. A new sentence.")
+	if code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	p = passageOf(out, 0)
+	if p["text"] != "அலுவலகம் மூடப்பட்டுள்ளது. [ta] A new sentence." || p["machine"] != true || p["checked_by_person"] != false || p["label"] == nil ||
+		origins(p)["memory"] != float64(1) || origins(p)["source"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+	// Direction counts: this was approved from English to Tamil.
+	raw, _ := json.Marshal(map[string]any{"from": "en", "to": "si", "sensitivity": "ordinary", "passages": []string{"The office is closed."}})
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/translate", bytes.NewReader(raw))
+	r.Header.Set("Authorization", "Bearer "+w.key)
+	rec := httptest.NewRecorder()
+	w.mux.ServeHTTP(rec, r)
+	if rec.Code != 409 {
+		t.Fatalf("en to si: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// R-TRN-04: a whole glossary term comes before the memory, the memory before the cache and a source.
+// R-TRN-05: while nothing changes, the same request gets the same answer.
+func TestTheOrderWithTheRealTables(t *testing.T) {
+	w := newPathWorld(t)
+	w.open("en", "ta")
+	const sentence = "The invented office wrote."
+	code, first := w.translate("ordinary", sentence)
+	if code != 200 || origins(passageOf(first, 0))["source"] != float64(1) {
+		t.Fatalf("%d %v", code, first)
+	}
+	if _, out := w.translate("ordinary", sentence); origins(passageOf(out, 0))["cache"] != float64(1) {
+		t.Fatalf("%v", out)
+	}
+	if code, out := w.remember(approved(pair{"source": sentence, "approved": "கற்பனை அலுவலகம் எழுதியது."})); code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	_, out := w.translate("ordinary", sentence)
+	if p := passageOf(out, 0); origins(p)["memory"] != float64(1) || p["text"] != "கற்பனை அலுவலகம் எழுதியது." || p["checked_by_person"] != true {
+		t.Fatalf("%v", p)
+	}
+	_, again := w.translate("ordinary", sentence)
+	if passageOf(again, 0)["text"] != passageOf(out, 0)["text"] {
+		t.Fatalf("%v", again)
+	}
+	// A term in a memory piece is as the person wrote it, and served as a whole. A whole term goes first.
+	// Approved after the term was published, so nothing marks it for recheck (R-GLO-06).
+	w.publish("post", "Chief Secretary", "ප්‍රධාන ලේකම්", "பிரதம செயலாளர்")
+	if code, out := w.remember(approved(pair{"source": "Chief Secretary", "approved": "ஒரு நபரின் சொல்"}, pair{"source": "The Chief Secretary wrote.", "approved": "செயலாளர் எழுதினார்."})); code != 200 {
+		t.Fatalf("%d %v", code, out)
+	}
+	_, whole := w.translate("ordinary", "Chief Secretary", "The Chief Secretary wrote.")
+	if p := passageOf(whole, 0); p["text"] != "பிரதம செயலாளர்" || origins(p)["glossary"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+	if p := passageOf(whole, 1); p["text"] != "செயலாளர் எழுதினார்." || origins(p)["memory"] != float64(1) {
+		t.Fatalf("%v", p)
+	}
+}
+
+// R-MEM-04: marked for recheck, an entry is not served; it goes to the next way of answering.
+func TestAnEntryMarkedForRecheckIsNotServed(t *testing.T) {
+	w := newPathWorld(t)
+	w.remember(approved(pair{"source": "A piece to recheck.", "approved": "சரிபார்க்க ஒரு துண்டு."}))
+	if _, err := w.pool.Exec(context.Background(), `UPDATE memory_entry SET state = 'recheck'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := w.translate("ordinary", "A piece to recheck."); code != 409 {
+		t.Fatalf("closed, and nothing to serve: %d %v", code, out)
+	}
+	w.open("en", "ta")
+	if _, out := w.translate("ordinary", "A piece to recheck."); origins(passageOf(out, 0))["source"] != float64(1) {
+		t.Fatalf("%v", out)
+	}
+	if _, err := w.pool.Exec(context.Background(), `UPDATE memory_entry SET state = 'removed'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, out := w.translate("ordinary", "A piece to recheck."); origins(passageOf(out, 0))["memory"] != float64(0) {
+		t.Fatalf("%v", out)
+	}
+}
+
+// Text sent for translation is kept nowhere by asking the memory, and what the memory served is in no log.
+func TestServingLeavesNothingBehind(t *testing.T) {
+	w := newPathWorld(t)
+	const secret = "Servedmarkertext"
+	w.remember(approved(pair{"source": secret + " one.", "approved": secret + " ஒன்று."}))
+	w.translate("ordinary", secret+" one.")
+	if strings.Contains(w.logs.String(), secret) {
+		t.Fatal(w.logs.String())
+	}
+	ctx := context.Background()
+	var n int
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FROM audit_outbox WHERE details::text LIKE '%' || $1 || '%'`, secret).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("%d %v", n, err)
+	}
+	if err := w.pool.QueryRow(ctx, `SELECT count(*) FROM cache_piece`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("what the memory served went to the cache: %d %v", n, err)
+	}
+}

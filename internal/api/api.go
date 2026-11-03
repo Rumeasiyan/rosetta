@@ -62,6 +62,8 @@ type Deps struct {
 	Policy   func(ctx context.Context) sources.Policy
 	// Translator answers translation requests. Nil answers "no provider".
 	Translator Translator
+	// Memory keeps approved text. Nil answers "no provider".
+	Memory MemoryAdder
 	// Grammar answers grammar checks. Nil answers "no provider".
 	Grammar GrammarChecker
 	// Origins finds who lists a browser's address (R-CAL-06). Nil lists none.
@@ -94,6 +96,7 @@ func New(deps Deps) *Server {
 	s.verifier = apisign.Verifier{Nonces: &apisign.Nonces{}, Now: deps.Now}
 	s.routes.HandleFunc("GET /api/v1/gate", s.gate)
 	s.routes.HandleFunc("POST /api/v1/translate", s.translate)
+	s.routes.HandleFunc("POST /api/v1/memory", s.memoryAdd)
 	s.routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, r, reasons.New(reasons.Invalid))
 	})

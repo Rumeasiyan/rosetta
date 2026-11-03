@@ -17,7 +17,9 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/memory"
 	"github.com/Rumeasiyan/rosetta/internal/people"
 )
 
@@ -101,6 +103,36 @@ func RoleWord(role string) string {
 	return role
 }
 
+// entryTable is what the shared table of glossary entries takes.
+type entryTable struct {
+	Lang    i18n.Lang
+	Entries []glossary.Entry
+}
+
+func tableArgs(l i18n.Lang, entries []glossary.Entry) entryTable { return entryTable{l, entries} }
+
+// memoryTable is what the shared table of memory entries takes.
+type memoryTable struct {
+	Lang    i18n.Lang
+	Entries []memory.Entry
+}
+
+func memoryTableArgs(l i18n.Lang, entries []memory.Entry) memoryTable { return memoryTable{l, entries} }
+
+func memoryStateWord(state string) string {
+	switch state {
+	case memory.StateServed:
+		return "memoryStateServed"
+	case memory.StateRecheck:
+		return "memoryStateRecheck"
+	case memory.StateRemoved:
+		return "memoryStateRemoved"
+	case memory.StateReplaced:
+		return "memoryStateReplaced"
+	}
+	return state
+}
+
 // Page is what every screen's template receives.
 type Page struct {
 	Lang      i18n.Lang
@@ -127,16 +159,21 @@ type Renderer struct {
 // NewRenderer parses every screen once, at start.
 func NewRenderer(logger *slog.Logger) (*Renderer, error) {
 	base, err := template.New("").Funcs(template.FuncMap{
-		"t":          i18n.T,
-		"langs":      func() []i18n.Lang { return i18n.Langs },
-		"langName":   i18n.Name,
-		"staticPath": func(name string) string { return StaticPrefix + name },
-		"when":       When,
-		"day":        anyDay,
-		"roleWord":   RoleWord,
-		"flagWord":   flagWord,
-		"stateWord":  stateWord,
-		"direction":  directionName,
+		"t":               i18n.T,
+		"langs":           func() []i18n.Lang { return i18n.Langs },
+		"langName":        i18n.Name,
+		"staticPath":      func(name string) string { return StaticPrefix + name },
+		"when":            When,
+		"day":             anyDay,
+		"roleWord":        RoleWord,
+		"flagWord":        flagWord,
+		"stateWord":       stateWord,
+		"direction":       directionName,
+		"typeWord":        typeWord,
+		"statusWord":      statusWord,
+		"args":            tableArgs,
+		"memoryArgs":      memoryTableArgs,
+		"memoryStateWord": memoryStateWord,
 	}).ParseFS(pageFiles, "pages/layout.html")
 	if err != nil {
 		return nil, err
