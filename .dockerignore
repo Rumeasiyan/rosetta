@@ -1,0 +1,11 @@
+.git
+.claude
+.env
+.env.*
+!.env.example
+design-lab/
+dev/
+docs/
+brand/
+*.md
+design-lab/

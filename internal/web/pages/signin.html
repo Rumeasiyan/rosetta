@@ -1,0 +1,11 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<section class="band band-si"><span class="eyebrow">{{langName "si"}}</span><span class="fat band-term" lang="si">{{t "si" "signIn"}}</span><span class="band-line" lang="si">{{t "si" "signInNote"}}</span></section>
+<section class="band band-ta"><span class="eyebrow">{{langName "ta"}}</span><span class="fat band-term" lang="ta">{{t "ta" "signIn"}}</span><span class="band-line" lang="ta">{{t "ta" "signInNote"}}</span></section>
+<section class="band band-en"><span class="eyebrow">{{langName "en"}}</span><span class="fat band-term" lang="en">{{t "en" "signIn"}}</span><span class="band-line" lang="en">{{t "en" "signInNote"}}</span></section>
+<div class="row">
+  <p class="row-text">{{t .Lang "tagline"}}.</p>
+  <a class="pill solid" hx-boost="false" href="/signin/start?next={{.Next}}">{{t .Lang "signIn"}}</a>
+</div>
+{{template "flash" .}}
+{{end}}

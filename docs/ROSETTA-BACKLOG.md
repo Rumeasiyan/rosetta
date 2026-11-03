@@ -35,22 +35,22 @@ Source: `docs/ROSETTA-PRD.md` v1.8 (requirements, Annex A data model, Annex B ar
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
-| 1 | [ ] | Solo | E-ENB-01 | Go service, Compose run, settings from one env file, `-healthcheck` | §5; B 6; R-NFR-14 | Must |  |
-| 2 | [ ] | Solo | E-ENB-02 | PostgreSQL behind PgBouncer; migrations for every table in Annex A | Annex A, A.1; §5; B 10 | Must | 1 |
-| 3 | [ ] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
-| 4 | [ ] | Solo | E-GRM-01 | Spike: the stock plug-in on a local Document Server, against a stand-in check | R-CAL-06, R-GRM-01; B 2, B 9 | Must | 1 |
-| 5 | [ ] | Solo | E-ADM-01 | Sign-in through MJOLNIR's stand-in, the person's record, ROSETTA's own session | R-ADM-01; §5; B 8 | Must | 2, 3 |
-| 6 | [ ] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |
-| 7 | [ ] | Solo | E-ADM-03 | Settings and their history, in force within 60 seconds | R-ADM-05 | Must | 6 |
-| 8 | [ ] | Solo | E-ENB-04 | PARADOX's signed calls: check, run record, a run already done is skipped | §5; B 12 | Must | 2, 3 |
-| 9 | [ ] | Solo | E-REC-01 | Audit outbox to PENSIEVE's stand-in, with the catch-up job | R-REC-02; B 13 | Must | 7, 8 |
+| 1 | [x] | Solo | E-ENB-01 | Go service, Compose run, settings from one env file, `-healthcheck` | §5; B 6; R-NFR-14 | Must |  |
+| 2 | [x] | Solo | E-ENB-02 | PostgreSQL behind PgBouncer; migrations for every table in Annex A | Annex A, A.1; §5; B 10 | Must | 1 |
+| 3 | [x] | Solo | E-ENB-03 | Stand-ins behind interfaces: BUMBLEBEE, MJOLNIR, CERBERUS, TVA's file, BIFROST, PENSIEVE, HEDWIG, PARADOX's caller | §5; B 8, B 9, B 11 to B 15, B 21; R-NFR-14 | Must | 1 |
+| 4 | [x] | Solo | E-GRM-01 | Spike: the stock plug-in on a local Document Server, against a stand-in check | R-CAL-06, R-GRM-01; B 2, B 9 | Must | 1 |
+| 5 | [x] | Solo | E-ADM-01 | Sign-in through MJOLNIR's stand-in, the person's record, ROSETTA's own session | R-ADM-01; §5; B 8 | Must | 2, 3 |
+| 6 | [x] | Solo | E-ADM-02 | Screen frame in three languages, then grant and end roles | R-ADM-01, R-ADM-06, R-NFR-03, R-NFR-04, R-NFR-05, R-NFR-06, R-NFR-11; s2 | Must | 5 |
+| 7 | [x] | Solo | E-ADM-03 | Settings and their history, in force within 60 seconds | R-ADM-05 | Must | 6 |
+| 8 | [x] | Solo | E-ENB-04 | PARADOX's signed calls: check, run record, a run already done is skipped | §5; B 12 | Must | 2, 3 |
+| 9 | [x] | Solo | E-REC-01 | Audit outbox to PENSIEVE's stand-in, with the catch-up job | R-REC-02; B 13 | Must | 7, 8 |
 
 Notes:
 
 - **E-ENB-01:** Listens on 8080; JSON logs to stderr; `-healthcheck` calls the service itself and exits 0 when ready. Memory, CPU and read-only root are set in the local Compose file too, so a breach shows early.
 - **E-ENB-02:** Roles and limits as STACK 4 gives them; migrations through the session-mode entry. The first month's usage partition comes with the migration; later ones with E-REC-03.
 - **E-ENB-03:** Each chosen by a setting, so Go live swaps settings, not code. The BUMBLEBEE stand-in answers as `docs/CALLERS.md` in its repository documents, `limits` included, and can be told to fail with each of the eight reasons, lose a masking stand-in, change a glossary term, answer slowly or stop answering. The TVA stand-in is a local file in the form of `docs/LOOKUP-FORMAT.md` in TVA's repository, with every status, `may_join` included, and a null owner subject. BIFROST's stand-in answers one person's post by email: found, found with no offices, not found, each refusal, or no answer. CERBERUS's stand-in allows, refuses shortly, or does not answer. Only development uses stand-ins: no interim path for a provincial system not ready reaches production.
-- **E-GRM-01:** Goes first because R-CAL-06 rests on it. Document Server 8.2 Community in a local container, stock plug-in unchanged, local TLS with the editor at `writedocument.epc.test` and ROSETTA at `rosetta.epc.test`, so the two are same-site over HTTPS as on epc.lk. Watch the network panel and record in `docs/`: does it send credentials; is the session cookie sent with them; does it send text only on a Check click or also on a timer; does it send regional language codes; how it behaves on a short refusal, and whether the refusal needs CORS headers for it to be read. Send the refusal and timer findings to CERBERUS's session (K-CHK-03, K-SES-03). If credentials are not sent, stop and ask: R-CAL-06 changes.
+- **E-GRM-01:** Goes first because R-CAL-06 rests on it. Document Server 8.2 Community in a local container, stock plug-in unchanged, local TLS with the editor at `writedocument.epc.test` and ROSETTA at `rosetta.epc.test`, so the two are same-site over HTTPS as on epc.lk. Watch the network panel and record in `docs/`: does it send credentials; is the session cookie sent with them; does it send text only on a Check click or also on a timer; does it send regional language codes; how it behaves on a short refusal, and whether the refusal needs CORS headers for it to be read. Send the refusal and timer findings to CERBERUS's session (K-CHK-03, K-SES-03). If credentials are not sent, stop and ask: R-CAL-06 changes. Found in `docs/plugin-findings.md`, from the source; the watching moves to E-GRM-07.
 - **E-ADM-01:** Cookie host-only, Secure, HttpOnly, SameSite=Lax. Caddy removes MJOLNIR's own cookies before a request reaches ROSETTA (ALLSPARK decision on sign-in cookies), so ROSETTA relies only on its own. Renew and revoke as MJOLNIR's `docs/SESSION-INTERFACE.md` says, never on a timer. No second sign-in history: `last_seen_at` only.
 - **E-ADM-02:** The first administrator comes from a bootstrap setting that works only while no administrator exists. Each system has its own theme (STACK 2). No outside fonts or scripts.
 - **E-ENB-04:** Uses the module at `sign/v0.2.0`; the stand-in signs with a test key pair. Missed runs are PARADOX's to report (owners register): no monitor push per job.

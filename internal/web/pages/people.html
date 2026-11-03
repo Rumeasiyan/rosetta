@@ -1,0 +1,35 @@
+{{define "page"}}{{template "frame" .}}{{end}}
+{{define "main"}}
+<div class="hero"><h1 class="fat hero-title">{{t .Lang "people"}}</h1></div>
+<div class="content wide">
+  {{template "flash" .}}
+  <h2 class="fat section">{{t .Lang "liveRoles"}}</h2>
+  {{if .Data.Grants}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "person"}}</th><th scope="col">{{t .Lang "role"}}</th><th scope="col">{{t .Lang "language"}}</th><th scope="col">{{t .Lang "post"}}</th><th scope="col">{{t .Lang "from"}}</th><th scope="col">{{t .Lang "until"}}</th><th scope="col"><span class="hidden-label">{{t .Lang "end"}}</span></th></tr></thead>
+    <tbody>{{range .Data.Grants}}<tr>
+      <td><strong>{{.Name}}</strong><br><span class="soft">{{.Email}}</span></td>
+      <td>{{t $.Lang (roleWord .Role)}}</td>
+      <td><span class="stack-label">{{t $.Lang "language"}}: </span>{{if .Language}}<span lang="{{.Language}}">{{langName .Language}}</span>{{else}}{{t $.Lang "noLanguage"}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "post"}}: </span>{{if eq .PostRef "not known"}}{{t $.Lang "postNotKnown"}}{{else}}{{.PostRef}}{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .StartsAt}}</td>
+      <td><span class="stack-label">{{t $.Lang "until"}}: </span>{{if .EndsOn}}{{day .EndsOn}}{{else}}{{t $.Lang "noEnd"}}{{end}}</td>
+      <td><form method="post" action="/people/{{.ID}}/end"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "end"}}<span class="hidden-label">: {{.Name}}, {{t $.Lang (roleWord .Role)}}</span></button></form></td>
+    </tr>{{end}}</tbody>
+  </table></div>{{else}}<p>{{t .Lang "nobodyHolds"}}</p>{{end}}
+
+  <h2 class="fat section">{{t .Lang "grantTitle"}}</h2>
+  <p class="soft">{{t .Lang "grantNote"}}</p>
+  <form class="fields" method="post" action="/people/grant">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="email">{{t .Lang "personEmail"}}</label>
+    <input id="email" name="email" type="email" autocomplete="off" required>
+    <label for="role">{{t .Lang "role"}}</label>
+    <select id="role" name="role" required>{{range .Data.Roles}}<option value="{{.}}">{{t $.Lang (roleWord .)}}</option>{{end}}</select>
+    <label for="language">{{t .Lang "language"}}</label>
+    <select id="language" name="language"><option value="">{{t .Lang "noLanguage"}}</option>{{range langs}}<option value="{{.}}" lang="{{.}}">{{langName .}}</option>{{end}}</select>
+    <label for="ends_on">{{t .Lang "endsOn"}}</label>
+    <input id="ends_on" name="ends_on" type="date">
+    <button class="pill solid" type="submit">{{t .Lang "grant"}}</button>
+  </form>
+</div>
+{{end}}
