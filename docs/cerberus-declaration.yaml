@@ -4,7 +4,7 @@
 # X-Timer-Request and do not count as activity. Every signed-in screen sends
 # CERBERUS's activity signal to <part>/activity, or /activity at the base, so a
 # person reading or typing is not signed out. No level requires a passkey.
-system: ROSETTA # confirm against ROSETTA's reference in the register (E-ENB-11)
+system: EP-0009 # ROSETTA's reference in TVA's register (E-ENB-11)
 level: sensitive # glossary, as an officer or keeper uses it
 idle: 60
 parts:
