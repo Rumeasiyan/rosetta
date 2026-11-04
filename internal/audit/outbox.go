@@ -229,13 +229,16 @@ func DropExpired(ctx context.Context, tx pgx.Tx, logger *slog.Logger, now time.T
 
 // Drain sends what is due, oldest first, and reports how many PENSIEVE now holds.
 // An entry that cannot go waits, and tells the next run when; an entry past KeepFor
-// is removed and reported, since PENSIEVE would refuse it as too old.
+// is removed and reported, since PENSIEVE would refuse it as too old. With no Sender nothing goes.
 func Drain(ctx context.Context, tx pgx.Tx, s Sender, logger *slog.Logger, now time.Time) (int, error) {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
 	if _, err := DropExpired(ctx, tx, logger, now); err != nil {
 		return 0, err
+	}
+	if s == nil {
+		return 0, nil // no key yet: the entries wait, and no attempt is counted
 	}
 	sent, handled := 0, 0
 	began := time.Now()

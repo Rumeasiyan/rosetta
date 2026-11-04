@@ -1,0 +1,42 @@
+# For apps/rosetta/compose.yaml on the platform, from ALLSPARK's template. Always on: no sleep
+# labels (R-NFR-07). It joins bumblebee-link, the one way to BUMBLEBEE's link container (B 15).
+# Deploy or roll back: change both tags.
+name: rosetta
+
+services:
+  rosetta:
+    image: ghcr.io/rumeasiyan/rosetta:v0.1.0
+    env_file: [rosetta.env]
+    environment:
+      GOMEMLIMIT: 200MiB
+    mem_limit: 250m
+    cpus: 1
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [platform, bumblebee-link]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 2s
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  # Schema changes through the session-mode entry; run once at each deploy that adds a
+  # migration, before the service: docker compose --profile migrate run --rm migrate
+  migrate:
+    image: ghcr.io/rumeasiyan/rosetta:v0.1.0
+    command: ["migrate"]
+    env_file: [rosetta-migrate.env]
+    read_only: true
+    networks: [platform]
+    profiles: [migrate]
+
+networks:
+  platform:
+    external: true
+  bumblebee-link:
+    external: true

@@ -1,0 +1,21 @@
+# ROSETTA's jobs for PARADOX, in Sri Lanka time. Always on, so wake: none. ROSETTA queues no jobs:
+# paradox.pub is there only so that PARADOX loads this. A run ID already done is skipped.
+system: rosetta
+wake: none
+jobs:
+  - name: nightly           # the day's totals and removals, clear of the backup
+    every: "15 2 * * *"
+    timeout: 15m
+    retries: 3
+  - name: partitions        # the next months' usage parts; each start looks too
+    every: "30 2 1 * *"
+    timeout: 5m
+    retries: 3
+  - name: daily             # flags and TVA's file, after TVA's own daily run, then the post look-ups
+    every: "30 6 * * *"
+    timeout: 60m            # look-ups are paced by post_look_ups_per_minute
+    retries: 1
+  - name: audit-catch-up    # entries that could not go at the time
+    every: "*/15 * * * *"
+    timeout: 2m
+    retries: 0              # the next call is the retry

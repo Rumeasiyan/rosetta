@@ -207,17 +207,20 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	if err != nil {
 		return err
 	}
+	register, err := tva.FromEnv(getenv)
+	if err != nil {
+		return err
+	}
+	// These keys need ROSETTA's TVA entry, which comes after ROSETTA is running, so none may stop it
+	// starting. Until each comes the work waits or is refused as "no provider", and each start says so.
 	if links.PensieveURL == "" || links.PensieveKey == "" {
-		return errors.New("ROSETTA_PENSIEVE_URL and ROSETTA_PENSIEVE_KEY are not set (audit entries; see .env.example)")
+		logger.Warn("no PENSIEVE key: audit entries wait in the outbox, up to 30 days")
 	}
 	if links.BifrostURL == "" || links.BifrostKey == "" {
-		return errors.New("ROSETTA_BIFROST_URL and ROSETTA_BIFROST_KEY are not set (post look-ups; see .env.example)")
-	}
-	if links.TVADir == "" {
-		return errors.New("ROSETTA_TVA_DIR is not set (the system register's file; see .env.example)")
+		logger.Warn("no BIFROST key: every post look-up fails and changes nothing")
 	}
 	if links.BumblebeeURL == "" || links.BumblebeeKey == "" {
-		return errors.New("ROSETTA_BUMBLEBEE_URL and ROSETTA_BUMBLEBEE_KEY are not set (browser sources; see .env.example)")
+		logger.Warn("no BUMBLEBEE key: no source can be read, so every direction answers no provider")
 	}
 	values := settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
 		return settings.Load(ctx, pool)
@@ -252,7 +255,10 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	readers.Go(func() { book.Run(reading) })
 	defer readers.Wait()
 	defer stopReading()
-	outbox := &audit.Outbox{Pool: pool, Sender: audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}, Logger: logger}
+	outbox := &audit.Outbox{Pool: pool, Logger: logger}
+	if links.PensieveURL != "" && links.PensieveKey != "" {
+		outbox.Sender = audit.Pensieve{URL: links.PensieveURL, Key: links.PensieveKey}
+	}
 	defer outbox.Wait()
 	notices := &glossary.Notifier{Pool: pool, PublicURL: public, Logger: logger}
 	told := &alerts.Notifier{Pool: pool, PublicURL: public, Logger: logger}
@@ -262,9 +268,11 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	}
 	defer notices.Wait()
 	defer told.Wait()
-	post := &posts.Service{Pool: pool, Looker: bifrost.Client{URL: links.BifrostURL, Key: links.BifrostKey}, Changed: alerts.PersonState, Logger: logger,
-		Kick: func() { outbox.Kick(); told.Kick() }}
-	daily := &flags.Daily{TVA: tva.Dir(links.TVADir), Settings: values.Get, Logger: logger, Told: alerts.Flags}
+	post := &posts.Service{Pool: pool, Changed: alerts.PersonState, Logger: logger, Kick: func() { outbox.Kick(); told.Kick() }}
+	if links.BifrostURL != "" && links.BifrostKey != "" {
+		post.Looker = bifrost.Client{URL: links.BifrostURL, Key: links.BifrostKey}
+	}
+	daily := &flags.Daily{TVA: register, Settings: values.Get, Logger: logger, Told: alerts.Flags}
 	noSystem := api.NewCounts(time.Now)
 
 	// What the administrator has set is in force within 60 seconds (R-ADM-05), read on
@@ -306,7 +314,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 		Usage:   func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },
 	})
 
-	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, RunCounts: running.Counts, Tester: calls, Posts: post, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: tva.Dir(links.TVADir), Sources: book, Logger: logger})
+	screens, err := web.New(web.Deps{Pool: pool, Notices: notices, NoSystem: noSystem.Today, RunCounts: running.Counts, Tester: calls, Posts: post, SignIn: oidc.New(signin, nil), PublicURL: public, SignOutURL: signout, SignInIssuer: signin.Issuer, FirstAdmin: strings.TrimSpace(getenv("ROSETTA_FIRST_ADMIN")), Outbox: outbox, TVA: register, Sources: book, Logger: logger})
 	if err != nil {
 		return err
 	}

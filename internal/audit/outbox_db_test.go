@@ -165,6 +165,26 @@ func TestPensieveDownKeepsEntriesAndTheyGoLater(t *testing.T) {
 	}
 }
 
+// With no key yet there is nothing to send with: entries wait, due, with no attempt counted.
+func TestNoSenderYetKeepsEntriesDue(t *testing.T) {
+	w := newWorld(t)
+	w.record(event(), time.Now())
+	sender := w.out.Sender
+	w.out.Sender = nil
+	if n := w.run(); n != 0 || w.waiting() != 1 {
+		t.Fatalf("%d %d", n, w.waiting())
+	}
+	var attempts int
+	w.pool.QueryRow(context.Background(), `SELECT attempts FROM audit_outbox`).Scan(&attempts)
+	if attempts != 0 {
+		t.Fatalf("%d attempts", attempts)
+	}
+	w.out.Sender = sender
+	if n := w.run(); n != 1 || w.waiting() != 0 {
+		t.Fatalf("%d %d", n, w.waiting())
+	}
+}
+
 func TestRetryAfterIsHonoured(t *testing.T) {
 	w := newWorld(t)
 	w.record(event(), time.Now())
