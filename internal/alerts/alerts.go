@@ -93,6 +93,23 @@ func Move(ctx context.Context, q Querier, key, value string) (old string, change
 	return old, err == nil, err
 }
 
+// MoveHeld is Move for a state that can flap. While the last move is younger than hold, the state
+// stays as it was last told, so a flap of any speed is at most one alert each hold, and a state that
+// came back in the meantime tells nobody. After the hold the next look compares again, so what is
+// true is always told in the end.
+func MoveHeld(ctx context.Context, q Querier, key, value string, hold time.Duration) (old string, changed bool, err error) {
+	var held bool
+	err = q.QueryRow(ctx, `SELECT value <> $2::text AND now() - changed_at < $3::float8 * interval '1 second' FROM alert_state WHERE key = $1`,
+		key, value, hold.Seconds()).Scan(&held)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", false, err
+	}
+	if held {
+		return "", false, nil
+	}
+	return Move(ctx, q, key, value)
+}
+
 // Sender sends one notice.
 type Sender interface {
 	Send(ctx context.Context, n hedwig.Notice) (hedwig.Accepted, error)

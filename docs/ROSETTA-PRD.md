@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.9, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.10, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -158,7 +158,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 |---|---|
 | R-ADM-01 | Every screen is reached through MJOLNIR sign-in and the CERBERUS check, then ROSETTA's own roles (R-ADM-06). Any signed-in officer may propose a glossary term (R-GLO-04); every other screen needs a role. Calling systems never use the screens. |
 | R-ADM-02 | A status screen shows BUMBLEBEE up or down, each source's state and resume time, and today's requests, refusals and failures by reason, and the background runs waiting and working, as counts. |
-| R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system, language or person is flagged (R-CAL-02, R-CAL-05, R-ADM-06). A system owner gets the alerts about their own systems. |
+| R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system, language or person is flagged (R-CAL-02, R-CAL-05, R-ADM-06). A system owner gets the alerts about their own systems. BUMBLEBEE's state, a source's state and a direction's state each change at most once an hour for this, so a flapping one cannot flood; what is true is told after the hour. |
 | R-ADM-04 | A system owner or the administrator can send a test request with invented text from the screens and see the full answer, including sources and fallback. |
 | R-ADM-05 | Every change to a setting, source order, gate or key is kept as history with who made it and when, and takes effect within 60 seconds with no change in any calling system. |
 | R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. ROSETTA looks up one person's post at a time from SCROLL, through BIFROST under ROSETTA's own sharing agreement: at each sign-in and in a daily pass over live roles. A role ends only if the person was found earlier and is now not found or at another post. A person never found keeps the role, with the post recorded as "not known", and is flagged to the administrator (R-ADM-03), since their office may not have entered them yet. A failed look-up ends nothing. |
