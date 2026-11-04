@@ -102,8 +102,12 @@ func (a *App) openGate(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		details := map[string]any{"state": sources.GateOpen, "test_set": e.TestSet, "score": strconv.FormatFloat(e.Score, 'f', -1, 64), "evaluated_on": e.EvaluatedOn.Format(time.DateOnly)}
-		// A test set's name that PENSIEVE would refuse is refused here, as a bad name.
+		if e.Reason, err = sources.ParseReason(f.Get("reason")); err != nil {
+			return err
+		}
+		e.Checked = f.Get("native_checked") != ""
+		details := map[string]any{"state": sources.GateOpen, "reason": e.Reason, "test_set_checked": e.Checked, "test_set": e.TestSet, "score": strconv.FormatFloat(e.Score, 'f', -1, 64), "evaluated_on": e.EvaluatedOn.Format(time.DateOnly)}
+		// A test set's name or a reason that PENSIEVE would refuse is refused here.
 		if audit.CheckDetails(details) != nil {
 			return sources.ErrBadEvaluation
 		}

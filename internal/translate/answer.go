@@ -2,19 +2,36 @@ package translate
 
 import (
 	"context"
+	"slices"
+	"strings"
 
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/jackc/pgx/v5"
 )
 
-// LabelWord is the message key of the label on what a machine produced (R-TRN-07).
-const LabelWord = "machineLabel"
+// LabelWord and LabelThroughWord are the message keys of the label on what a machine
+// produced (R-TRN-07). The second names the source, in place of {source}.
+const (
+	LabelWord        = "machineLabel"
+	LabelThroughWord = "machineLabelThrough"
+)
 
-// Label is the label in the three languages, for the caller to show beside the text.
-func Label() map[string]string {
+// Label is the passage's label in the three languages, naming each source that made any
+// of it, for the caller to show beside the text.
+func (p Passage) Label() map[string]string {
+	names := []string{}
+	for _, u := range p.Sources() {
+		if !slices.Contains(names, u.Name) {
+			names = append(names, u.Name)
+		}
+	}
 	out := make(map[string]string, len(i18n.Langs))
 	for _, l := range i18n.Langs {
-		out[string(l)] = i18n.T(l, LabelWord)
+		if len(names) == 0 {
+			out[string(l)] = i18n.T(l, LabelWord)
+			continue
+		}
+		out[string(l)] = strings.ReplaceAll(i18n.T(l, LabelThroughWord), "{source}", strings.Join(names, ", "))
 	}
 	return out
 }

@@ -140,7 +140,7 @@ func (w *pathWorld) open(from, to string) {
 	w.t.Helper()
 	ctx := context.Background()
 	if err := pgx.BeginFunc(ctx, w.pool, func(tx pgx.Tx) error {
-		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate(from, to), sources.Evaluation{TestSet: "shared-1", Score: 80, EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, w.person)
+		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate(from, to), sources.Evaluation{TestSet: "shared-1", Score: 80, Reason: "An invented reason.", EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, w.person)
 		return err
 	}); err != nil {
 		w.t.Fatal(err)

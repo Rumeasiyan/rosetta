@@ -213,8 +213,8 @@ func TestARequestCutByAStopFailsWithAReason(t *testing.T) {
 	if err := pool.QueryRow(bg, `INSERT INTO source (name, version, state, seen_at) VALUES ('standin-translate', '1', 'on', now()) RETURNING id`).Scan(&source); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(bg, `INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, decided_by)
-		VALUES ($1, 'en', 'ta', '1', 'open', 'stop-set', 80, '2020-01-01', $2)`, source, person); err != nil {
+	if _, err := pool.Exec(bg, `INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, reason, decided_by)
+		VALUES ($1, 'en', 'ta', '1', 'open', 'stop-set', 80, '2020-01-01', 'An invented reason.', $2)`, source, person); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {

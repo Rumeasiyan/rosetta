@@ -67,7 +67,7 @@ func TestATestFromTheScreens(t *testing.T) {
 	})
 	ctx := context.Background()
 	if err := pgx.BeginFunc(ctx, w.pool, func(tx pgx.Tx) error {
-		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate("en", "ta"), sources.Evaluation{TestSet: "shared-1", Score: 80, EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, w.personIDOf(owner))
+		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate("en", "ta"), sources.Evaluation{TestSet: "shared-1", Score: 80, Reason: "An invented reason.", EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, w.personIDOf(owner))
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -118,11 +118,12 @@ func TestATestFromTheScreens(t *testing.T) {
 		t.Fatal(op, outcome, person, pieces)
 	}
 	// It shows sources and fallback when the first source fails.
-	w.exec(`INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, decided_by)
-		SELECT s.id, 'en', 'ta', s.version, 'open', 'shared-1', 80, '2020-01-01', $1 FROM source s WHERE s.name = 'standin-translate-b'`, w.personIDOf(owner))
+	w.exec(`INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, reason, decided_by)
+		SELECT s.id, 'en', 'ta', s.version, 'open', 'shared-1', 80, '2020-01-01', 'An invented reason.', $1 FROM source s WHERE s.name = 'standin-translate-b'`, w.personIDOf(owner))
 	w.control("bumblebee", "blocked", map[string]string{"source": "standin-translate"})
 	p = send(admin, theirs, form)
-	if p.status != 200 || !strings.Contains(p.body, "standin-translate-b") || !strings.Contains(p.body, "Fallback used: <strong>Yes") {
+	if p.status != 200 || !strings.Contains(p.body, "standin-translate-b") || !strings.Contains(p.body, "Fallback used: <strong>Yes") ||
+		!strings.Contains(p.body, `role="note">Machine translation through standin-translate-b, check before issue</p>`) {
 		t.Fatalf("%d %s", p.status, p.body)
 	}
 	w.control("bumblebee", "normal", nil)

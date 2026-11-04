@@ -215,7 +215,7 @@ Notes:
 - **E-ENB-15:** A Docker Container monitor, since it never sleeps, plus `/__up`.
 - **E-ENB-16:** Policy and frequency are PHOENIX's (RUNBOOK step 7); after a restore the cache is empty and refills (A.1).
 - **E-ENB-17:** `http://bumblebee:8080` on a network ROSETTA joins, whichever link layout the user settles (allspark#28, allspark#29). ROSETTA's key is shown once on BUMBLEBEE's machine and entered in the env file by the user. BUMBLEBEE's story E-ENB-20 is the other side.
-- **E-ENB-18:** With invented or volunteers' test text only. Evaluation needs E-GAT-02 run against each real source.
+- **E-ENB-18:** With invented or volunteers' test text only. Evaluation needs E-GAT-02 run against each real source. By the owner's ruling, the six directions on `google-translate` open on the ten-sentence invented set, marked unchecked, as the administrator's decision, not a pass. A native reader's evaluation is still to come.
 - **E-ENB-19:** The `/api/` signature checked for real. Officers' translations go by background run if SCOS Pro's own owner adopts it; that is theirs to decide, and the direct path stays for them meanwhile. The EP website joins later the same way, as a caller under R-CAL-08.
 - **E-ENB-20:** SCOS Pro's session does the install on its server; the Check click is done by an officer on an invented letter first, then real ones. Same-site, credentials and timing as found in E-GRM-01 are confirmed on the real addresses.
 

@@ -21,6 +21,7 @@
   {{with .Data.Answer}}
   <h2 class="fat section">{{t $.Lang "testAnswer"}}</h2>
   {{if .Reason}}<p class="note bad" role="status">{{t $.Lang "testRefused"}}: {{t $.Lang (whyWord .Reason)}}</p>{{else}}<p class="note good" role="status">{{t $.Lang "testAnswered"}}</p>{{end}}
+  {{with .Label}}<p class="note warn" role="note">{{index . (printf "%s" $.Lang)}}</p>{{end}}
   <p>{{t $.Lang "sources"}}: <strong>{{if .Sources}}{{range $i, $s := .Sources}}{{if $i}}, {{end}}{{$s}}{{end}}{{else}}{{t $.Lang "testNoSource"}}{{end}}</strong><br>{{t $.Lang "testFallback"}}: <strong>{{if .Fallback}}{{t $.Lang "testYes"}}{{else}}{{t $.Lang "testNo"}}{{end}}</strong></p>
   <pre class="answer" tabindex="0" aria-label="{{t $.Lang "testAnswer"}}">{{.JSON}}</pre>
   {{end}}

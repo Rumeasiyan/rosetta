@@ -110,7 +110,7 @@ A request is all or nothing. Either every passage comes back in the same order, 
     "pieces": [{"origin": "source", "source": "some-site", "version": "3", "fallback_used": false}],
     "sources": [{"name": "some-site", "version": "3"}],
     "machine": true, "checked_by_person": false,
-    "label": {"si": "...", "ta": "...", "en": "Machine translation, check before issue"},
+    "label": {"si": "...", "ta": "...", "en": "Machine translation through some-site, check before issue"},
     "fallback_used": false, "glossary_version": 12
   }]
 }
@@ -127,7 +127,7 @@ A request is all or nothing. Either every passage comes back in the same order, 
 | `passages[].pieces` | Each piece in order: its origin, and for `source` or `cache` the source and version |
 | `passages[].machine` | A machine made any of it |
 | `passages[].checked_by_person` | Wholly from the glossary or memory |
-| `passages[].label` | Only where `machine` is true. Show it beside the text, in the reader's language (R-TRN-07) |
+| `passages[].label` | Only where `machine` is true. It says a machine made the text and names each source. Show it beside the text every time, in the reader's language, whole and unchanged (R-TRN-07) |
 | `passages[].terms_not_placed` | Only when a source lost a glossary term: each as published, for the reader to place (R-GLO-03) |
 
 ## A long translation: background runs

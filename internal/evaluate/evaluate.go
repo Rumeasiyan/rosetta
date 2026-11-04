@@ -138,6 +138,8 @@ type Result struct {
 	Metric      string  `json:"metric"`
 	Sentences   int     `json:"sentences"`
 	EvaluatedOn string  `json:"evaluated_on"`
+	// RequestIDs is what each sentence's request_id starts with, to find them on BUMBLEBEE's side.
+	RequestIDs string `json:"request_ids"`
 }
 
 // Translator is BUMBLEBEE's client as an evaluation uses it.
@@ -201,7 +203,7 @@ func Run(ctx context.Context, b Translator, set []Sentence, testSet, source, fro
 	if len(references) == 0 {
 		return Result{}, ErrNoneFound
 	}
-	return Result{TestSet: testSet, Source: source, Version: version, From: from, To: to, Score: Bleu(candidates, references), Metric: Metric,
+	return Result{RequestIDs: prefix + "-", TestSet: testSet, Source: source, Version: version, From: from, To: to, Score: Bleu(candidates, references), Metric: Metric,
 		Sentences: len(references), EvaluatedOn: now.In(colombo).Format(time.DateOnly)}, nil
 }
 
