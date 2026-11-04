@@ -143,6 +143,10 @@ In exchange the notice gets stronger: the label itself now names each source (R-
 
 `rosetta evaluate` now prints `request_ids`, the start of each sentence's `request_id`, so a run can be found on BUMBLEBEE's side.
 
+## Flapping alerts
+
+An alert goes when a state changes, so a state that flaps would send one each way. A source blocked every few minutes would pass the 200 a day HEDWIG proposes, and past it an outage alert waits for the next day. So BUMBLEBEE's state, each source's and each direction's move at most once an hour: while held the state stays as last told, and the next look after the hour compares again. A flap is then at most one alert an hour for each, and what is true is always told in the end. The cost is that a real outage straight after a recovery may be told up to an hour late; the status screen shows it at once. Other alerts come from counts and the daily job, not from the timer, so they are not held.
+
 ## Alerts
 
 `internal/alerts` looks at the published state on each pass of the source list's timer, the one timer AGENTS C6 allows, and raises one alert when a state changes, kept with the move in one transaction. So many failed requests are one alert, and with `alert_state` (migration 010, an addition Annex A does not list) a restart tells nobody twice. Alerts go through HEDWIG straight after they are raised by a goroutine, and `audit-catch-up` sends what could not go, as the keepers' notices do. A notice holds a kind, a reference and a link, never a name or a word of text, and `alert.subject` (also migration 010) holds a direction, language or opaque person reference. Each kind is a template made at E-ENB-13: the list is `alerts.Kinds`.

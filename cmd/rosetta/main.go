@@ -280,7 +280,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	policy := settings.NewCached(sources.Policy{}, func(ctx context.Context) (sources.Policy, error) {
 		return sources.LoadPolicy(ctx, pool)
 	}, settings.RefreshEvery, logger)
-	watching.Store(&alerts.Watcher{Pool: pool, Snapshot: book.Snapshot, Policy: policy.Get, Settings: values.Get, Kick: told.Kick, Logger: logger})
+	watching.Store(&alerts.Watcher{Hold: alerts.Hold, Pool: pool, Snapshot: book.Snapshot, Policy: policy.Get, Settings: values.Get, Kick: told.Kick, Logger: logger})
 	cache := translate.Cache{Q: pool, Settings: values.Get}
 	fallback := &sources.Fallback{Book: book, Provider: provider, Grammars: provider, Policy: policy.Get, Logger: logger}
 	published := &glossary.Book{Q: pool}

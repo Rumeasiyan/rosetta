@@ -161,6 +161,31 @@ func TestOneAlertForEachChange(t *testing.T) {
 }
 
 // Starting up with nothing read yet is not BUMBLEBEE stopping.
+// A flap is one alert each hold, and what is true is told after it.
+func TestAFlapIsHeld(t *testing.T) {
+	x := newWorld(t)
+	ctx := context.Background()
+	x.w.Hold = time.Hour
+	age := func() {
+		t.Helper()
+		if _, err := x.pool.Exec(ctx, `UPDATE alert_state SET changed_at = changed_at - interval '2 hours'`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	x.setList(map[string]string{"site-a": bumblebee.StateOn})
+	x.w.Tick(ctx)
+	age()
+	for _, state := range []string{bumblebee.StateRestingBlock, bumblebee.StateOn, bumblebee.StateRestingBlock, bumblebee.StateOn} {
+		x.setList(map[string]string{"site-a": state})
+		x.w.Tick(ctx)
+	}
+	want(t, x.kinds(), alerts.SourcePaused, alerts.NoSource) // told once, however often it moved
+
+	age() // it ended on, and that is told once the hold is past
+	x.w.Tick(ctx)
+	want(t, x.kinds(), alerts.SourcePaused, alerts.NoSource, alerts.SourceResumed)
+}
+
 func TestStartingUpIsNotAnOutage(t *testing.T) {
 	x := newWorld(t)
 	x.fresh, x.readAt = false, time.Time{}

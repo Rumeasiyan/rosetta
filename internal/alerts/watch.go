@@ -36,8 +36,13 @@ type Watcher struct {
 	Kick     func()
 	Logger   *slog.Logger
 	Now      func() time.Time // time.Now when nil
-	started  time.Time
+	// Hold is the least time between two moves of BUMBLEBEE's state, a source's or a direction's.
+	Hold    time.Duration
+	started time.Time
 }
+
+// Hold is what the service holds a flapping state for: one alert an hour for each, at most.
+const Hold = time.Hour
 
 func (w *Watcher) now() time.Time {
 	if w.Now != nil {
@@ -97,7 +102,7 @@ func (w *Watcher) look(ctx context.Context, tx pgx.Tx, snap sources.Snapshot) (i
 	if snap.Fresh {
 		up = stateUp
 	}
-	old, changed, err := Move(ctx, tx, "bumblebee", up)
+	old, changed, err := MoveHeld(ctx, tx, "bumblebee", up, w.Hold)
 	if err != nil {
 		return 0, err
 	}
@@ -119,7 +124,7 @@ func (w *Watcher) look(ctx context.Context, tx pgx.Tx, snap sources.Snapshot) (i
 	}
 	for _, s := range snap.List.Sources {
 		state := s.State
-		old, changed, err := Move(ctx, tx, "source:"+s.Name, state)
+		old, changed, err := MoveHeld(ctx, tx, "source:"+s.Name, state, w.Hold)
 		if err != nil {
 			return 0, err
 		}
@@ -150,7 +155,7 @@ func (w *Watcher) look(ctx context.Context, tx pgx.Tx, snap sources.Snapshot) (i
 		if !AnyAvailable(snap.List, policy, d, w.now()) {
 			state = stateNone
 		}
-		_, changed, err := Move(ctx, tx, "direction:"+d.String(), state)
+		_, changed, err := MoveHeld(ctx, tx, "direction:"+d.String(), state, w.Hold)
 		if err != nil {
 			return 0, err
 		}
