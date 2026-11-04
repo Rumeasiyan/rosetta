@@ -40,6 +40,7 @@ type Book struct {
 	mu     sync.Mutex
 	list   bumblebee.List
 	readAt time.Time
+	failed string // the last read's failure, empty once a read works
 }
 
 // Snapshot is the list at one moment.
@@ -66,18 +67,31 @@ func (b *Book) log() *slog.Logger {
 }
 
 // Refresh reads the list now. A failed read keeps the last list, which goes stale.
+// A failure is logged when it starts or changes, and its end once, so a long one
+// is a few lines and not one for each read.
 func (b *Book) Refresh(ctx context.Context) error {
 	rctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 	l, err := b.Read(rctx)
 	if err != nil {
-		b.log().Warn("the source list was not read", "error", err)
+		b.mu.Lock()
+		repeat := b.failed == err.Error()
+		b.failed = err.Error()
+		b.mu.Unlock()
+		if !repeat {
+			b.log().Warn("the source list was not read", "error", err)
+		}
 		return err
 	}
 	at := b.now()
 	b.mu.Lock()
 	b.list, b.readAt = l, at
+	recovered := b.failed != ""
+	b.failed = ""
 	b.mu.Unlock()
+	if recovered {
+		b.log().Info("the source list is read again")
+	}
 	if b.Kept != nil {
 		if err := b.Kept(rctx, l, at); err != nil {
 			b.log().Error("the source list was not kept in the database", "error", err)
