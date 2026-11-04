@@ -209,7 +209,10 @@ ENTITIES = {
             ("test_set_version, score", "text; number; the evaluation it rests on"),
             ("evaluated_on", "date"),
             ("reason", "text (max 500); required to open (R-GAT-01)"),
-            ("test_set_checked", "yes or no; a native reader checked the test set; no means the administrator's decision, not a pass"),
+            (
+                "test_set_checked",
+                "yes or no; a native reader checked the set; no is a decision, not a pass",
+            ),
             ("effective_from, effective_to", "time (UTC); empty to while current; history kept"),
         ],
     ),
