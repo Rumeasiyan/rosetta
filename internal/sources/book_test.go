@@ -87,6 +87,41 @@ func TestBookTellsTheCopyAndSurvivesItsFailure(t *testing.T) {
 	}
 }
 
+func TestBookLogsAFailureOnceAndItsEnd(t *testing.T) {
+	var logs bytes.Buffer
+	var err error
+	b := &Book{MaxAge: age(time.Minute), Logger: slog.New(slog.NewJSONHandler(&logs, nil)),
+		Read: func(context.Context) (bumblebee.List, error) { return bumblebee.List{}, err }}
+	count := func(line string) int { return strings.Count(logs.String(), line) }
+
+	err = errors.New("answered 401")
+	for range 3 {
+		b.Refresh(context.Background())
+	}
+	if n := count("the source list was not read"); n != 1 {
+		t.Fatalf("one failure, read three times, logged %d times", n)
+	}
+
+	err = errors.New("answered 503")
+	b.Refresh(context.Background())
+	if n := count("the source list was not read"); n != 2 {
+		t.Fatalf("a changed failure was not logged: %d lines", n)
+	}
+
+	err = nil
+	b.Refresh(context.Background())
+	b.Refresh(context.Background())
+	if n := count("the source list is read again"); n != 1 {
+		t.Fatalf("the end of a failure logged %d times", n)
+	}
+
+	err = errors.New("answered 401")
+	b.Refresh(context.Background())
+	if n := count("the source list was not read"); n != 3 {
+		t.Fatalf("a new failure after a good read was not logged: %d lines", n)
+	}
+}
+
 func TestRunReadsUntilTold(t *testing.T) {
 	reads := make(chan struct{}, 100)
 	b := &Book{MaxAge: age(time.Millisecond), Read: func(context.Context) (bumblebee.List, error) {
