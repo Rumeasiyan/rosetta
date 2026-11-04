@@ -99,7 +99,7 @@ func shape(ref string, a translate.Answer) translateAnswer {
 			x.Sources = append(x.Sources, sourceAnswer{Name: u.Name, Version: u.Version})
 		}
 		if x.Machine {
-			x.Label = translate.Label()
+			x.Label = p.Label()
 		}
 		out.Fallback = out.Fallback || x.Fallback
 		out.Passages[i] = x

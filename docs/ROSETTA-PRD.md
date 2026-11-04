@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.8, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.9, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -16,10 +16,10 @@ ROSETTA is one always-on service that every provincial system calls for language
 - a shared memory of translations a person has approved in a calling system;
 - browser sources reached through BUMBLEBEE, chosen by order, with fallback;
 - masking of identity card and phone numbers before text leaves the shared server;
-- a language gate, so a direction is used by machine only after it passes evaluation;
+- a language gate, so a direction is used by machine only after the administrator opens it on a recorded run, saying whether a native reader checked it;
 - usage records without text, and screens for the administrator, the glossary keepers and system owners.
 
-**How it works.** A system sends a list of passages with its key, the source and target languages and how sensitive the text is. ROSETTA splits each passage into sentences and answers each from the glossary, the memory or the cache where it can. It masks identity card and phone numbers in the rest, sends it to the first working BUMBLEBEE source in order, puts glossary terms and masked values back, and returns every passage with its sources and the label "Machine translation, check before issue", or one error if any passage failed. A person checks and approves the text in the calling system, which may send the approved text back to join the memory. Grammar checks come from the officer's editor, follow the same masking and fallback, and return suggestions; their text is never stored. Later providers, such as the models volunteers are researching, join behind ROSETTA and callers change nothing.
+**How it works.** A system sends a list of passages with its key, the source and target languages and how sensitive the text is. ROSETTA splits each passage into sentences and answers each from the glossary, the memory or the cache where it can. It masks identity card and phone numbers in the rest, sends it to the first working BUMBLEBEE source in order, puts glossary terms and masked values back, and returns every passage with its sources and a label saying a machine made it and through which source, to check before issue, or one error if any passage failed. A person checks and approves the text in the calling system, which may send the approved text back to join the memory. Grammar checks come from the officer's editor, follow the same masking and fallback, and return suggestions; their text is never stored. Later providers, such as the models volunteers are researching, join behind ROSETTA and callers change nothing.
 
 The name comes from the Rosetta Stone, which carries the same text in three scripts.
 
@@ -65,7 +65,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-TRN-04 | ROSETTA splits each passage into sentences, and longer sentences at word boundaries, and answers each piece in this order: a whole glossary term (served under any gate state), the memory (R-MEM-02), the cache (R-TRN-08), then a source (R-PRV-02). Each passage is the pieces joined in their original order, with line breaks and spacing at its edges kept. |
 | R-TRN-05 | Sending the same request again gives the same answer while the glossary, memory and cache are unchanged, so a caller may retry safely. |
 | R-TRN-06 | Every answer states, for each passage: where its pieces came from (glossary, memory, cache or source), the source and its version, whether a machine produced any of it, and the glossary version used. The answer carries the request reference. |
-| R-TRN-07 | Every passage that a machine produced in whole or part carries the label "Machine translation, check before issue" in all three languages, for the caller to show beside the text. Passages wholly from the glossary or memory carry no label and are marked as checked by a person. |
+| R-TRN-07 | Every passage that a machine produced in whole or part carries the label "Machine translation through <source>, check before issue" in all three languages, naming each source that made any of it, for the caller to show beside the text in the reader's language, every time. Passages wholly from the glossary or memory carry no label and are marked as checked by a person. |
 | R-TRN-08 | Each translated piece of ordinary text is kept in a cache for 30 days (default: 30 days), by text, language pair and source, so the same piece is not sent to a source twice. Personal and confidential text is never cached. A glossary change removes cached pieces that hold the changed term (R-GLO-06). |
 | R-TRN-09 | ROSETTA never returns the original text, or part of it, as if it were the translation. |
 | R-TRN-10 | A system may send the same request as a background run, so a long translation need not fit R-ERR-03. It is checked at once and refused as a direct request would be; otherwise ROSETTA answers straight away with the run's reference and when to ask again. R-TRN-02 to R-TRN-09 apply to a run as to a direct request. Direct requests stay. Only systems call this, server to server; never an officer's browser. |
@@ -130,7 +130,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 
 | ID | Requirement |
 |---|---|
-| R-GAT-01 | Each translation direction is open or closed for each source. The administrator opens it only after recording the evaluation it rests on: the shared test set, the score and the source version. A new source version starts closed. |
+| R-GAT-01 | Each translation direction is open or closed for each source. The administrator opens it only after recording what it rests on: the test set run, whether a native reader checked that set, the score, the source version and a reason. An opening on a set no native reader checked is the administrator's decision, not a pass, and the history says so. A new source version starts closed. |
 | R-GAT-02 | The glossary and the memory are checked by people, not machines, and are served whatever the gate state. |
 | R-GAT-03 | A request whose pieces need a source in a direction closed for every allowed source is refused with the reason "human translation required", with any glossary terms found in the text to help the translator. |
 | R-GAT-04 | Systems can read each direction's gate state, the sources open for it and the date of its evaluation, so a closed direction can offer human translation instead of a broken button. |
@@ -239,7 +239,7 @@ Everything but a background run, held only in process memory (R-TRN-13), is kept
 | `source` | `name`: text, unique, as in BUMBLEBEE's list, for example google-translate; `version`: text; BUMBLEBEE's part for this site, returned with every answer; `state`: on, resting after a block, resting after a page change, or off; `rest_until`: time (UTC); empty unless resting; skipped until then (R-PRV-01); `on_for_rosetta`: yes/no; the administrator can turn a source off (R-PRV-02); `switched_at`: time (UTC); `seen_at`: time (UTC); last refresh of the list, never older than 60 seconds; `processes_text`: always an outside public website for BUMBLEBEE sources |
 | `source_offer` | `operation`: translate or grammar check; `from_language`: si, ta or en; `to_language`: si, ta or en; translation only, never the same as from_language; `benchmark_score`: grammar only; found share less false-alarm share, from BUMBLEBEE's latest run (R-GRM-06) |
 | `source_order` | `operation`: translate or grammar check; `to_language`: si, ta or en; for grammar the same as from_language; `position`: number from 1; grammar follows benchmark score unless set (R-GRM-06); `set_at`: time (UTC) |
-| `gate_decision` | `from_language, to_language`: si, ta or en; `source_version`: text; a new version starts closed (R-GAT-01); `state`: open or closed; `test_set_version, score`: text; number; the evaluation it rests on; `evaluated_on`: date; `effective_from, effective_to`: time (UTC); empty to while current; history kept |
+| `gate_decision` | `from_language, to_language`: si, ta or en; `source_version`: text; a new version starts closed (R-GAT-01); `state`: open or closed; `test_set_version, score`: text; number; the evaluation it rests on; `evaluated_on`: date; `reason`: text (max 500); required to open (R-GAT-01); `test_set_checked`: yes or no; a native reader checked the test set; no means the administrator's decision, not a pass; `effective_from, effective_to`: time (UTC); empty to while current; history kept |
 
 #### A.2.4 Glossary
 

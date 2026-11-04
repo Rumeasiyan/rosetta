@@ -76,10 +76,13 @@ func TestGateOpensOnAnEvaluationAndKeepsHistory(t *testing.T) {
 	// Each part of the evaluation is required, and what was typed is not repeated.
 	for _, form := range []url.Values{
 		{"csrf": {token}},
-		{"csrf": {token}, "test_set": {"shared-1"}, "score": {marker}, "evaluated_on": {"2030-01-01"}},
-		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}},
-		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "evaluated_on": {"2999-01-01"}},
-		{"csrf": {token}, "test_set": {"123456789012"}, "score": {"80"}, "evaluated_on": {"2030-01-01"}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {marker}, "evaluated_on": {"2030-01-01"}, "reason": {"Invented."}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "reason": {"Invented."}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "evaluated_on": {"2020-01-01"}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "evaluated_on": {"2020-01-01"}, "reason": {"   "}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "evaluated_on": {"2020-01-01"}, "reason": {"Card 123456789012 and invented."}},
+		{"csrf": {token}, "test_set": {"shared-1"}, "score": {"80"}, "evaluated_on": {"2999-01-01"}, "reason": {"Invented."}},
+		{"csrf": {token}, "test_set": {"123456789012"}, "score": {"80"}, "evaluated_on": {"2030-01-01"}, "reason": {"Invented."}},
 	} {
 		if p := admin.post("/gate/src-a/en/ta/open", form); !strings.Contains(p.body, esc(i18n.T(i18n.EN, "gateBad"))) || strings.Contains(p.body, marker) {
 			t.Fatalf("%v: %d", form, p.status)
@@ -88,7 +91,7 @@ func TestGateOpensOnAnEvaluationAndKeepsHistory(t *testing.T) {
 	if open() {
 		t.Fatal("opened without an evaluation")
 	}
-	good := url.Values{"csrf": {token}, "test_set": {"shared-1"}, "score": {"81.5"}, "evaluated_on": {"2020-01-01"}}
+	good := url.Values{"csrf": {token}, "test_set": {"shared-1"}, "score": {"81.5"}, "evaluated_on": {"2020-01-01"}, "reason": {"An invented basic run."}}
 	if p := admin.post("/gate/src-a/en/ta/open", good); !strings.Contains(p.body, esc(i18n.T(i18n.EN, "gateOpened"))) {
 		t.Fatalf("%d %s", p.status, p.body)
 	}
@@ -117,7 +120,8 @@ func TestGateOpensOnAnEvaluationAndKeepsHistory(t *testing.T) {
 	if all != 2 || current != 1 {
 		t.Fatal(all, current)
 	}
-	if p := admin.get("/gate"); p.status != 200 || !strings.Contains(p.body, "shared-1") || !strings.Contains(p.body, "Test "+who) {
+	if p := admin.get("/gate"); p.status != 200 || !strings.Contains(p.body, "shared-1") || !strings.Contains(p.body, "Test "+who) ||
+		!strings.Contains(p.body, "An invented basic run.") || !strings.Contains(p.body, esc(i18n.T(i18n.EN, "gateUnchecked"))) {
 		t.Fatalf("%d %s", p.status, p.body)
 	}
 	if p := admin.post("/gate/nothing/en/ta/close", url.Values{"csrf": {token}}); !strings.Contains(p.body, "not on the list") {

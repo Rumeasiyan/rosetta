@@ -4,15 +4,25 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 )
 
-func TestTheLabelIsThePRDsInThreeLanguages(t *testing.T) {
-	l := Label()
-	if l["en"] != "Machine translation, check before issue" {
+func TestTheLabelNamesTheSourceInThreeLanguages(t *testing.T) {
+	p := Passage{Pieces: []PieceInfo{{Origin: OriginSource, Source: "a", Version: "1"}, {Origin: OriginCache, Source: "b", Version: "2"}, {Origin: OriginSource, Source: "a", Version: "2"}}}
+	l := p.Label()
+	if l["en"] != "Machine translation through a, b, check before issue" {
 		t.Fatal(l["en"])
+	}
+	for lang, word := range l {
+		if !strings.Contains(word, "a, b") || strings.Contains(word, "{source}") {
+			t.Fatal(lang, word)
+		}
+	}
+	if plain := (Passage{Pieces: []PieceInfo{{Origin: OriginCache}}}).Label(); plain["en"] != "Machine translation, check before issue" {
+		t.Fatal(plain)
 	}
 	if !regexp.MustCompile(`\p{Sinhala}`).MatchString(l["si"]) || !regexp.MustCompile(`\p{Tamil}`).MatchString(l["ta"]) || len(l) != 3 {
 		t.Fatal(l)

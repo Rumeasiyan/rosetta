@@ -95,6 +95,11 @@ func TestRowRules(t *testing.T) {
 		 INSERT INTO source (name, version, state, seen_at) VALUES ('rule-source', '1', 'on', now());
 		 INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, decided_by)
 		 SELECT s.id, 'en', 'ta', '1', 'open', p.id FROM source s, person p WHERE s.name = 'rule-source' AND p.mjolnir_subject = 'rule-z'`,
+		// An opening says why (R-GAT-01).
+		`INSERT INTO person (mjolnir_subject, name, email) VALUES ('rule-v', 'Invented', 'v@example.invalid');
+		 INSERT INTO source (name, version, state, seen_at) VALUES ('rule-source-v', '1', 'on', now());
+		 INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, decided_by)
+		 SELECT s.id, 'en', 'ta', '1', 'open', 'set', 80, '2020-01-01', p.id FROM source s, person p WHERE s.name = 'rule-source-v' AND p.mjolnir_subject = 'rule-v'`,
 		// Other languages are refused.
 		`INSERT INTO person (mjolnir_subject, name, email, screen_language) VALUES ('rule-w', 'Invented', 'w@example.invalid', 'fr')`,
 	} {

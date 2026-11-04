@@ -30,6 +30,7 @@ type TestAnswer struct {
 	Reason   string // "" when it was answered
 	Sources  []string
 	Fallback bool
+	Label    map[string]string // the machine label, by language, when a machine made any of it
 	JSON     string
 }
 
@@ -40,6 +41,7 @@ func (s *Server) Test(ctx context.Context, q TestRequest) TestAnswer {
 	ref := NewRef()
 	rec := &usage.Record{Ref: ref, CallerID: q.Caller.ID, Officer: q.Officer, Operation: usage.OpTest, Outcome: usage.Answered}
 	var out any
+	var label map[string]string
 	var fail *reasons.Failure
 	release, wait, allowed := func() (func(), time.Duration, bool) {
 		if !tva.MayCall(q.Caller.TVAStatus) {
@@ -72,9 +74,14 @@ func (s *Server) Test(ctx context.Context, q TestRequest) TestAnswer {
 		noteTally(rec, &tally)
 		if fail == nil {
 			out = shape(ref, a)
+			for _, p := range a.Passages {
+				if p.Machine() {
+					label = p.Label()
+				}
+			}
 		}
 	}
-	answer := TestAnswer{Ref: ref}
+	answer := TestAnswer{Ref: ref, Label: label}
 	if fail != nil {
 		rec.Outcome, answer.Reason = string(fail.Reason), string(fail.Reason)
 		out = reasons.Body(ref, fail)

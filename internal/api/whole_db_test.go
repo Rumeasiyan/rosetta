@@ -120,7 +120,7 @@ func TestTheWholePathAgainstTheDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate("en", "ta"), sources.Evaluation{TestSet: "shared-1", Score: 80, EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, person)
+		_, err := sources.OpenGate(ctx, tx, "standin-translate", sources.Translate("en", "ta"), sources.Evaluation{TestSet: "shared-1", Score: 80, Reason: "An invented reason.", EvaluatedOn: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}, person)
 		return err
 	}); err != nil {
 		t.Fatal(err)

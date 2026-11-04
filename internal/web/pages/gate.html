@@ -6,6 +6,7 @@
   {{if .Data.Rows}}{{range .Data.Rows}}<section class="order">
     <h2 class="order-title">{{direction $.Lang .Direction}}: {{.Source.Name}} <span class="soft">({{t $.Lang "version"}} {{.Source.Version}})</span></h2>
     {{if .Open}}<p><strong>{{t $.Lang "gateIsOpen"}}</strong>: {{.Gate.TestSet}}, {{.Gate.Score}}, {{day .Gate.EvaluatedOn}}</p>
+    <p>{{if .Gate.Checked}}{{t $.Lang "gateChecked"}}{{else}}<strong>{{t $.Lang "gateUnchecked"}}</strong>{{end}}<br>{{t $.Lang "gateReason"}}: {{.Gate.Reason}}</p>
     <form method="post" action="/gate/{{.Source.Name}}/{{.Direction.From}}/{{.Direction.To}}/close"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "gateClose"}}<span class="hidden-label">: {{.Source.Name}}, {{direction $.Lang .Direction}}</span></button></form>
     {{else}}<p><strong>{{t $.Lang "gateIsClosed"}}</strong>{{if .NewVersion}}: {{t $.Lang "gateNewVersion"}}{{end}}</p>
     {{$id := printf "%s-%s-%s" .Source.Name .Direction.From .Direction.To}}<details><summary class="pill">{{t $.Lang "gateOpen"}}<span class="hidden-label">: {{.Source.Name}}, {{direction $.Lang .Direction}}</span></summary><form class="fields" method="post" action="/gate/{{.Source.Name}}/{{.Direction.From}}/{{.Direction.To}}/open">
@@ -13,19 +14,22 @@
       <label for="set-{{$id}}">{{t $.Lang "gateTestSet"}}</label><input id="set-{{$id}}" name="test_set" autocomplete="off" maxlength="100" required>
       <label for="score-{{$id}}">{{t $.Lang "gateScore"}}</label><input id="score-{{$id}}" name="score" inputmode="decimal" autocomplete="off" required>
       <label for="on-{{$id}}">{{t $.Lang "gateEvaluatedOn"}}</label><input id="on-{{$id}}" name="evaluated_on" type="date" max="{{$.Data.Today}}" required>
+      <label for="reason-{{$id}}">{{t $.Lang "gateReason"}}</label><textarea id="reason-{{$id}}" name="reason" rows="3" maxlength="500" required></textarea>
+      <label><input type="checkbox" name="native_checked" value="yes"> {{t $.Lang "gateNativeChecked"}}</label>
       <button class="pill solid" type="submit">{{t $.Lang "gateOpen"}}<span class="hidden-label">: {{.Source.Name}}, {{direction $.Lang .Direction}}</span></button>
     </form></details>{{end}}
   </section>{{end}}{{else}}<p>{{t .Lang "noSources"}}</p>{{end}}
 
   <h2 class="fat section">{{t .Lang "history"}}</h2>
   {{if .Data.History}}<div class="stack"><table>
-    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "gateTestSet"}}</th><th scope="col">{{t .Lang "gateScore"}}</th><th scope="col">{{t .Lang "gateEvaluatedOn"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "from"}}</th><th scope="col">{{t .Lang "until"}}</th></tr></thead>
+    <thead><tr><th scope="col">{{t .Lang "source"}}</th><th scope="col">{{t .Lang "state"}}</th><th scope="col">{{t .Lang "gateTestSet"}}</th><th scope="col">{{t .Lang "gateScore"}}</th><th scope="col">{{t .Lang "gateEvaluatedOn"}}</th><th scope="col">{{t .Lang "gateReason"}}</th><th scope="col">{{t .Lang "who"}}</th><th scope="col">{{t .Lang "from"}}</th><th scope="col">{{t .Lang "until"}}</th></tr></thead>
     <tbody>{{range .Data.History}}<tr>
       <td><strong>{{.Source}}</strong> {{.SourceVersion}}<br><span class="soft">{{.From}} - {{.To}}</span></td>
       <td><span class="stack-label">{{t $.Lang "state"}}: </span>{{if eq .State "open"}}{{t $.Lang "gateIsOpen"}}{{else}}{{t $.Lang "gateIsClosed"}}{{end}}</td>
       <td>{{if .TestSet}}<span class="stack-label">{{t $.Lang "gateTestSet"}}: </span>{{.TestSet}}{{end}}</td>
       <td>{{if .Score}}<span class="stack-label">{{t $.Lang "gateScore"}}: </span>{{.Score}}{{end}}</td>
       <td>{{if .EvaluatedOn}}<span class="stack-label">{{t $.Lang "gateEvaluatedOn"}}: </span>{{day .EvaluatedOn}}{{end}}</td>
+      <td>{{if .Reason}}<span class="stack-label">{{t $.Lang "gateReason"}}: </span>{{.Reason}}<br>{{if .Checked}}{{t $.Lang "gateChecked"}}{{else}}<strong>{{t $.Lang "gateUnchecked"}}</strong>{{end}}{{end}}</td>
       <td>{{.By}}</td>
       <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .Since}}</td>
       <td>{{if .Until}}<span class="stack-label">{{t $.Lang "until"}}: </span>{{when .Until}}{{end}}</td>

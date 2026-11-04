@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Rumeasiyan/rosetta/internal/bumblebee"
 	"github.com/jackc/pgx/v5"
@@ -36,6 +37,8 @@ type Gate struct {
 	TestSet       string
 	Score         float64
 	EvaluatedOn   time.Time
+	Reason        string
+	Checked       bool // a native reader checked the test set
 }
 
 // Open says the source may be used by machine in this direction now: an open decision
@@ -100,11 +103,25 @@ type Evaluation struct {
 	TestSet     string
 	Score       float64
 	EvaluatedOn time.Time
+	Reason      string
+	Checked     bool // a native reader checked the test set
+}
+
+// maxReason is the most a reason may hold, in characters.
+const maxReason = 500
+
+// ParseReason checks the reason an opening gives: every opening has one.
+func ParseReason(reason string) (string, error) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" || utf8.RuneCountInString(reason) > maxReason {
+		return "", ErrBadEvaluation
+	}
+	return reason, nil
 }
 
 // ErrBadEvaluation says the evaluation is not complete or not possible. It repeats
 // nothing typed.
-var ErrBadEvaluation = errors.New("sources: an opening needs a test set, a score and a date not ahead of today")
+var ErrBadEvaluation = errors.New("sources: an opening needs a test set, a score, a date not ahead of today and a reason")
 
 var testSetShape = regexp.MustCompile(`^[\pL\pN][\pL\pN ._:-]{0,99}$`)
 
@@ -128,7 +145,7 @@ func ParseEvaluation(testSet, score, evaluatedOn string, today time.Time) (Evalu
 // loadGates adds the decisions in force to p.
 func loadGates(ctx context.Context, q Querier, p *Policy) error {
 	rows, err := q.Query(ctx, `SELECT s.name, g.from_language, g.to_language, g.state, g.source_version, COALESCE(g.test_set_version, ''),
-		COALESCE(g.score, 0)::float8, COALESCE(g.evaluated_on, '0001-01-01'::date)
+		COALESCE(g.score, 0)::float8, COALESCE(g.evaluated_on, '0001-01-01'::date), COALESCE(g.reason, ''), g.test_set_checked
 		FROM gate_decision g JOIN source s ON s.id = g.source_id WHERE g.effective_to IS NULL`)
 	if err != nil {
 		return err
@@ -139,7 +156,7 @@ func loadGates(ctx context.Context, q Querier, p *Policy) error {
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
 		var x row
-		err := r.Scan(&x.k.Source, &x.k.From, &x.k.To, &x.g.State, &x.g.SourceVersion, &x.g.TestSet, &x.g.Score, &x.g.EvaluatedOn)
+		err := r.Scan(&x.k.Source, &x.k.From, &x.k.To, &x.g.State, &x.g.SourceVersion, &x.g.TestSet, &x.g.Score, &x.g.EvaluatedOn, &x.g.Reason, &x.g.Checked)
 		return x, err
 	})
 	if err != nil {
@@ -173,8 +190,8 @@ func OpenGate(ctx context.Context, tx pgx.Tx, name string, d Direction, e Evalua
 	if err != nil {
 		return "", err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, decided_by)
-		VALUES ($1, $2, $3, $4, 'open', $5, $6, $7, $8)`, id, d.From, d.To, version, e.TestSet, e.Score, e.EvaluatedOn, by)
+	_, err = tx.Exec(ctx, `INSERT INTO gate_decision (source_id, from_language, to_language, source_version, state, test_set_version, score, evaluated_on, reason, test_set_checked, decided_by)
+		VALUES ($1, $2, $3, $4, 'open', $5, $6, $7, $8, $9, $10)`, id, d.From, d.To, version, e.TestSet, e.Score, e.EvaluatedOn, e.Reason, e.Checked, by)
 	return version, err
 }
 
@@ -198,6 +215,8 @@ type GateRow struct {
 	TestSet       string
 	Score         *float64
 	EvaluatedOn   *time.Time
+	Reason        string
+	Checked       bool
 	Since         time.Time
 	Until         *time.Time
 	By            string
@@ -206,14 +225,14 @@ type GateRow struct {
 // GateHistory is the latest decisions (R-ADM-05).
 func GateHistory(ctx context.Context, q Querier) ([]GateRow, error) {
 	rows, err := q.Query(ctx, `SELECT s.name, g.from_language, g.to_language, g.source_version, g.state, COALESCE(g.test_set_version, ''),
-		g.score::float8, g.evaluated_on, g.effective_from, g.effective_to, p.name
+		g.score::float8, g.evaluated_on, COALESCE(g.reason, ''), g.test_set_checked, g.effective_from, g.effective_to, p.name
 		FROM gate_decision g JOIN source s ON s.id = g.source_id JOIN person p ON p.id = g.decided_by ORDER BY g.id DESC LIMIT $1`, HistoryLimit)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (GateRow, error) {
 		var x GateRow
-		err := r.Scan(&x.Source, &x.From, &x.To, &x.SourceVersion, &x.State, &x.TestSet, &x.Score, &x.EvaluatedOn, &x.Since, &x.Until, &x.By)
+		err := r.Scan(&x.Source, &x.From, &x.To, &x.SourceVersion, &x.State, &x.TestSet, &x.Score, &x.EvaluatedOn, &x.Reason, &x.Checked, &x.Since, &x.Until, &x.By)
 		return x, err
 	})
 }

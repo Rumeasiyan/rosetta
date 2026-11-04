@@ -5,7 +5,7 @@ name: rosetta
 
 services:
   rosetta:
-    image: ghcr.io/rumeasiyan/rosetta:v0.1.2
+    image: ghcr.io/rumeasiyan/rosetta:v0.2.0
     env_file: [rosetta.env]
     environment:
       GOMEMLIMIT: 200MiB
@@ -28,7 +28,7 @@ services:
   # Schema changes through the session-mode entry; run once at each deploy that adds a
   # migration, before the service: docker compose --profile migrate run --rm migrate
   migrate:
-    image: ghcr.io/rumeasiyan/rosetta:v0.1.2
+    image: ghcr.io/rumeasiyan/rosetta:v0.2.0
     command: ["migrate"]
     env_file: [rosetta-migrate.env]
     read_only: true

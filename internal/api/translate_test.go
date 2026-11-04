@@ -175,7 +175,7 @@ func TestEveryAnswerField(t *testing.T) {
 			t.Errorf("%s: %v", k, first[k])
 		}
 	}
-	if first["label"].(map[string]any)["en"] != "Machine translation, check before issue" || len(first["label"].(map[string]any)) != 3 {
+	if first["label"].(map[string]any)["en"] != "Machine translation through standin-translate, check before issue" || len(first["label"].(map[string]any)) != 3 {
 		t.Fatalf("%v", first["label"])
 	}
 	if first["origins"].(map[string]any)["source"] != float64(2) {

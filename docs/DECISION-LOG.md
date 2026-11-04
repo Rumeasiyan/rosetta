@@ -135,6 +135,14 @@ A limit R-TRN-01 and R-ERR-03 did not agree on, reviewed by the owner. Pieces go
 
 The PRD asks for "the score" and names no measure. The owner accepted the choice of this build: corpus BLEU over whole words, n-grams to 4, one reference each, from 0 to 100, as it is the common measure and comparable with what volunteers publish. Words keep their Sinhala and Tamil vowel signs. BLEU is known to read low for short sets and for languages with free word order, so a threshold, which the PRD leaves to the administrator, should not be read across from English. All sentences must answer: any failure gives no score, naming the row's ID and the reason and no text, since a score on part of a set is not the set's. A busy source is waited for once, up to 2 minutes, and a block is never tried again (R-PRV-05).
 
+## Opening translation before a native reader
+
+By the owner's ruling, translation opens on all six directions on `google-translate` on the ten invented sentences of `dev/test-set/invented.tsv`, whose Sinhala and Tamil are best effort. That score measures nothing, so R-GAT-01 changed rather than being met in name: an opening records a reason and whether a native reader checked the set, the unticked box being the default, and the screen, the history and PENSIEVE say so. It is the administrator's decision, not a pass. A new source version still closes at once.
+
+In exchange the notice gets stronger: the label itself now names each source (R-TRN-07), so a caller that shows the label shows the source too, with no change on its side. The field and its place stay the same, as R-ADM-07 asks; only the words grew. The Test screen shows it in the screen's language above the full answer. The original wording stays for a cached piece with no source named. The Sinhala and Tamil of the new words are best effort too, waiting for the same reader as E-ERR-01.
+
+`rosetta evaluate` now prints `request_ids`, the start of each sentence's `request_id`, so a run can be found on BUMBLEBEE's side.
+
 ## Alerts
 
 `internal/alerts` looks at the published state on each pass of the source list's timer, the one timer AGENTS C6 allows, and raises one alert when a state changes, kept with the move in one transaction. So many failed requests are one alert, and with `alert_state` (migration 010, an addition Annex A does not list) a restart tells nobody twice. Alerts go through HEDWIG straight after they are raised by a goroutine, and `audit-catch-up` sends what could not go, as the keepers' notices do. A notice holds a kind, a reference and a link, never a name or a word of text, and `alert.subject` (also migration 010) holds a direction, language or opaque person reference. Each kind is a template made at E-ENB-13: the list is `alerts.Kinds`.
