@@ -128,6 +128,10 @@ type Client struct {
 	HTTP *http.Client
 }
 
+// ErrNoKey says nothing was called: with no key BUMBLEBEE could only refuse, and it
+// records each refusal.
+var ErrNoKey = errors.New("bumblebee: no key yet, so it was not called")
+
 func (c Client) http() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
@@ -138,6 +142,9 @@ func (c Client) http() *http.Client {
 // Sources reads the source list. CALLERS.md: it never starts a browser, so read it
 // as often as you like.
 func (c Client) Sources(ctx context.Context) (List, error) {
+	if c.Key == "" {
+		return List{}, ErrNoKey
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.URL, "/")+"/v1/sources", nil)
 	if err != nil {
 		return List{}, err
@@ -248,6 +255,9 @@ func (c Client) Grammar(ctx context.Context, q GrammarRequest) (GrammarAnswer, e
 
 // request posts one call and reads its answer, whatever its status.
 func (c Client) request(ctx context.Context, call map[string]string) ([]byte, error) {
+	if c.Key == "" {
+		return nil, &Failure{Reason: ReasonUnavailable}
+	}
 	raw, err := json.Marshal(call)
 	if err != nil {
 		return nil, &Failure{Reason: ReasonUnavailable}

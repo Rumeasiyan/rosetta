@@ -135,6 +135,23 @@ func piece(text string) bumblebee.Request {
 	return bumblebee.Request{RequestID: "r-1", Source: "standin-translate", From: "en", To: "ta", Text: text}
 }
 
+func TestNoKeyCallsNothing(t *testing.T) {
+	calls := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
+	defer ts.Close()
+	c := bumblebee.Client{URL: ts.URL}
+
+	if _, err := c.Sources(context.Background()); !errors.Is(err, bumblebee.ErrNoKey) {
+		t.Fatalf("the list with no key: %v", err)
+	}
+	if _, err := c.Grammar(context.Background(), bumblebee.GrammarRequest{RequestID: "r", Source: "s", Text: "An invented line."}); err == nil {
+		t.Fatal("a check with no key answered")
+	}
+	if calls != 0 {
+		t.Fatalf("BUMBLEBEE was called %d times with no key", calls)
+	}
+}
+
 func TestTranslateAgainstTheStandIn(t *testing.T) {
 	_, c := stand(t)
 	a, err := c.Translate(context.Background(), piece("An invented letter."))
