@@ -22,7 +22,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/audit` | The outbox of entries for PENSIEVE: written in the same transaction as the work, sent straight after and by the job `audit-catch-up`. |
 | `internal/settings` | The Office's settings: each PRD "(default: ...)" as stories need it, their history, and the read-on-use cache. |
 | `internal/config` | Settings from the environment: the listen address, the database, the addresses and keys of other services. |
-| `internal/tva`, `internal/callers` | TVA's `systems.json` (format 1) and the calling systems with their owners. |
+| `internal/tva`, `internal/callers` | TVA's `systems.json` (format 1), read from its bucket on the server and a folder locally, and the calling systems with their owners. |
 | `internal/reasons` | The fixed reasons and how a failure is answered, with messages in three languages. |
 | `internal/bumblebee`, `internal/sources` | BUMBLEBEE's client, and what ROSETTA knows of its sources: the list and size limit on a timer. |
 | `internal/mask` | Masking and restoring card and phone numbers: pure, with a map to the original offsets. |
@@ -42,6 +42,7 @@ ROSETTA is the translation and grammar service of the Eastern Province, Sri Lank
 | `internal/evaluate` | `rosetta evaluate`: a test set against one source, giving the score the gate records. |
 | `internal/hedwig` | HEDWIG's client, as its `docs/API.md` gives it. |
 | `internal/grammar` | The grammar check: mask, split, place each suggestion in the text sent, join. Nothing of the text is kept. |
+| `deploy/` | What the shared server needs from ROSETTA, handed to ALLSPARK: compose, env examples, Caddy site, PgBouncer lines, PARADOX's schedule, HEDWIG's templates (`how-to-deploy.md`). |
 | `dev/` | The local stack. Start only what you need; the machine runs many stacks. `dev/tva/` is TVA's stand-in, a local folder. `dev/plugin-test/` walks the ONLYOFFICE plug-in in a real Document Server (`how-to-run.md`). |
 
 ## Commands

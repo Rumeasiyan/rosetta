@@ -1,0 +1,10 @@
+# For platform/caddy/sites/rosetta.caddy. Always on (R-NFR-07). PARADOX and the platform's
+# monitor reach the rest directly on the platform network. Everything else goes through
+# CERBERUS, by the parts in docs/cerberus-declaration.yaml.
+http://rosetta.epc.lk {
+	@inside path /jobs /jobs/* /healthz
+	handle @inside {
+		respond 404
+	}
+	import awake rosetta 8080
+}

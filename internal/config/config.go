@@ -22,8 +22,7 @@ type Config struct {
 	// DatabaseURL reaches ROSETTA's database through PgBouncer in transaction
 	// mode, as the service role. It
 	// carries a password: never log or print it. Schema changes use
-	// MIGRATE_DATABASE_URL, read only by `rosetta migrate`, so the running
-	// service never holds the owner's password.
+	// MIGRATE_DATABASE_URL, the session-mode entry, read only by `rosetta migrate`.
 	DatabaseURL string
 }
 
@@ -54,7 +53,6 @@ type Links struct {
 	BifrostURL, BifrostKey     string // ROSETTA_BIFROST_URL, _KEY
 	PensieveURL, PensieveKey   string // ROSETTA_PENSIEVE_URL, _KEY
 	HedwigURL, HedwigKey       string // ROSETTA_HEDWIG_URL, _KEY
-	TVADir                     string // ROSETTA_TVA_DIR: the folder holding systems.json
 }
 
 // LinksFromEnv reads the links. An address that is set must be http or https;
@@ -76,7 +74,6 @@ func LinksFromEnv(getenv func(string) string) (Links, error) {
 		}
 		*a.url, *a.key = v, strings.TrimSpace(getenv("ROSETTA_"+a.name+"_KEY"))
 	}
-	l.TVADir = strings.TrimSpace(getenv("ROSETTA_TVA_DIR"))
 	return l, nil
 }
 

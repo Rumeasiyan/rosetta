@@ -2,6 +2,21 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Joining the real services
+
+Checked before the first tag against each service's own repository, not its stand-in. PENSIEVE's `docs/INTAKE.md`, HEDWIG's `docs/API.md`, BUMBLEBEE's `docs/CALLERS.md` and BIFROST's `docs/EXCHANGE.md` match the clients as built. MJOLNIR's issuer is `https://sso.epc.lk/` with its slash: it is compared whole, and discovery trims the slash only to build its address. What did not hold, and what was built:
+
+- **TVA's file came only from a folder.** `tva.Bucket` reads `systems.json` from `tva-lookup` with ROSETTA's own read-only key, signed with AWS Signature Version 4 from the standard library and held to AWS's published example. It asks for that one file and never lists. It reads only `systems.json`: role endings go through BIFROST. No file before TVA's first daily run is a failed read, and an empty list keeps what is held, as flags already did.
+- **The service would not start without keys it could not yet have.** PENSIEVE's, BUMBLEBEE's and BIFROST's keys each need ROSETTA's TVA entry, and that entry comes after ROSETTA runs. So only the register's reader is required now, and each start logs what waits. With no key, audit entries wait in the outbox with no attempt counted, up to PENSIEVE's 30 days; look-ups fail and change nothing; no source can be read, so every direction answers `no provider`, and `bumblebee not answering` is raised, truly. HEDWIG was already so.
+- **The first administrator had to be named by an account ID nothing shows before a first sign-in.** `ROSETTA_FIRST_ADMIN` now takes the email at MJOLNIR too, in any case, as PENSIEVE's does. It still does nothing once an administrator exists.
+- **One database role, the template's.** No migration grants anything, so the two roles a comment in `internal/config` implied never existed. The comment is corrected and `deploy/` uses ALLSPARK's template as it stands.
+
+HEDWIG's templates are in `deploy/hedwig`, one per notice type, a test holding them to the code, and they pass HEDWIG's own `Validate`. The alerts' wording is the screens'; the two glossary notices' Sinhala and Tamil are new and machine-drafted, for the Office to read before they are saved. Details sent but not used by a template are dropped by HEDWIG.
+
+The `/api/` signature stands as `docs/CALLERS.md` has it. SCOS Pro's session confirmed it has no signer yet and will build to that page, as a remote caller; nothing changes here.
+
+`runs_worked_at_once` stays 2. BUMBLEBEE's server runs 2 browsers in all, not the 4 `docs/CALLERS.md` defaults to, so 2 runs use every browser and a person's request waits its turn, answered `busy` past 20 seconds. Raising the setting would gain nothing. BUMBLEBEE's session measured 9.4 seconds a piece at the middle and 16 at 95 percent, for 4 minutes on a test stack, not repeated on the real one. If that holds, a run of 290 pieces takes about 45 minutes and passes `run_limit_minutes`, 30, even with nothing ahead of it. This build changes nothing: the limit is a setting, and the real figure waits for E-NFR-01 on the server.
+
 ## Files committed to main by mistake
 
 Local files went into a commit on main by a broad add, and were removed by rewriting main's history, with the owner's yes: reference images of other people's work, a local stand-in's public key and a test document. No credential or personal data was among them. The old commits are on no branch but stay reachable through pull requests #25 and #26 and by SHA, as the owner chose not to ask GitHub Support to purge them. CI now refuses such files, and main ignores them.

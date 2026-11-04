@@ -3,8 +3,8 @@
 // system's status and owner: ROSETTA reads them and decides nothing else. Readers
 // refuse a format they do not know and ignore fields they do not know (R-LKP-05).
 //
-// On the server the file comes from SeaweedFS with a read-only key (E-ENB-11);
-// until then Reader has one form, a local folder, the same file TVA's stand-in is.
+// On the server the file comes from TVA's bucket with a read-only key (Bucket, E-ENB-11); locally
+// from a folder (Dir), the same file TVA's stand-in is.
 package tva
 
 import (

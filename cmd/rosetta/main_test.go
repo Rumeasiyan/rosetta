@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,7 +101,7 @@ func TestServeNeedsSignInSettings(t *testing.T) {
 
 // Nor without somewhere to send its audit entries. This reaches the database, since
 // the settings are read in order, so it needs the local stack.
-func TestServeNeedsPensieve(t *testing.T) {
+func TestServeNeedsTheRegister(t *testing.T) {
 	url := os.Getenv("ROSETTA_TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("ROSETTA_TEST_DATABASE_URL not set; start dev/compose.yaml to run database tests")
@@ -116,9 +117,75 @@ func TestServeNeedsPensieve(t *testing.T) {
 	})
 	var logs bytes.Buffer
 	err := serve(context.Background(), e, &logs, nil)
-	if err == nil || !strings.Contains(err.Error(), "ROSETTA_PENSIEVE_URL") {
+	if err == nil || !strings.Contains(err.Error(), "ROSETTA_TVA_DIR") {
 		t.Fatalf("%v", err)
 	}
+}
+
+// PENSIEVE, BIFROST, BUMBLEBEE and HEDWIG each give a key only once ROSETTA has its TVA entry, which
+// comes after ROSETTA runs, so it starts with none of them and says what waits.
+func TestServeStartsWithNoKeysYet(t *testing.T) {
+	url := os.Getenv("ROSETTA_TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("ROSETTA_TEST_DATABASE_URL not set; start dev/compose.yaml to run database tests")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	free := ln.Addr().String()
+	ln.Close()
+	e := env(map[string]string{
+		"ROSETTA_LISTEN":               free,
+		"DATABASE_URL":                 url,
+		"PARADOX_PUBLIC_KEY":           "ed25519-pub:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+		"ROSETTA_PUBLIC_URL":           "http://localhost:53080",
+		"ROSETTA_SIGNIN_ISSUER":        "http://localhost:53190/mjolnir",
+		"ROSETTA_SIGNIN_CLIENT_ID":     "rosetta",
+		"ROSETTA_SIGNIN_CLIENT_SECRET": "local-stand-in-only",
+		"ROSETTA_SIGNOUT_URL":          "http://localhost:53190/mjolnir/sign-out",
+		"ROSETTA_TVA_S3_ENDPOINT":      "http://127.0.0.1:1",
+		"ROSETTA_TVA_S3_KEY":           "invented",
+		"ROSETTA_TVA_S3_SECRET":        "invented",
+	})
+	ready := make(chan string, 1)
+	var logs safeBuffer
+	done := make(chan error, 1)
+	go func() { done <- serve(ctx, e, &logs, ready) }()
+	select {
+	case <-ready:
+	case err := <-done:
+		t.Fatalf("serve stopped: %v", err)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	for _, want := range []string{"no PENSIEVE key", "no BIFROST key", "no BUMBLEBEE key"} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("no word of %q in %s", want, logs.String())
+		}
+	}
+}
+
+// safeBuffer is a log the service's timer may write to while a test reads it.
+type safeBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *safeBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *safeBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
 
 // R-NFR-08: a request in progress when the service stops fails with a reason, not a cut connection,

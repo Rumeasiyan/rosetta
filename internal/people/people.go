@@ -180,9 +180,11 @@ func Today(ctx context.Context, q Querier) (time.Time, error) {
 }
 
 // FirstAdministrator makes person the first administrator, only when bootstrap
-// names their subject and no administrator exists. It reports whether it did.
+// names them and no administrator exists. It reports whether it did. bootstrap is
+// their email at MJOLNIR or their account ID: nothing shows the account ID before a
+// first sign-in, so the Office can only be sure of the email.
 func FirstAdministrator(ctx context.Context, tx pgx.Tx, person Person, bootstrap string) (bool, error) {
-	if bootstrap == "" || person.Subject != bootstrap {
+	if bootstrap == "" || (person.Subject != bootstrap && !strings.EqualFold(person.Email, bootstrap)) {
 		return false, nil
 	}
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
