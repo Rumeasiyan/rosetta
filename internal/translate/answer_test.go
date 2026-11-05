@@ -29,6 +29,28 @@ func TestTheLabelNamesTheSourceInThreeLanguages(t *testing.T) {
 	}
 }
 
+// The public wording names ROSETTA and never the outside source (R-TRN-07).
+func TestThePublicLabelNamesRosettaNotTheSource(t *testing.T) {
+	p := Passage{Pieces: []PieceInfo{{Origin: OriginSource, Source: "some-site", Version: "1"}}}
+	l := p.PublicLabel()
+	if l["en"] != "Machine translated through the provincial translation service ROSETTA. Please read with caution: it may contain mistakes. Please tell us if anything needs changing." {
+		t.Fatal(l["en"])
+	}
+	if len(l) != 3 || !regexp.MustCompile(`\p{Sinhala}`).MatchString(l["si"]) || !regexp.MustCompile(`\p{Tamil}`).MatchString(l["ta"]) {
+		t.Fatal(l)
+	}
+	for lang, word := range l {
+		if !strings.Contains(word, "ROSETTA") || strings.Contains(word, "some-site") {
+			t.Fatal(lang, word)
+		}
+	}
+	for lang, link := range p.PublicLabelLink() {
+		if link == "" || strings.Count(l[lang], link) != 1 {
+			t.Fatal(lang, link)
+		}
+	}
+}
+
 // R-TRN-07: machine in whole or part carries the label; wholly from people does not and
 // says who checked it; nothing in it says neither.
 func TestWhoMadeAPassage(t *testing.T) {

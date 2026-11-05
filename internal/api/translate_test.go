@@ -178,6 +178,9 @@ func TestEveryAnswerField(t *testing.T) {
 	if first["label"].(map[string]any)["en"] != "Machine translation through standin-translate, check before issue" || len(first["label"].(map[string]any)) != 3 {
 		t.Fatalf("%v", first["label"])
 	}
+	if public := first["public_label"].(map[string]any); len(public) != 3 || strings.Contains(public["en"].(string), "standin-translate") {
+		t.Fatalf("%v", public)
+	}
 	if first["origins"].(map[string]any)["source"] != float64(2) {
 		t.Fatalf("%v", first["origins"])
 	}
@@ -203,10 +206,10 @@ func TestShapeOfAPassageFromPeople(t *testing.T) {
 	}}
 	out := shape("r-1", a)
 	people, machine := out.Passages[0], out.Passages[1]
-	if people.Label != nil || people.Machine || !people.CheckedByPerson || people.Language != "si" || len(people.Sources) != 0 {
+	if people.Label != nil || people.PublicLabel != nil || people.Machine || !people.CheckedByPerson || people.Language != "si" || len(people.Sources) != 0 {
 		t.Fatalf("%+v", people)
 	}
-	if machine.Label == nil || !machine.Machine || machine.CheckedByPerson || !machine.Fallback || !out.Fallback {
+	if machine.Label == nil || machine.PublicLabel == nil || !machine.Machine || machine.CheckedByPerson || !machine.Fallback || !out.Fallback {
 		t.Fatalf("%+v", machine)
 	}
 }

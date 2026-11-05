@@ -14,6 +14,8 @@ import (
 const (
 	LabelWord        = "machineLabel"
 	LabelThroughWord = "machineLabelThrough"
+	PublicLabelWord  = "machineLabelPublic"
+	PublicLinkWord   = "machineLabelPublicLink"
 )
 
 // Label is the passage's label in the three languages, naming each source that made any
@@ -32,6 +34,27 @@ func (p Passage) Label() map[string]string {
 			continue
 		}
 		out[string(l)] = strings.ReplaceAll(i18n.T(l, LabelThroughWord), "{source}", strings.Join(names, ", "))
+	}
+	return out
+}
+
+// PublicLabel is the same notice for a public page, in the three languages. It names
+// ROSETTA, not the outside source, and asks nothing of the reader that an officer does.
+func (p Passage) PublicLabel() map[string]string {
+	out := make(map[string]string, len(i18n.Langs))
+	for _, l := range i18n.Langs {
+		out[string(l)] = i18n.T(l, PublicLabelWord)
+	}
+	return out
+}
+
+// PublicLabelLink is, in each language, the words inside the public label that a page may
+// make its link for telling the service, so the label stays whole and no caller has to
+// find them in a language it cannot read.
+func (p Passage) PublicLabelLink() map[string]string {
+	out := make(map[string]string, len(i18n.Langs))
+	for _, l := range i18n.Langs {
+		out[string(l)] = i18n.T(l, PublicLinkWord)
 	}
 	return out
 }

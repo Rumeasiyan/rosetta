@@ -111,6 +111,8 @@ A request is all or nothing. Either every passage comes back in the same order, 
     "sources": [{"name": "some-site", "version": "3"}],
     "machine": true, "checked_by_person": false,
     "label": {"si": "...", "ta": "...", "en": "Machine translation through some-site, check before issue"},
+    "public_label": {"si": "...", "ta": "...", "en": "Machine translated through the provincial translation service ROSETTA. Please read with caution: it may contain mistakes. Please tell us if anything needs changing."},
+    "public_label_link": {"si": "...", "ta": "...", "en": "tell us"},
     "fallback_used": false, "glossary_version": 12
   }]
 }
@@ -127,7 +129,9 @@ A request is all or nothing. Either every passage comes back in the same order, 
 | `passages[].pieces` | Each piece in order: its origin, and for `source` or `cache` the source and version |
 | `passages[].machine` | A machine made any of it |
 | `passages[].checked_by_person` | Wholly from the glossary or memory |
-| `passages[].label` | Only where `machine` is true. It says a machine made the text and names each source. Show it beside the text every time, in the reader's language, whole and unchanged (R-TRN-07) |
+| `passages[].label` | Only where `machine` is true. It says a machine made the text and names each source. Show it to officers beside the text every time, in the reader's language, whole and unchanged (R-TRN-07) |
+| `passages[].public_label` | Only where `machine` is true. The same notice for a public page: it names ROSETTA, not the source. A public page shows this in place of `label`, under the same rule, wherever the text shows, lists included. A person's screen in a provincial system shows `label` |
+| `passages[].public_label_link` | Only with `public_label`. In each language, the words of `public_label` a page may make its link for telling you of a mistake. They occur exactly once in it, so split on them: the wording stays whole and only those words become the link |
 | `passages[].terms_not_placed` | Only when a source lost a glossary term: each as published, for the reader to place (R-GLO-03) |
 
 ## A long translation: background runs

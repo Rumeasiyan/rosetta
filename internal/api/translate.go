@@ -67,6 +67,8 @@ type passageAnswer struct {
 	Machine         bool              `json:"machine"`
 	CheckedByPerson bool              `json:"checked_by_person"`
 	Label           map[string]string `json:"label,omitempty"`
+	PublicLabel     map[string]string `json:"public_label,omitempty"`
+	PublicLabelLink map[string]string `json:"public_label_link,omitempty"`
 	Fallback        bool              `json:"fallback_used"`
 	GlossaryVersion int               `json:"glossary_version"`
 	// TermsNotPlaced is each published term a source lost, flagged for the reader (R-GLO-03).
@@ -100,6 +102,8 @@ func shape(ref string, a translate.Answer) translateAnswer {
 		}
 		if x.Machine {
 			x.Label = p.Label()
+			x.PublicLabel = p.PublicLabel()
+			x.PublicLabelLink = p.PublicLabelLink()
 		}
 		out.Fallback = out.Fallback || x.Fallback
 		out.Passages[i] = x
