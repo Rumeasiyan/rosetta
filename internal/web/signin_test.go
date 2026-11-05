@@ -157,6 +157,33 @@ func mustGet(u string) *http.Request {
 	return req
 }
 
+// B on a browser that still holds A's cookie is not served as A: CERBERUS names B, and A's
+// session ends. The same name, or none, changes nothing, and the header never starts a session.
+func TestAnotherPersonAtTheBrowserEndsTheSession(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	who := subject("person")
+	b.signIn(who)
+	as := func(account string) page {
+		req := mustGet(w.screens.URL + "/")
+		if account != "" {
+			req.Header.Set("X-Cerberus-Account", account)
+		}
+		return b.noFollow(req)
+	}
+	for _, account := range []string{"", who} {
+		if p := as(account); p.status != 200 || !strings.Contains(p.body, "Test "+who) {
+			t.Fatalf("%q: %d", account, p.status)
+		}
+	}
+	if p := as(subject("other")); p.status != 303 || strings.Contains(p.body, "Test "+who) {
+		t.Fatalf("another person: %d %s", p.status, p.body)
+	}
+	if p := as(who); p.status != 303 {
+		t.Fatalf("the session should be gone, and the header not start one: %d", p.status)
+	}
+}
+
 func TestWithoutASessionPagesAndFormsDiffer(t *testing.T) {
 	w := newWorld(t)
 	b := w.browser()

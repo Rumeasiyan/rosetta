@@ -226,6 +226,15 @@ func (a *App) signedIn(next http.HandlerFunc) http.Handler {
 			a.toSignIn(w, r, "/signin/start")
 			return
 		}
+		if otherPerson(r, sess) {
+			// CERBERUS says someone else is at this browser: A's session ends rather than
+			// serve B as A. The header can end a session here, never start one.
+			a.deps.Logger.Warn("a session ended: another person is signed in at this browser")
+			a.revoke(r.Context(), a.sessions.end(ck.Value))
+			a.setCookie(w, SessionCookie, "", -1)
+			a.toSignIn(w, r, "/signin/start")
+			return
+		}
 		if !a.sessions.now().Before(sess.expires) {
 			if timer {
 				// Only a person's own request renews; a tab left open must end.
@@ -255,6 +264,13 @@ func (a *App) signedIn(next http.HandlerFunc) http.Handler {
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), currentKey{}, c)))
 	})
+}
+
+// otherPerson says CERBERUS names someone other than the session's person. Only Caddy sets
+// the header, and with no CERBERUS in front of ROSETTA there is none to compare.
+func otherPerson(r *http.Request, sess session) bool {
+	account := r.Header.Get("X-Cerberus-Account")
+	return account != "" && account != sess.subject
 }
 
 // renew sends the session's refresh token once. One request at a time holds the
@@ -423,7 +439,7 @@ func (a *App) setLanguage(w http.ResponseWriter, r *http.Request) {
 	}
 	a.setLanguageCookie(w, string(l))
 	if ck, err := r.Cookie(SessionCookie); err == nil {
-		if sess, ok := a.sessions.get(ck.Value, false); ok {
+		if sess, ok := a.sessions.get(ck.Value, false); ok && !otherPerson(r, sess) {
 			if err := people.SetLanguage(r.Context(), a.deps.Pool, sess.personID, string(l)); err != nil {
 				a.deps.Logger.Error("screen language not kept", "error", err)
 			}
