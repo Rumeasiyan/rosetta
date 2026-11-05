@@ -20,11 +20,9 @@ parts:
   - path: /api/v2/languages
     method: OPTIONS
     open: the browser's CORS preflight carries no sign-in
-  # Other systems and PARADOX, each proving itself.
+  # Other systems, each proving itself.
   - path: /api/v1/
     open: API for other systems, checked by its own key and signature
-  - path: /jobs/
-    open: PARADOX's signed calls
   # Administration and personal data.
   - path: /people
     level: highly_sensitive
