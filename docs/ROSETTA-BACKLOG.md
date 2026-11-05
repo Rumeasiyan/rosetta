@@ -184,21 +184,21 @@ Notes:
 
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
-| 50 | [ ] | With you | E-ENB-05 | Tagged image to GHCR; `apps/rosetta/` with STACK 2 controls, `import awake`, no sleep labels, on the platform network | §5; B 6, B 20; R-NFR-07 | Must | 43, 48, 49 |
-| 51 | [ ] | With you | E-ENB-06 | Database `rosetta` and its pools on the shared server; migrations run | §5; B 10 | Must | 50 |
-| 52 | [ ] | With you | E-ENB-07 | rosetta.epc.lk through the tunnel and Caddy | §5; B 1, B 4, B 5, B 6 | Must | 51 |
-| 53 | [ ] | With you | E-ENB-08 | MJOLNIR connected: ROSETTA registered as a client, real sign-in | B 8; R-ADM-01 | Must | 52 |
+| 50 | [x] | With you | E-ENB-05 | Tagged image to GHCR; `apps/rosetta/` with STACK 2 controls, `import awake`, no sleep labels, on the platform network | §5; B 6, B 20; R-NFR-07 | Must | 43, 48, 49 |
+| 51 | [x] | With you | E-ENB-06 | Database `rosetta` and its pools on the shared server; migrations run | §5; B 10 | Must | 50 |
+| 52 | [x] | With you | E-ENB-07 | rosetta.epc.lk through the tunnel and Caddy | §5; B 1, B 4, B 5, B 6 | Must | 51 |
+| 53 | [x] | With you | E-ENB-08 | MJOLNIR connected: ROSETTA registered as a client, real sign-in | B 8; R-ADM-01 | Must | 52 |
 | 54 | [ ] | With you | E-ENB-09 | First administrator; roles for glossary keepers and memory reviewers named by the Office | s2; R-ADM-06 | Must | 53 |
 | 55 | [ ] | With you | E-ENB-10 | CERBERUS connected: ROSETTA's parts marked, checks walked | B 9; R-ADM-01, R-NFR-10 | Must | 53 |
-| 56 | [ ] | With you | E-ENB-11 | TVA's lookup file read with ROSETTA's read-only key | B 11; R-CAL-01 | Must | 52 |
+| 56 | [x] | With you | E-ENB-11 | TVA's lookup file read with ROSETTA's read-only key | B 11; R-CAL-01 | Must | 52 |
 | 57 | [ ] | With you | E-ENB-21 | BIFROST connected: ROSETTA's agreement in TVA, its key, a post looked up | B 21; R-ADM-06 | Must | 52 |
-| 58 | [ ] | With you | E-ENB-12 | PENSIEVE connected: entries reach the audit log | B 13; R-REC-02 | Must | 52, 57 |
+| 58 | [x] | With you | E-ENB-12 | PENSIEVE connected: entries reach the audit log | B 13; R-REC-02 | Must | 52, 57 |
 | 59 | [ ] | With you | E-ENB-13 | HEDWIG connected: a test alert reaches the administrator | B 14; R-ADM-03 | Must | 52 |
 | 60 | [ ] | With you | E-ENB-14 | PARADOX schedules running | B 12; §5; R-REC-04 | Must | 52 |
 | 61 | [ ] | With you | E-ENB-15 | Uptime Kuma: address and container monitors; alert timed | B 18; R-NFR-07 | Must | 52 |
 | 62 | [ ] | With you | E-ENB-16 | PHOENIX backup of database `rosetta`; a restore tried | B 19; R-NFR-08 | Must | 51 |
-| 63 | [ ] | With you | E-ENB-17 | BUMBLEBEE connected through the link: key handed over, source list read | B 15, B 16, B 17; R-PRV-01, R-NFR-10 | Must | 52 |
-| 64 | [ ] | With you | E-ENB-18 | Directions opened at the gate on evaluations of the real sources | R-GAT-01, R-GRM-06; B 17 | Must | 63 |
+| 63 | [x] | With you | E-ENB-17 | BUMBLEBEE connected through the link: key handed over, source list read | B 15, B 16, B 17; R-PRV-01, R-NFR-10 | Must | 52 |
+| 64 | [x] | With you | E-ENB-18 | Directions opened at the gate on evaluations of the real sources | R-GAT-01, R-GRM-06; B 17 | Must | 63 |
 | 65 | [ ] | With you | E-ENB-19 | SCOS Pro registered as a caller, key handed over, first real translation | B 3; R-CAL-01, R-CAL-03, R-TRN-01 | Must | 54, 55, 56, 58, 59, 60, 61, 62, 64 |
 | 66 | [ ] | With you | E-ENB-20 | Plug-in installed on SCOS Pro's Document Server, pointed at ROSETTA; an officer checks a letter | B 2; R-CAL-06, R-GRM-01 | Must | 65 |
 
