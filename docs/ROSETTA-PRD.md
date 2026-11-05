@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.10, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.11, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -65,7 +65,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-TRN-04 | ROSETTA splits each passage into sentences, and longer sentences at word boundaries, and answers each piece in this order: a whole glossary term (served under any gate state), the memory (R-MEM-02), the cache (R-TRN-08), then a source (R-PRV-02). Each passage is the pieces joined in their original order, with line breaks and spacing at its edges kept. |
 | R-TRN-05 | Sending the same request again gives the same answer while the glossary, memory and cache are unchanged, so a caller may retry safely. |
 | R-TRN-06 | Every answer states, for each passage: where its pieces came from (glossary, memory, cache or source), the source and its version, whether a machine produced any of it, and the glossary version used. The answer carries the request reference. |
-| R-TRN-07 | Every passage that a machine produced in whole or part carries the label "Machine translation through <source>, check before issue" in all three languages, naming each source that made any of it, for the caller to show beside the text in the reader's language, every time. Passages wholly from the glossary or memory carry no label and are marked as checked by a person. |
+| R-TRN-07 | Every passage that a machine produced in whole or part carries the label "Machine translation through <source>, check before issue" in all three languages, naming each source that made any of it, for the caller to show beside the text in the reader's language, every time. Such a passage also carries a public label, "Machine translated through the provincial translation service ROSETTA. Please read with caution: it may contain mistakes. Please tell us if anything needs changing.", in all three languages, which a public page shows in place of the first, under the same rule; officers keep the first, naming the source. Passages wholly from the glossary or memory carry no label and are marked as checked by a person. |
 | R-TRN-08 | Each translated piece of ordinary text is kept in a cache for 30 days (default: 30 days), by text, language pair and source, so the same piece is not sent to a source twice. Personal and confidential text is never cached. A glossary change removes cached pieces that hold the changed term (R-GLO-06). |
 | R-TRN-09 | ROSETTA never returns the original text, or part of it, as if it were the translation. |
 | R-TRN-10 | A system may send the same request as a background run, so a long translation need not fit R-ERR-03. It is checked at once and refused as a direct request would be; otherwise ROSETTA answers straight away with the run's reference and when to ask again. R-TRN-02 to R-TRN-09 apply to a run as to a direct request. Direct requests stay. Only systems call this, server to server; never an officer's browser. |

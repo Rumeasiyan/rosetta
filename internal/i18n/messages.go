@@ -233,8 +233,10 @@ var messages = map[string]text{
 	"settingRequestChars": {"Most characters in one request", "එක් ඉල්ලීමක උපරිම අකුරු", "ஒரு கோரிக்கையில் அதிகபட்ச எழுத்துகள்"},
 	"unitPassages":        {"passages", "ඡේද", "பத்திகள்"},
 
-	"machineLabel":        {"Machine translation, check before issue", "යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
-	"machineLabelThrough": {"Machine translation through {source}, check before issue", "{source} හරහා යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "{source} வழியாக இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
+	"machineLabel":           {"Machine translation, check before issue", "යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
+	"machineLabelThrough":    {"Machine translation through {source}, check before issue", "{source} හරහා යන්ත්‍ර පරිවර්තනය, නිකුත් කිරීමට පෙර පරීක්ෂා කරන්න", "{source} வழியாக இயந்திர மொழிபெயர்ப்பு, வெளியிடும் முன் சரிபார்க்கவும்"},
+	"machineLabelPublic":     {"Machine translated through the provincial translation service ROSETTA. Please read with caution: it may contain mistakes. Please tell us if anything needs changing.", "පළාත් පරිවර්තන සේවාව වන ROSETTA හරහා යන්ත්‍රයෙන් පරිවර්තනය කර ඇත. මෙහි වැරදි තිබිය හැකි බැවින් කරුණාකර ප්‍රවේශමෙන් කියවන්න. යමක් වෙනස් කළ යුතු නම් කරුණාකර අපට දන්වන්න.", "மாகாண மொழிபெயர்ப்புச் சேவையான ROSETTA வழியாக இயந்திரத்தால் மொழிபெயர்க்கப்பட்டது. இதில் தவறுகள் இருக்கக்கூடும் என்பதால் கவனமாகப் படிக்கவும். ஏதேனும் மாற்றம் தேவைப்பட்டால் தயவுசெய்து எங்களுக்குத் தெரிவிக்கவும்."},
+	"machineLabelPublicLink": {"tell us", "අපට දන්වන්න", "எங்களுக்குத் தெரிவிக்கவும்"},
 
 	"settingCacheDays": {"Keep translated pieces of ordinary text for", "සාමාන්‍ය පාඨයේ පරිවර්තිත කොටස් තබා ගන්නා කාලය", "சாதாரண உரையின் மொழிபெயர்த்த துண்டுகளை வைத்திருக்கும் காலம்"},
 

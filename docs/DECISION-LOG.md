@@ -141,6 +141,8 @@ By the owner's ruling, translation opens on all six directions on `google-transl
 
 In exchange the notice gets stronger: the label itself now names each source (R-TRN-07), so a caller that shows the label shows the source too, with no change on its side. The field and its place stay the same, as R-ADM-07 asks; only the words grew. The Test screen shows it in the screen's language above the full answer. The original wording stays for a cached piece with no source named. The Sinhala and Tamil of the new words are best effort too, waiting for the same reader as E-ERR-01.
 
+The owner then ruled on public pages: an officer can check and name a source, a member of the public cannot, and "check before issue" asks them for nothing they can do. So each machine passage also carries `public_label`, the owner's words, naming ROSETTA and not the outside source, on public pages only. A second field keeps `label` as it is for every caller (R-ADM-07). `public_label_link` gives the words of it that may be a link, as a caller cannot find them in a language it cannot read, and a test holds them to exactly once in each language. Its Sinhala and Tamil are unchecked drafts, for the translators with the rest (E-ERR-01, E-TRN-02).
+
 `rosetta evaluate` now prints `request_ids`, the start of each sentence's `request_id`, so a run can be found on BUMBLEBEE's side.
 
 ## Flapping alerts
