@@ -171,6 +171,9 @@ type Pending struct {
 	State    string
 	Nonce    string
 	Verifier string
+	// SignUp asks MJOLNIR for its sign-up form rather than sign-in, for a person with no session
+	// (its docs/SESSION-INTERFACE.md, "Who may come in"). With a session it changes nothing.
+	SignUp bool
 }
 
 // NewPending makes fresh random values for one sign-in.
@@ -203,6 +206,9 @@ func (p *Provider) AuthURL(ctx context.Context, pd Pending) (string, error) {
 		"nonce":                 {pd.Nonce},
 		"code_challenge":        {base64.RawURLEncoding.EncodeToString(sum[:])},
 		"code_challenge_method": {"S256"},
+	}
+	if pd.SignUp {
+		q.Set("sign_up", "1")
 	}
 	sep := "?"
 	if strings.Contains(m.AuthURL, "?") {

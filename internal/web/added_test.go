@@ -7,9 +7,11 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/oidc"
 )
 
 func (b *browser) add(email string) page {
@@ -75,6 +77,9 @@ func TestAddedByEmailThenKeptByTheSubject(t *testing.T) {
 	notices, _ := w.noticesSent()
 	if len(notices) != before+1 || notices[len(notices)-1].NoticeType != "rosetta_person_added" || len(notices[len(notices)-1].People) != 1 {
 		t.Fatalf("%+v", notices)
+	}
+	if link := notices[len(notices)-1].Details["link"]; !strings.HasSuffix(link, glossary.NewPersonPath) {
+		t.Fatalf("%q", link)
 	}
 	b := w.browser()
 	if p := b.signInAs(who); p.status != 200 {
@@ -186,4 +191,71 @@ func TestProposalsStopAtTheDaysLimit(t *testing.T) {
 		}
 	}
 	says(t, send(20), i18n.EN, "glossaryTooMany")
+}
+
+// The notice's link asks for the sign-up form, and nothing else does.
+func TestTheNoticesLinkAsksMjolnirForSignUp(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	p := b.noFollow(mustGet(w.screens.URL + glossary.NewPersonPath))
+	if p.status != http.StatusSeeOther || !strings.Contains(p.header.Get("Location"), "sign_up=1") {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
+	}
+	if p := b.noFollow(mustGet(w.screens.URL + "/signin/start")); strings.Contains(p.header.Get("Location"), "sign_up") {
+		t.Fatalf("%q", p.header.Get("Location"))
+	}
+	// A hold is for starting by itself: following a link is someone asking.
+	req := mustGet(w.screens.URL + glossary.NewPersonPath)
+	req.AddCookie(&http.Cookie{Name: HoldCookie, Value: "1"})
+	if p := b.noFollow(req); p.status != http.StatusSeeOther {
+		t.Fatalf("held: %d", p.status)
+	}
+}
+
+// The link is open to anyone: it takes nothing from the request and keeps nothing here, and the
+// sign-in it starts still finishes, on the home screen.
+func TestTheOpenLinkKeepsNothingAndTakesNothing(t *testing.T) {
+	w := newWorld(t)
+	who := subject("new")
+	w.added(who)
+	b := w.browser()
+	req := mustGet(w.screens.URL + glossary.NewPersonPath + "?next=/people&redirect_uri=https://elsewhere.example")
+	p := b.noFollow(req)
+	if p.status != http.StatusSeeOther || strings.Contains(p.header.Get("Location"), "elsewhere") {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
+	}
+	if n := len(w.app.sessions.waiting); n != 0 {
+		t.Fatalf("%d sign-ins kept", n)
+	}
+	if p := b.get(glossary.NewPersonPath + "/more"); p.status != http.StatusNotFound {
+		t.Fatalf("under the path: %d", p.status)
+	}
+	if p := b.finishSignIn(glossary.NewPersonPath, who); p.status != 200 || p.url != "/" {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+	if n := w.count(`SELECT count(*) FROM person WHERE mjolnir_subject = $1`, who); n != 1 {
+		t.Fatalf("%d rows", n)
+	}
+}
+
+// A signed cookie cannot be written by hand, and one past its time is nothing.
+func TestASealedSignInCannotBeForged(t *testing.T) {
+	w := newWorld(t)
+	pd := oidc.NewPending()
+	good := w.app.seal(pd)
+	if got, ok := w.app.unseal(good); !ok || got.State != pd.State || got.Verifier != pd.Verifier || got.Nonce != pd.Nonce {
+		t.Fatalf("%v %+v", ok, got)
+	}
+	if _, ok := w.app.unseal(strings.Replace(good, pd.Nonce, oidc.NewPending().Nonce, 1)); ok {
+		t.Fatal("a changed value passed")
+	}
+	if _, ok := w.app.unseal(pd.State); ok {
+		t.Fatal("a plain state passed")
+	}
+	past := w.app.sessions.now
+	defer func() { w.app.sessions.now = past }()
+	w.app.sessions.now = func() time.Time { return time.Now().Add(PendingLimit + time.Minute) }
+	if _, ok := w.app.unseal(good); ok {
+		t.Fatal("an old value passed")
+	}
 }

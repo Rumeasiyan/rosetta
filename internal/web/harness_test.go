@@ -208,7 +208,13 @@ func (b *browser) signIn(subject string) page {
 // signInAs goes through the screens and MJOLNIR's form as someone who may not have been added.
 func (b *browser) signInAs(subject string) page {
 	b.w.t.Helper()
-	form := b.get("/signin/start")
+	return b.finishSignIn("/signin/start", subject)
+}
+
+// finishSignIn starts from this path and goes through MJOLNIR's form.
+func (b *browser) finishSignIn(start, subject string) page {
+	b.w.t.Helper()
+	form := b.get(start)
 	if !strings.Contains(form.body, "MJOLNIR stand-in") {
 		return form // MJOLNIR's session was live: it passed with no form
 	}
