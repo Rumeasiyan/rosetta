@@ -11,6 +11,7 @@ import (
 
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/oidc"
 )
 
 func (b *browser) add(email string) page {
@@ -211,16 +212,50 @@ func TestTheNoticesLinkAsksMjolnirForSignUp(t *testing.T) {
 	}
 }
 
-// Anyone can reach the link, so what it can add to memory has an end.
-func TestTheOpenLinkStopsWhenTooManyWait(t *testing.T) {
+// The link is open to anyone: it takes nothing from the request and keeps nothing here, and the
+// sign-in it starts still finishes, on the home screen.
+func TestTheOpenLinkKeepsNothingAndTakesNothing(t *testing.T) {
 	w := newWorld(t)
-	s := w.app.sessions
-	s.mu.Lock()
-	for n := range WaitingLimit {
-		s.waiting[itoa(int64(n))] = pending{created: time.Now()}
+	who := subject("new")
+	w.added(who)
+	b := w.browser()
+	req := mustGet(w.screens.URL + glossary.NewPersonPath + "?next=/people&redirect_uri=https://elsewhere.example")
+	p := b.noFollow(req)
+	if p.status != http.StatusSeeOther || strings.Contains(p.header.Get("Location"), "elsewhere") {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
 	}
-	s.mu.Unlock()
-	if p := w.browser().noFollow(mustGet(w.screens.URL + glossary.NewPersonPath)); p.status != http.StatusServiceUnavailable {
-		t.Fatalf("%d", p.status)
+	if n := len(w.app.sessions.waiting); n != 0 {
+		t.Fatalf("%d sign-ins kept", n)
+	}
+	if p := b.get(glossary.NewPersonPath + "/more"); p.status != http.StatusNotFound {
+		t.Fatalf("under the path: %d", p.status)
+	}
+	if p := b.finishSignIn(glossary.NewPersonPath, who); p.status != 200 || p.url != "/" {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+	if n := w.count(`SELECT count(*) FROM person WHERE mjolnir_subject = $1`, who); n != 1 {
+		t.Fatalf("%d rows", n)
+	}
+}
+
+// A signed cookie cannot be written by hand, and one past its time is nothing.
+func TestASealedSignInCannotBeForged(t *testing.T) {
+	w := newWorld(t)
+	pd := oidc.NewPending()
+	good := w.app.seal(pd)
+	if got, ok := w.app.unseal(good); !ok || got.State != pd.State || got.Verifier != pd.Verifier || got.Nonce != pd.Nonce {
+		t.Fatalf("%v %+v", ok, got)
+	}
+	if _, ok := w.app.unseal(strings.Replace(good, pd.Nonce, oidc.NewPending().Nonce, 1)); ok {
+		t.Fatal("a changed value passed")
+	}
+	if _, ok := w.app.unseal(pd.State); ok {
+		t.Fatal("a plain state passed")
+	}
+	past := w.app.sessions.now
+	defer func() { w.app.sessions.now = past }()
+	w.app.sessions.now = func() time.Time { return time.Now().Add(PendingLimit + time.Minute) }
+	if _, ok := w.app.unseal(good); ok {
+		t.Fatal("an old value passed")
 	}
 }

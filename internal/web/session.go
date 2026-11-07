@@ -1,7 +1,12 @@
 package web
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,8 +23,6 @@ import (
 const (
 	ForgetAfter  = 12 * time.Hour
 	PendingLimit = 10 * time.Minute
-	// WaitingLimit is the most sign-ins waiting at once that the open link may add to.
-	WaitingLimit = 10000
 
 	SessionCookie = "rosetta_session"
 	SigninCookie  = "rosetta_signin"
@@ -89,14 +92,6 @@ func (s *sessions) start(p oidc.Pending, next string) {
 	s.waiting[p.State] = pending{Pending: p, next: next, created: s.now()}
 }
 
-// waitingFull says the open link may start no more for now.
-func (s *sessions) waitingFull() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sweep()
-	return len(s.waiting) >= WaitingLimit
-}
-
 // take returns and forgets the sign-in with this state: each is used once.
 func (s *sessions) take(state string) (pending, bool) {
 	s.mu.Lock()
@@ -162,4 +157,35 @@ func (a *App) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
 		Name: name, Value: value, Path: "/", MaxAge: maxAge,
 		HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteLaxMode,
 	})
+}
+
+// seal writes a sign-in into a cookie's value, signed with a key that lives only in this process, so
+// nothing is kept here for someone who may never come back. A restart loses it, as it loses every
+// sign-in in hand. The value is the browser's own, so it is signed and needs no secrecy.
+func (a *App) seal(pd oidc.Pending) string {
+	body := strings.Join([]string{pd.State, pd.Nonce, pd.Verifier, strconv.FormatInt(a.sessions.now().Add(PendingLimit).Unix(), 10)}, ".")
+	return body + "." + a.sealSum(body)
+}
+
+func (a *App) sealSum(body string) string {
+	mac := hmac.New(sha256.New, a.sealKey)
+	mac.Write([]byte(body))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// unseal reads what seal wrote, while it lasts.
+func (a *App) unseal(value string) (oidc.Pending, bool) {
+	parts := strings.Split(value, ".")
+	if len(parts) != 5 {
+		return oidc.Pending{}, false
+	}
+	body := strings.Join(parts[:4], ".")
+	if !hmac.Equal([]byte(parts[4]), []byte(a.sealSum(body))) {
+		return oidc.Pending{}, false
+	}
+	until, err := strconv.ParseInt(parts[3], 10, 64)
+	if err != nil || a.sessions.now().Unix() >= until {
+		return oidc.Pending{}, false
+	}
+	return oidc.Pending{State: parts[0], Nonce: parts[1], Verifier: parts[2], SignUp: true}, true
 }

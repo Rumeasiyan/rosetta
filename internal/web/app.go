@@ -85,6 +85,7 @@ type App struct {
 	*Renderer
 	deps     Deps
 	sessions *sessions
+	sealKey  []byte // signs a sign-in held in a cookie; dies with the process
 	secure   bool
 	settings *settings.Cached[settings.Values]
 }
@@ -102,7 +103,7 @@ func New(deps Deps) (*App, error) {
 		return nil, err
 	}
 	r.signOutOrigins = originsOf(deps.SignOutURL, deps.SignInIssuer)
-	a := &App{Renderer: r, deps: deps, sessions: newSessions(), secure: strings.HasPrefix(deps.PublicURL, "https://")}
+	a := &App{Renderer: r, deps: deps, sessions: newSessions(), sealKey: []byte(oidc.Random()), secure: strings.HasPrefix(deps.PublicURL, "https://")}
 	a.settings = settings.NewCached(settings.Defaults(), func(ctx context.Context) (settings.Values, error) {
 		return settings.Load(ctx, deps.Pool)
 	}, settings.RefreshEvery, deps.Logger)
@@ -492,24 +493,27 @@ func (a *App) setLanguage(w http.ResponseWriter, r *http.Request) {
 
 // ---- sign-in ---------------------------------------------------------------
 
-func (a *App) signinStart(w http.ResponseWriter, r *http.Request) {
-	a.startSignIn(w, r, oidc.NewPending())
-}
-
 // signinNew is where the added notice links. It is an open part in CERBERUS, or CERBERUS would start
-// a plain sign-in first and someone new would not see the form, so it allows only so many at once.
+// a plain sign-in first and someone new would not see the form. Anyone can reach it, so it takes
+// nothing from the request, reads no session and keeps nothing here: what the callback needs is in a
+// signed cookie, and the person lands on the home screen.
 func (a *App) signinNew(w http.ResponseWriter, r *http.Request) {
-	if a.sessions.waitingFull() {
-		a.deps.Logger.Warn("too many sign-ins are waiting")
-		a.gate(w, r, http.StatusServiceUnavailable, "signInUnavailable", "bad", "/")
-		return
-	}
 	pd := oidc.NewPending()
 	pd.SignUp = true
-	a.startSignIn(w, r, pd)
+	ctx, cancel := context.WithTimeout(r.Context(), signinCallTimeout)
+	defer cancel()
+	u, err := a.deps.SignIn.AuthURL(ctx, pd)
+	if err != nil {
+		a.deps.Logger.Error("sign-in", "step", "new person", "error", err)
+		a.gate(w, r, http.StatusBadGateway, "signInUnavailable", "bad", "/")
+		return
+	}
+	a.setCookie(w, SigninCookie, a.seal(pd), int(PendingLimit.Seconds()))
+	http.Redirect(w, r, u, http.StatusSeeOther)
 }
 
-func (a *App) startSignIn(w http.ResponseWriter, r *http.Request, pd oidc.Pending) {
+func (a *App) signinStart(w http.ResponseWriter, r *http.Request) {
+	pd := oidc.NewPending()
 	ctx, cancel := context.WithTimeout(r.Context(), signinCallTimeout)
 	defer cancel()
 	u, err := a.deps.SignIn.AuthURL(ctx, pd)
@@ -531,12 +535,12 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 	ck, err := r.Cookie(SigninCookie)
 	a.setCookie(w, SigninCookie, "", -1)
 	// The state must match this browser's own sign-in, used once.
-	if err != nil || state == "" || subtle.ConstantTimeCompare([]byte(ck.Value), []byte(state)) != 1 {
+	if err != nil || state == "" {
 		a.hold(w)
 		a.gate(w, r, http.StatusBadRequest, "signInFailed", "bad", "/")
 		return
 	}
-	pd, ok := a.sessions.take(state)
+	pd, ok := a.pendingFor(ck.Value, state)
 	if !ok || q.Get("code") == "" {
 		a.hold(w)
 		a.gate(w, r, http.StatusBadRequest, "signInFailed", "bad", "/")
@@ -645,6 +649,21 @@ func (a *App) refuseNotAdded(w http.ResponseWriter, r *http.Request, tokens oidc
 	}
 	a.hold(w)
 	a.gate(w, r, http.StatusForbidden, "notAdded", "bad", "/")
+}
+
+// pendingFor finds the sign-in this browser's cookie speaks for: one started from the notice's link
+// is held in the cookie itself, and any other here, used once.
+func (a *App) pendingFor(cookie, state string) (pending, bool) {
+	if pd, ok := a.unseal(cookie); ok {
+		if subtle.ConstantTimeCompare([]byte(pd.State), []byte(state)) != 1 {
+			return pending{}, false
+		}
+		return pending{Pending: pd, next: "/"}, true
+	}
+	if subtle.ConstantTimeCompare([]byte(cookie), []byte(state)) != 1 {
+		return pending{}, false
+	}
+	return a.sessions.take(state)
 }
 
 // signout does what MJOLNIR's docs/SESSION-INTERFACE.md gives a system's own button:
