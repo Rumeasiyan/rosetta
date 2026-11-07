@@ -21,6 +21,11 @@ const (
 
 	SessionCookie = "rosetta_session"
 	SigninCookie  = "rosetta_signin"
+
+	// HoldCookie stops a sign-in starting by itself, so the sign-in page and its button show.
+	// It says nothing about who anyone is, and is never cleared: it only runs out.
+	HoldCookie = "rosetta_signin_hold"
+	HoldLimit  = 5 * time.Minute
 )
 
 // session is one signed-in person. Its fields change under sessions.mu; renewing

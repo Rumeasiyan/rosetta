@@ -184,6 +184,128 @@ func TestAnotherPersonAtTheBrowserEndsTheSession(t *testing.T) {
 	}
 }
 
+// A sign-in that keeps coming back as someone other than the person CERBERUS names stops at the
+// page after one try, rather than going round between ROSETTA and MJOLNIR.
+func TestAMismatchStopsAtThePageAfterOneTry(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	as := func() page {
+		req := mustGet(w.screens.URL + "/")
+		req.Header.Set("X-Cerberus-Account", "someone-else")
+		return b.noFollow(req)
+	}
+	b.signIn(subject("person"))
+	if p := as(); p.status != 303 || !strings.HasPrefix(p.header.Get("Location"), "/signin/start") {
+		t.Fatalf("first: %d %v", p.status, p.header)
+	}
+	b.signIn(subject("person"))
+	p := as()
+	if p.status != 303 || !strings.HasPrefix(p.header.Get("Location"), "/signin?") {
+		t.Fatalf("second: %d %v", p.status, p.header)
+	}
+	if p := b.get(p.header.Get("Location")); p.status != 200 || !strings.Contains(p.body, `href="/signin/start`) {
+		t.Fatalf("the page and its button should show: %d %s", p.status, p.url)
+	}
+}
+
+// Someone already signed in at MJOLNIR arrives where they were going, with no click.
+func TestSignedInAtMjolnirFlowsStraightThrough(t *testing.T) {
+	w := newWorld(t)
+	first := w.browser()
+	who := subject("person")
+	first.signIn(who)
+	first.client.Jar.SetCookies(mustURL(t, w.screens.URL), []*http.Cookie{{Name: SessionCookie, Value: "", MaxAge: -1, Path: "/"}})
+	if p := first.get("/"); p.status != 200 || p.url != "/" || !strings.Contains(p.body, "Test "+who) {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+}
+
+func TestTheSignInPageStartsMjolnirUnlessHeld(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	p := b.noFollow(mustGet(w.screens.URL + "/signin?next=/people"))
+	if p.status != 303 || p.header.Get("Location") != "/signin/start?next=%2Fpeople" {
+		t.Fatalf("not held: %d %q", p.status, p.header.Get("Location"))
+	}
+	// Nothing sent can take the browser elsewhere.
+	p = b.noFollow(mustGet(w.screens.URL + "/signin?next=//elsewhere.example"))
+	if p.status != 303 || p.header.Get("Location") != "/signin/start?next=%2F" {
+		t.Fatalf("outside: %d %q", p.status, p.header.Get("Location"))
+	}
+	if p := b.get("/signin?next=/people"); !strings.Contains(p.body, "MJOLNIR stand-in") {
+		t.Fatalf("no form: %d %s", p.status, p.url)
+	}
+	req := mustGet(w.screens.URL + "/signin")
+	req.Header.Set("HX-Request", "true")
+	if p := b.noFollow(req); p.status != 200 {
+		t.Fatalf("a background request must not start: %d", p.status)
+	}
+	if p := held(w, "/signin?next=/people"); p.status != 200 || !strings.Contains(p.body, `href="/signin/start?next=`) {
+		t.Fatalf("held: %d", p.status)
+	}
+}
+
+// After signing out, even with MJOLNIR's own page never reached, coming back shows the page. The
+// button still works, and only the button starts a sign-in.
+func TestSignOutHoldsTheSignInBack(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	b.signIn(subject("leaving"))
+	req, _ := http.NewRequest(http.MethodPost, w.screens.URL+"/signout", strings.NewReader(url.Values{"csrf": {b.csrf()}}.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if p := b.noFollow(req); p.status != 303 {
+		t.Fatalf("%d", p.status)
+	}
+	if p := b.get("/"); p.status != 200 || p.url != "/signin" || !strings.Contains(p.body, `href="/signin/start?next=`) {
+		t.Fatalf("%d %s", p.status, p.url)
+	}
+}
+
+// A person who declined at MJOLNIR comes back with an error and no code. They get the page, and
+// changing language from it does not start again.
+func TestAFailedReturnDoesNotStartAgain(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	start := b.noFollow(mustGet(w.screens.URL + "/signin/start"))
+	if start.status != 303 {
+		t.Fatalf("%d", start.status)
+	}
+	sent, err := url.Parse(start.header.Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"prompt", "max_age"} {
+		if sent.Query().Has(q) {
+			t.Errorf("a routine start must not send %s", q)
+		}
+	}
+	p := b.get(callbackURL(url.Values{"state": {sent.Query().Get("state")}, "error": {"access_denied"}}))
+	if p.status != 400 || !strings.Contains(p.body, `href="/signin/start?next=`) {
+		t.Fatalf("%d", p.status)
+	}
+	if p := b.noFollow(mustGet(w.screens.URL + "/signin")); p.status != 200 {
+		t.Fatalf("started again: %d %v", p.status, p.header)
+	}
+}
+
+// A failed start answers with the page, so nothing goes round while MJOLNIR is away.
+func TestAFailedStartStaysOnThePage(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	w.standin.Close()
+	if p := b.noFollow(mustGet(w.screens.URL + "/signin/start")); p.status != http.StatusBadGateway || !strings.Contains(p.body, `href="/signin/start?next=`) {
+		t.Fatalf("%d %v", p.status, p.header)
+	}
+}
+
+// held asks for a path as a browser holding the hold cookie.
+func held(w *world, path string) page {
+	w.t.Helper()
+	req := mustGet(w.screens.URL + path)
+	req.AddCookie(&http.Cookie{Name: HoldCookie, Value: "1"})
+	return w.browser().do(req)
+}
+
 func TestWithoutASessionPagesAndFormsDiffer(t *testing.T) {
 	w := newWorld(t)
 	b := w.browser()
@@ -376,7 +498,7 @@ func TestFormActionNamesWhereSignOutGoes(t *testing.T) {
 	w := newWorld(t)
 	b := w.browser()
 	const rest = "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action %s; frame-ancestors 'none'; base-uri 'none'"
-	if p := b.get("/signin"); p.header.Get("Content-Security-Policy") != fmt.Sprintf(rest, "'self'") {
+	if p := held(w, "/signin"); p.header.Get("Content-Security-Policy") != fmt.Sprintf(rest, "'self'") {
 		t.Fatalf("signed out: %q", p.header.Get("Content-Security-Policy"))
 	}
 	b.signIn(subject("policy"))
@@ -430,7 +552,7 @@ func TestNothingFromOutsideAndUnder200KB(t *testing.T) {
 	b := w.browser()
 	outside := regexp.MustCompile(`(?:src|href)="(?:https?:)?//|url\(["']?(?:https?:)?//|@import`)
 	for _, path := range []string{"/signin", "/signin?next=/x", "/no-such-page"} {
-		p := b.get(path)
+		p := held(w, path)
 		if outside.MatchString(p.body) {
 			t.Errorf("%s loads from outside", path)
 		}
@@ -489,6 +611,7 @@ func TestEveryScreenRendersInEachLanguage(t *testing.T) {
 		b := w.browser()
 		req := mustGet(w.screens.URL + "/signin")
 		req.Header.Set("Accept-Language", string(l))
+		req.AddCookie(&http.Cookie{Name: HoldCookie, Value: "1"})
 		p := b.do(req)
 		if p.status != 200 || !strings.Contains(p.body, `<html lang="`+string(l)+`">`) || !strings.Contains(p.body, i18n.T(l, "tagline")) {
 			t.Errorf("%s: %d", l, p.status)

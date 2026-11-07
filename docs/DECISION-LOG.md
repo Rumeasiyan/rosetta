@@ -2,6 +2,10 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## A person signed in at MJOLNIR flows straight through
+
+The owner asked that someone already signed in need not press "sign in through MJOLNIR". `/signin` now passes on to `/signin/start` on a full page visit, with a plain start: `prompt=none` always answers `login_required`, as MJOLNIR's `docs/SESSION-INTERFACE.md` says, so the routine path sends neither `prompt` nor `max_age`. The page stays, and shows in three cases. A short cookie holding no identity, `rosetta_signin_hold`, is set at sign-out, so a way back cannot start a sign-in by itself while MJOLNIR's own page is unfinished. It is set on a failed return, as someone declining MJOLNIR's privacy notice comes back with an error and would otherwise go round for ever. It is set on the first CERBERUS mismatch, so a second one stops at the page rather than going round. A failed start answers with the page too. The cookie is never cleared, only runs out: it stops nothing but the automatic start, and the button always works.
+
 ## Joining the real services
 
 Checked before the first tag against each service's own repository, not its stand-in. PENSIEVE's `docs/INTAKE.md`, HEDWIG's `docs/API.md`, BUMBLEBEE's `docs/CALLERS.md` and BIFROST's `docs/EXCHANGE.md` match the clients as built. MJOLNIR's issuer is `https://sso.epc.lk/` with its slash: it is compared whole, and discovery trims the slash only to build its address. What did not hold, and what was built:
