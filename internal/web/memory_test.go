@@ -185,7 +185,7 @@ func TestEveryMemoryScreenChecksTheRole(t *testing.T) {
 	if s, _, text := w.memoryState(id); s != memory.StateRecheck || text != "ஒன்று." {
 		t.Fatalf("%s %q", s, text)
 	}
-	if p := w.browser().get("/memory"); p.url != "/signin" {
+	if p := w.browser().get("/memory"); p.url != "/mjolnir/oauth2/auth" {
 		t.Errorf("%d %s", p.status, p.url)
 	}
 }

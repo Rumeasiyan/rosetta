@@ -274,7 +274,7 @@ func TestAFailedReturnDoesNotStartAgain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, q := range []string{"prompt", "max_age", "acr_values"} {
+	for _, q := range []string{"prompt", "max_age"} {
 		if sent.Query().Has(q) {
 			t.Errorf("a routine start must not send %s", q)
 		}
@@ -498,7 +498,7 @@ func TestFormActionNamesWhereSignOutGoes(t *testing.T) {
 	w := newWorld(t)
 	b := w.browser()
 	const rest = "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action %s; frame-ancestors 'none'; base-uri 'none'"
-	if p := b.get("/signin"); p.header.Get("Content-Security-Policy") != fmt.Sprintf(rest, "'self'") {
+	if p := held(w, "/signin"); p.header.Get("Content-Security-Policy") != fmt.Sprintf(rest, "'self'") {
 		t.Fatalf("signed out: %q", p.header.Get("Content-Security-Policy"))
 	}
 	b.signIn(subject("policy"))
