@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/oidc"
 	"github.com/Rumeasiyan/rosetta/internal/people"
@@ -116,6 +117,7 @@ func (a *App) Mount(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("GET /signin", a.gatePage)
 	mux.HandleFunc("GET /signin/start", a.signinStart)
+	mux.HandleFunc("GET "+glossary.NewPersonPath, a.signinNew)
 	mux.HandleFunc("GET "+oidc.CallbackPath, a.signinCallback)
 	mux.HandleFunc("POST /signout", a.signout)
 	mux.HandleFunc("GET /lang/{lang}", a.setLanguage)
@@ -491,7 +493,23 @@ func (a *App) setLanguage(w http.ResponseWriter, r *http.Request) {
 // ---- sign-in ---------------------------------------------------------------
 
 func (a *App) signinStart(w http.ResponseWriter, r *http.Request) {
+	a.startSignIn(w, r, oidc.NewPending())
+}
+
+// signinNew is where the added notice links. It is an open part in CERBERUS, or CERBERUS would start
+// a plain sign-in first and someone new would not see the form, so it allows only so many at once.
+func (a *App) signinNew(w http.ResponseWriter, r *http.Request) {
+	if a.sessions.waitingFull() {
+		a.deps.Logger.Warn("too many sign-ins are waiting")
+		a.gate(w, r, http.StatusServiceUnavailable, "signInUnavailable", "bad", "/")
+		return
+	}
 	pd := oidc.NewPending()
+	pd.SignUp = true
+	a.startSignIn(w, r, pd)
+}
+
+func (a *App) startSignIn(w http.ResponseWriter, r *http.Request, pd oidc.Pending) {
 	ctx, cancel := context.WithTimeout(r.Context(), signinCallTimeout)
 	defer cancel()
 	u, err := a.deps.SignIn.AuthURL(ctx, pd)

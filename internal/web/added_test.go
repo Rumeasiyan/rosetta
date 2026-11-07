@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
@@ -75,6 +76,9 @@ func TestAddedByEmailThenKeptByTheSubject(t *testing.T) {
 	notices, _ := w.noticesSent()
 	if len(notices) != before+1 || notices[len(notices)-1].NoticeType != "rosetta_person_added" || len(notices[len(notices)-1].People) != 1 {
 		t.Fatalf("%+v", notices)
+	}
+	if link := notices[len(notices)-1].Details["link"]; !strings.HasSuffix(link, glossary.NewPersonPath) {
+		t.Fatalf("%q", link)
 	}
 	b := w.browser()
 	if p := b.signInAs(who); p.status != 200 {
@@ -186,4 +190,37 @@ func TestProposalsStopAtTheDaysLimit(t *testing.T) {
 		}
 	}
 	says(t, send(20), i18n.EN, "glossaryTooMany")
+}
+
+// The notice's link asks for the sign-up form, and nothing else does.
+func TestTheNoticesLinkAsksMjolnirForSignUp(t *testing.T) {
+	w := newWorld(t)
+	b := w.browser()
+	p := b.noFollow(mustGet(w.screens.URL + glossary.NewPersonPath))
+	if p.status != http.StatusSeeOther || !strings.Contains(p.header.Get("Location"), "sign_up=1") {
+		t.Fatalf("%d %q", p.status, p.header.Get("Location"))
+	}
+	if p := b.noFollow(mustGet(w.screens.URL + "/signin/start")); strings.Contains(p.header.Get("Location"), "sign_up") {
+		t.Fatalf("%q", p.header.Get("Location"))
+	}
+	// A hold is for starting by itself: following a link is someone asking.
+	req := mustGet(w.screens.URL + glossary.NewPersonPath)
+	req.AddCookie(&http.Cookie{Name: HoldCookie, Value: "1"})
+	if p := b.noFollow(req); p.status != http.StatusSeeOther {
+		t.Fatalf("held: %d", p.status)
+	}
+}
+
+// Anyone can reach the link, so what it can add to memory has an end.
+func TestTheOpenLinkStopsWhenTooManyWait(t *testing.T) {
+	w := newWorld(t)
+	s := w.app.sessions
+	s.mu.Lock()
+	for n := range WaitingLimit {
+		s.waiting[itoa(int64(n))] = pending{created: time.Now()}
+	}
+	s.mu.Unlock()
+	if p := w.browser().noFollow(mustGet(w.screens.URL + glossary.NewPersonPath)); p.status != http.StatusServiceUnavailable {
+		t.Fatalf("%d", p.status)
+	}
 }

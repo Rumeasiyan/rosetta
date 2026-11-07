@@ -28,6 +28,10 @@ const (
 	noticePersonAdded = "rosetta_person_added"
 )
 
+// NewPersonPath is ROSETTA's own page that the added notice links to: it starts sign-in asking for
+// MJOLNIR's sign-up form, so someone with no account yet gets one.
+const NewPersonPath = "/signin/new"
+
 // sendWait is the longest one pass of sending may take after a person's change.
 const sendWait = 30 * time.Second
 
@@ -178,7 +182,7 @@ func (n *Notifier) build(ctx context.Context, q Querier, kind string, alert int6
 	langs := i18n.Langs
 	if kind == KindPersonAdded {
 		out.Type = noticePersonAdded
-		out.Details["link"] = strings.TrimRight(n.PublicURL, "/")
+		out.Details["link"] = strings.TrimRight(n.PublicURL, "/") + NewPersonPath
 		var err error
 		out.People, err = addedPerson(ctx, q, about)
 		return out, err

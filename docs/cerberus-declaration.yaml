@@ -20,6 +20,10 @@ parts:
   - path: /api/v2/languages
     method: OPTIONS
     open: the browser's CORS preflight carries no sign-in
+  # The link in the added person's notice: someone new has no sign-in yet, and this only sends
+  # them on to MJOLNIR's sign-up form.
+  - path: /signin/new
+    open: a person added and new to MJOLNIR has no sign-in yet
   # Other systems, each proving itself.
   - path: /api/v1/
     open: API for other systems, checked by its own key and signature

@@ -18,6 +18,8 @@ import (
 const (
 	ForgetAfter  = 12 * time.Hour
 	PendingLimit = 10 * time.Minute
+	// WaitingLimit is the most sign-ins waiting at once that the open link may add to.
+	WaitingLimit = 10000
 
 	SessionCookie = "rosetta_session"
 	SigninCookie  = "rosetta_signin"
@@ -85,6 +87,14 @@ func (s *sessions) start(p oidc.Pending, next string) {
 	defer s.mu.Unlock()
 	s.sweep()
 	s.waiting[p.State] = pending{Pending: p, next: next, created: s.now()}
+}
+
+// waitingFull says the open link may start no more for now.
+func (s *sessions) waitingFull() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sweep()
+	return len(s.waiting) >= WaitingLimit
 }
 
 // take returns and forgets the sign-in with this state: each is used once.
