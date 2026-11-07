@@ -232,6 +232,13 @@ func (a *App) signedIn(next http.HandlerFunc) http.Handler {
 			a.deps.Logger.Warn("a session ended: another person is signed in at this browser")
 			a.revoke(r.Context(), a.sessions.end(ck.Value))
 			a.setCookie(w, SessionCookie, "", -1)
+			// One sign-in starts by itself. If that one comes back as the wrong person too, the
+			// page stops it, or the browser would go round between here and MJOLNIR.
+			if holding(r) {
+				a.toSignIn(w, r, "/signin")
+				return
+			}
+			a.hold(w)
 			a.toSignIn(w, r, "/signin/start")
 			return
 		}
@@ -412,8 +419,26 @@ func (a *App) gate(w http.ResponseWriter, r *http.Request, status int, msg, tone
 	a.Render(w, r, status, "signin", Page{Lang: Language(r), Path: "/signin", Title: "signIn", Flash: msg, FlashTone: tone, Next: SafeNext(next)})
 }
 
+// gatePage passes straight on to MJOLNIR, so a person already signed in there flows through with
+// no click: a plain start, for a full page visit only. The page itself shows on a hold. A failed
+// return answers with the page and holds, so changing language there does not start again: someone
+// who declined MJOLNIR's privacy notice comes back with an error, and would go round for ever.
 func (a *App) gatePage(w http.ResponseWriter, r *http.Request) {
-	a.gate(w, r, http.StatusOK, "", "", r.URL.Query().Get("next"))
+	next := r.URL.Query().Get("next")
+	if holding(r) || isBackground(r) {
+		a.gate(w, r, http.StatusOK, "", "", next)
+		return
+	}
+	http.Redirect(w, r, "/signin/start?next="+url.QueryEscape(SafeNext(next)), http.StatusSeeOther)
+}
+
+func holding(r *http.Request) bool {
+	_, err := r.Cookie(HoldCookie)
+	return err == nil
+}
+
+func (a *App) hold(w http.ResponseWriter) {
+	a.setCookie(w, HoldCookie, "1", int(HoldLimit.Seconds()))
 }
 
 // homeData is what the home screen shows beyond the frame.
@@ -474,11 +499,13 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 	a.setCookie(w, SigninCookie, "", -1)
 	// The state must match this browser's own sign-in, used once.
 	if err != nil || state == "" || subtle.ConstantTimeCompare([]byte(ck.Value), []byte(state)) != 1 {
+		a.hold(w)
 		a.gate(w, r, http.StatusBadRequest, "signInFailed", "bad", "/")
 		return
 	}
 	pd, ok := a.sessions.take(state)
 	if !ok || q.Get("code") == "" {
+		a.hold(w)
 		a.gate(w, r, http.StatusBadRequest, "signInFailed", "bad", "/")
 		return
 	}
@@ -487,6 +514,7 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 	tokens, err := a.deps.SignIn.Exchange(ctx, q.Get("code"), pd.Pending)
 	if err != nil {
 		a.deps.Logger.Warn("sign-in", "step", "exchange", "error", err)
+		a.hold(w)
 		a.gate(w, r, http.StatusUnauthorized, "signInFailed", "bad", pd.next)
 		return
 	}
@@ -580,5 +608,6 @@ func (a *App) signout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.setCookie(w, SessionCookie, "", -1)
+	a.hold(w) // a way back here must not start a sign-in by itself
 	http.Redirect(w, r, a.deps.SignOutURL, http.StatusSeeOther)
 }
