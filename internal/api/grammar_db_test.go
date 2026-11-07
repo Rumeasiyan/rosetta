@@ -50,7 +50,7 @@ func TestNoGrammarTextIsKeptAnywhere(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	var uses []usage.Record
 	srv := api.New(api.Deps{
-		Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger,
+		Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Officers: officersAdded{},
 		Grammar: &grammar.Service{
 			Sources:  &sources.Fallback{Book: book, Provider: client, Grammars: client, Policy: func(context.Context) sources.Policy { return sources.Policy{} }, Logger: logger},
 			Settings: func(context.Context) settings.Values { return settings.Defaults() }, Held: &grammar.Held{}, Logger: logger,
@@ -190,3 +190,8 @@ func TestNoGrammarTextIsKeptAnywhere(t *testing.T) {
 		t.Fatalf("no denial kept: %s", places["table audit_outbox"])
 	}
 }
+
+// officersAdded says every account was added, for tests about something else.
+type officersAdded struct{}
+
+func (officersAdded) Added(context.Context, string) (bool, error) { return true, nil }

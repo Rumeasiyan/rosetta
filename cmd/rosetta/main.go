@@ -301,6 +301,7 @@ func serve(ctx context.Context, getenv func(string) string, logs io.Writer, read
 	forTests := *pipeline
 	forTests.Keeper = nil
 	calls := api.New(api.Deps{
+		Officers:       api.PoolOfficers{Pool: pool},
 		TestTranslator: &forTests,
 		Counts:         noSystem,
 		Keys:           api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, outbox.Kick), Logger: logger,

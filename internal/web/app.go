@@ -260,6 +260,21 @@ func (a *App) signedIn(next http.HandlerFunc) http.Handler {
 			}
 			sess, _ = a.sessions.get(ck.Value, timer)
 		}
+		// Removing someone takes effect at once, as ending a role does.
+		switch added, err := people.IsAdded(r.Context(), a.deps.Pool, sess.personID); {
+		case err != nil:
+			a.fail(w, r, err)
+			return
+		case !added:
+			a.revoke(r.Context(), a.sessions.end(ck.Value))
+			a.setCookie(w, SessionCookie, "", -1)
+			a.hold(w)
+			if isBackground(r) {
+				w.Header().Set("HX-Refresh", "true")
+			}
+			a.gate(w, r, http.StatusForbidden, "notAdded", "bad", "/")
+			return
+		}
 		c := &current{token: ck.Value, sess: sess}
 		if c.grants, err = people.Live(r.Context(), a.deps.Pool, sess.personID); err != nil {
 			a.fail(w, r, err)
@@ -519,6 +534,10 @@ func (a *App) signinCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	person, err := a.admit(r, tokens.Claims)
+	if errors.Is(err, people.ErrNotAdded) {
+		a.refuseNotAdded(w, r, tokens)
+		return
+	}
 	if err != nil {
 		a.fail(w, r, err)
 		return
@@ -545,8 +564,9 @@ func (a *App) admit(r *http.Request, c oidc.Claims) (people.Person, error) {
 	ctx := r.Context()
 	var person people.Person
 	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		var first bool
 		var err error
-		if person, err = people.Upsert(ctx, tx, c.Subject, c.Name, c.Email); err != nil {
+		if person, first, err = people.Admit(ctx, tx, c.Subject, c.Name, c.Email, a.deps.FirstAdmin); err != nil {
 			return err
 		}
 		want := person.Language
@@ -563,9 +583,8 @@ func (a *App) admit(r *http.Request, c oidc.Claims) (people.Person, error) {
 			}
 			person.Language = want
 		}
-		first, err := people.FirstAdministrator(ctx, tx, person, a.deps.FirstAdmin)
-		if err != nil || !first {
-			return err
+		if !first {
+			return nil
 		}
 		return audit.Record(ctx, tx, audit.Event{Actor: audit.System, Action: audit.ActionRoleChange, ObjectType: "person",
 			ObjectRef: person.Subject, Result: audit.ResultDone, Reason: "First administrator, from the bootstrap setting",
@@ -589,6 +608,25 @@ func (a *App) revoke(ctx context.Context, refresh string) {
 	if err := a.deps.SignIn.Revoke(cctx, refresh); err != nil {
 		a.deps.Logger.Warn("sign-in revocation", "error", err)
 	}
+}
+
+// refuseNotAdded answers a good MJOLNIR account that nobody added: no session and no person row. The
+// token goes back, and any older session at this browser ends, as someone else is now here.
+func (a *App) refuseNotAdded(w http.ResponseWriter, r *http.Request, tokens oidc.Tokens) {
+	a.revoke(r.Context(), tokens.Refresh)
+	if old, err := r.Cookie(SessionCookie); err == nil {
+		a.revoke(r.Context(), a.sessions.end(old.Value))
+		a.setCookie(w, SessionCookie, "", -1)
+	}
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		return audit.Record(r.Context(), tx, audit.Event{Actor: audit.System, Action: audit.ActionDenial, ObjectType: "person",
+			ObjectRef: tokens.Claims.Subject, Result: audit.ResultDenied, Reason: "Not added to ROSETTA", Visitor: audit.Visitor(r)}, now)
+	})
+	if err != nil {
+		a.deps.Logger.Error("a refused sign-in was not recorded", "error", err)
+	}
+	a.hold(w)
+	a.gate(w, r, http.StatusForbidden, "notAdded", "bad", "/")
 }
 
 // signout does what MJOLNIR's docs/SESSION-INTERFACE.md gives a system's own button:

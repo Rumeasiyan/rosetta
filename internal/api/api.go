@@ -77,6 +77,8 @@ type Deps struct {
 	Grammar GrammarChecker
 	// Origins finds who lists a browser's address (R-CAL-06). Nil lists none.
 	Origins Origins
+	// Officers says whether a signed-in account was added (R-ADM-08). Nil refuses every browser.
+	Officers Officers
 	// Usage keeps each request's record (R-REC-01). Nil keeps nothing. A failure here is logged
 	// as fixed words and changes no answer.
 	Usage func(ctx context.Context, r usage.Record) error

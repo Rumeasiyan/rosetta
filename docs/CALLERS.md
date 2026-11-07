@@ -254,7 +254,7 @@ language=en-GB&text=We+recieve+letters.
 
 ### From an officer's browser
 
-The address must be listed for your system by the administrator, compared exactly, and the officer signed in. CORS names that one address with credentials allowed; a preflight goes through with no session and uses no limit. A refusal to a browser is plain text in the language of `Accept-Language`, with the reason in `X-Rosetta-Reason` and the reference in `X-Rosetta-Request-Ref`. The call counts to the system that lists the address.
+The address must be listed for your system by the administrator, compared exactly, and the officer signed in, and added to ROSETTA with one sign-in there (R-ADM-08). CORS names that one address with credentials allowed; a preflight goes through with no session and uses no limit. A refusal to a browser is plain text in the language of `Accept-Language`, with the reason in `X-Rosetta-Reason` and the reference in `X-Rosetta-Request-Ref`. The call counts to the system that lists the address.
 
 ## Failures
 

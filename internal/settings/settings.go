@@ -57,6 +57,7 @@ var (
 	GrammarHoldMinutes = Int{Name: "grammar_hold_minutes", Default: 10, Min: 1, Max: 1440, Word: "settingGrammarHold", Unit: "unitMinutes", Source: "R-GRM-05"}
 
 	GlossaryImportRows = Int{Name: "glossary_import_rows", Default: 5000, Min: 1, Max: 20000, Word: "settingGlossaryImportRows", Unit: "unitRows", Source: "R-GLO-07"}
+	ProposalsPerDay    = Int{Name: "proposals_per_day", Default: 20, Min: 1, Max: 1000, Word: "settingProposalsPerDay", Unit: "unitProposals", Source: "R-GLO-04"}
 
 	UsageRecordYears = Int{Name: "usage_record_years", Default: 2, Min: 1, Max: 20, Word: "settingUsageYears", Unit: "unitYears", Source: "R-REC-04"}
 	DailyTotalYears  = Int{Name: "daily_total_years", Default: 5, Min: 1, Max: 50, Word: "settingTotalYears", Unit: "unitYears", Source: "R-REC-04"}
@@ -65,7 +66,7 @@ var (
 	// its own settings, so this is ROSETTA's own and not a copy: lower it if BIFROST says too many.
 	PostLookUpsPerMinute = Int{Name: "post_look_ups_per_minute", Default: 30, Min: 1, Max: 600, Word: "settingPostLookUps", Unit: "unitRequests", Source: "R-ADM-06"}
 
-	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, RunLimitMinutes, RunsPerSystem, RunsInAll, RunsWorkedAtOnce, RunUncollectedMinutes, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, UsageRecordYears, DailyTotalYears, PostLookUpsPerMinute}
+	All = []Int{RequestLimitSeconds, CallerIdleDays, FailureAlertPercent, SourceListSeconds, CallerPerMinute, CallerAtOnce, PassagesMax, PassageCharsMax, RequestCharsMax, CacheDays, RunLimitMinutes, RunsPerSystem, RunsInAll, RunsWorkedAtOnce, RunUncollectedMinutes, GrammarCharsMax, GrammarHoldMinutes, GlossaryImportRows, ProposalsPerDay, UsageRecordYears, DailyTotalYears, PostLookUpsPerMinute}
 )
 
 // Find is the setting with this name.

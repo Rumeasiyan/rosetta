@@ -78,8 +78,10 @@ func TestCookiesAreHostOnlyHttpOnlyLax(t *testing.T) {
 
 	// The session cookie itself.
 	fresh := w.browser()
+	who := subject("cookie")
+	w.added(who)
 	form := fresh.get("/signin/start")
-	vals := url.Values{"own": {subject("cookie")}}
+	vals := url.Values{"own": {who}}
 	for _, m := range formField.FindAllStringSubmatch(form.body, -1) {
 		vals.Set(m[1], strings.ReplaceAll(m[2], "&amp;", "&"))
 	}

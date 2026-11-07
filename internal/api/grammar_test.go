@@ -499,3 +499,24 @@ func TestAnAnswerSaysFallback(t *testing.T) {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
 }
+
+type noOfficers struct{ err error }
+
+func (o noOfficers) Added(context.Context, string) (bool, error) { return false, o.err }
+
+// R-ADM-08: an account nobody added is refused, even from a listed address and with CERBERUS's word
+// for who it is. Trouble reading the list lets nobody through, and with no list nobody passes.
+func TestABrowserCallFromSomeoneNotAdded(t *testing.T) {
+	for name, officers := range map[string]Officers{"not added": noOfficers{}, "fault": noOfficers{err: errors.New("down")}, "no list": nil} {
+		t.Run(name, func(t *testing.T) {
+			b := newBench(t)
+			withChecks(t, b)
+			withOrigins(t, b)
+			b.srv.deps.Officers = officers
+			rec := b.send(browserCheck(listedOrigin, "officer-1", form("We recieve "+marker+".", "auto")))
+			if rec.Code == 200 || strings.Contains(rec.Body.String(), `"offset"`) {
+				t.Fatalf("%d %s", rec.Code, rec.Body)
+			}
+		})
+	}
+}

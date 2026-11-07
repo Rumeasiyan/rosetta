@@ -54,10 +54,22 @@ ENTITIES = {
         "people",
         [("PK", "id")],
         [
-            ("mjolnir_subject", "text, unique; the person's MJOLNIR account ID"),
-            ("name, email", "text, as MJOLNIR sent them at the last sign-in"),
+            (
+                "mjolnir_subject",
+                "text, unique; the person's MJOLNIR account ID; "
+                "empty until their first confirmed sign-in links it, then kept (R-ADM-08)",
+            ),
+            (
+                "name, email",
+                "text, as MJOLNIR sent them at the last sign-in; "
+                "before it, the email they were added by",
+            ),
             ("screen_language", f"{LANG}; chosen on the screens and remembered (R-NFR-05)"),
             ("first_seen_at, last_seen_at", "time (UTC)"),
+            (
+                "added_at, added_by",
+                "time (UTC); person; empty for anyone not added, who is refused (R-ADM-08)",
+            ),
         ],
     ),
     "role_grant": (

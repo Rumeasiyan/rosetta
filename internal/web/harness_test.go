@@ -190,8 +190,23 @@ func (b *browser) noFollow(req *http.Request) page {
 
 var formField = regexp.MustCompile(`<input type="hidden" name="([^"]+)" value="([^"]*)">`)
 
-// signIn goes through the screens and MJOLNIR's form as subject, ending signed in.
+// added adds who as the people screen would, unless they are known already: signed in as this
+// subject, the stand-in gives them this address.
+func (w *world) added(who string) {
+	w.t.Helper()
+	w.exec(`INSERT INTO person (email, added_at) SELECT $1::text, now() WHERE NOT EXISTS (
+		SELECT 1 FROM person WHERE mjolnir_subject = $2 OR lower(email) = lower($1))`, who+"@example.invalid", who)
+}
+
+// signIn adds subject and goes through the screens and MJOLNIR's form, ending signed in.
 func (b *browser) signIn(subject string) page {
+	b.w.t.Helper()
+	b.w.added(subject)
+	return b.signInAs(subject)
+}
+
+// signInAs goes through the screens and MJOLNIR's form as someone who may not have been added.
+func (b *browser) signInAs(subject string) page {
 	b.w.t.Helper()
 	form := b.get("/signin/start")
 	if !strings.Contains(form.body, "MJOLNIR stand-in") {

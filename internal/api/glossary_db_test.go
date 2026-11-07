@@ -102,7 +102,7 @@ func newPathWorld(t *testing.T) *pathWorld {
 	running := &runs.Book{Logger: logger, Limits: func(ctx context.Context) runs.Limits { return runs.LimitsOf(values(ctx)) }}
 	t.Cleanup(func() { running.Stop(); running.Wait() })
 	calls := api.New(api.Deps{
-		Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy, Origins: api.PoolOrigins{Pool: pool},
+		Officers: officersAdded{}, Keys: api.PoolKeys{Pool: pool}, Denied: api.PoolDenials(pool, nil), Logger: logger, Snapshot: book.Snapshot, Policy: policy, Origins: api.PoolOrigins{Pool: pool},
 		Translator: pipeline, Runner: pipeline, Runs: running,
 		Memory: &memory.Service{Pool: pool, Settings: values, Logger: logger},
 		Usage:  func(ctx context.Context, r usage.Record) error { return usage.Keep(ctx, pool, r) },

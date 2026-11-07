@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Rumeasiyan/rosetta/internal/audit"
+	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/people"
 	"github.com/Rumeasiyan/rosetta/internal/posts"
 	"github.com/jackc/pgx/v5"
@@ -18,12 +19,15 @@ func (a *App) mountPeople(mux *http.ServeMux) {
 	mux.Handle("GET /people", a.signedIn(a.only(isAdmin, a.peoplePage)))
 	mux.Handle("POST /people/grant", a.signedIn(a.only(isAdmin, a.post(a.grant))))
 	mux.Handle("POST /people/{id}/end", a.signedIn(a.only(isAdmin, a.post(a.endGrant))))
+	mux.Handle("POST /people/add", a.signedIn(a.only(isAdmin, a.post(a.addPerson))))
+	mux.Handle("POST /people/added/{id}/remove", a.signedIn(a.only(isAdmin, a.post(a.removePerson))))
 }
 
 // peopleData is the people screen's data.
 type peopleData struct {
 	Grants []people.Grant
 	Roles  []string
+	Added  []people.Added
 }
 
 // grantableRoles is what the form offers (R-ADM-06).
@@ -34,7 +38,11 @@ func (a *App) peopleData(ctx context.Context) (peopleData, error) {
 	if err != nil {
 		return peopleData{}, err
 	}
-	return peopleData{Grants: gs, Roles: grantableRoles}, nil
+	added, err := people.AllAdded(ctx, a.deps.Pool)
+	if err != nil {
+		return peopleData{}, err
+	}
+	return peopleData{Grants: gs, Roles: grantableRoles, Added: added}, nil
 }
 
 func (a *App) peoplePage(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +63,9 @@ func roleRefusal(err error) (string, bool) {
 		people.ErrBadLanguage:       "badLanguage",
 		people.ErrBadDate:           "badDate",
 		people.ErrNoSuchPerson:      "noSuchPerson",
+		people.ErrAlreadyAdded:      "alreadyAdded",
+		people.ErrBadEmail:          "badEmail",
+		people.ErrHoldsRoles:        "holdsRoles",
 		people.ErrAlreadyHeld:       "alreadyHeld",
 		people.ErrNoSuchGrant:       "noSuchGrant",
 		people.ErrLastAdministrator: "lastAdmin",
@@ -93,10 +104,10 @@ func (a *App) grant(w http.ResponseWriter, r *http.Request) {
 			details["ends_on"] = req.EndsOn.Format(time.DateOnly)
 		}
 		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionRoleChange, ObjectType: "person",
-			ObjectRef: to.Subject, Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
+			ObjectRef: to.Ref(), Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
 	})
 	// Looked up once the grant is kept, so a slow answer holds no connection (R-ADM-06).
-	if err == nil && a.deps.Posts != nil {
+	if err == nil && a.deps.Posts != nil && to.Subject != "" {
 		a.deps.Posts.Check(ctx, posts.Person{ID: to.ID, Subject: to.Subject, Email: to.Email})
 	}
 	a.afterRoleChange(w, r, err, "granted")
@@ -120,9 +131,50 @@ func (a *App) endGrant(w http.ResponseWriter, r *http.Request) {
 			details["language"] = string(g.Language)
 		}
 		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionRoleChange, ObjectType: "person",
-			ObjectRef: g.Subject, Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
+			ObjectRef: g.Ref(), Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: details}, now)
 	})
 	a.afterRoleChange(w, r, err, "ended")
+}
+
+// addPerson adds someone by email and tells them, with its audit entry in the same transaction.
+// The record names their row, never the address.
+func (a *App) addPerson(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		p, err := people.Add(ctx, tx, r.PostForm.Get("email"), c.sess.personID)
+		if err != nil {
+			return err
+		}
+		if err := glossary.RaisePersonAdded(ctx, tx, p.ID); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionCreation, ObjectType: "person",
+			ObjectRef: p.Ref(), Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: map[string]any{"change": "added"}}, now)
+	})
+	if err == nil {
+		a.tellKeepers()
+	}
+	a.afterRoleChange(w, r, err, "personAdded")
+}
+
+// removePerson takes someone off the added list.
+func (a *App) removePerson(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	c := fromCtx(r)
+	id, perr := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
+		if perr != nil {
+			return people.ErrNoSuchPerson
+		}
+		p, err := people.Remove(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Event{Actor: c.actor(), Action: audit.ActionDeletion, ObjectType: "person",
+			ObjectRef: p.Ref(), Result: audit.ResultDone, Visitor: audit.Visitor(r), Details: map[string]any{"change": "removed"}}, now)
+	})
+	a.afterRoleChange(w, r, err, "personRemoved")
 }
 
 func (a *App) afterRoleChange(w http.ResponseWriter, r *http.Request, err error, done string) {

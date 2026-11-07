@@ -118,18 +118,29 @@ func TestBootstrapWorksOnlyWhileNoAdministratorExists(t *testing.T) {
 	}
 }
 
-// Nothing shows an account ID before a first sign-in, so the Office names the first administrator
-// by the email MJOLNIR holds, in any case.
-func TestFirstAdministratorByEmail(t *testing.T) {
+// The setting lets in someone never added, so it takes an account ID only, and only while no
+// administrator exists.
+func TestFirstAdministratorIsNamedByAccountIDOnly(t *testing.T) {
 	w := newWorld(t)
 	w.fresh()
 	who := subject("byemail")
-	w.app.deps.FirstAdmin = strings.ToUpper(who) + "@EXAMPLE.INVALID"
+	w.app.deps.FirstAdmin = who + "@example.invalid"
 	defer func() { w.app.deps.FirstAdmin = "" }()
-	b := w.browser()
-	b.signIn(who)
-	if p := b.get("/people"); p.status != 200 {
+	if p := w.browser().signInAs(who); p.status != 403 {
 		t.Fatalf("named by email: %d", p.status)
+	}
+	w.app.deps.FirstAdmin = who
+	b := w.browser()
+	if p := b.signInAs(who); p.status != 200 {
+		t.Fatalf("named by account ID: %d", p.status)
+	}
+	if p := b.get("/people"); p.status != 200 {
+		t.Fatalf("not an administrator: %d", p.status)
+	}
+	other := subject("second")
+	w.app.deps.FirstAdmin = other
+	if p := w.browser().signInAs(other); p.status != 403 {
+		t.Fatalf("an administrator exists: %d", p.status)
 	}
 }
 
@@ -221,8 +232,8 @@ func TestGrantAndEndRefusals(t *testing.T) {
 		"language wrong":      {url.Values{"email": {me}, "role": {"administrator"}, "language": {"ta"}}, "An administrator has none."},
 		"language missing":    {url.Values{"email": {me}, "role": {"glossary keeper"}}, "needs one language"},
 		"past date":           {url.Values{"email": {me}, "role": {"glossary keeper"}, "language": {"ta"}, "ends_on": {"2001-01-01"}}, "from today on"},
-		"no such person":      {url.Values{"email": {"nobody@example.invalid"}, "role": {"administrator"}}, "has not signed in"},
-		"no email":            {url.Values{"role": {"administrator"}}, "has not signed in"},
+		"no such person":      {url.Values{"email": {"nobody@example.invalid"}, "role": {"administrator"}}, "has not been added"},
+		"no email":            {url.Values{"role": {"administrator"}}, "has not been added"},
 	} {
 		c.form.Set("csrf", token)
 		before := len(w.outbox())

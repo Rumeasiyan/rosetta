@@ -14,9 +14,11 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/callers"
 	"github.com/Rumeasiyan/rosetta/internal/grammar"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
+	"github.com/Rumeasiyan/rosetta/internal/people"
 	"github.com/Rumeasiyan/rosetta/internal/reasons"
 	"github.com/Rumeasiyan/rosetta/internal/tva"
 	"github.com/Rumeasiyan/rosetta/internal/usage"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // The grammar paths (R-GRM-01; B 2): LanguageTool's public v2 form, so the editor's stock
@@ -218,6 +220,19 @@ type Origins interface {
 	Used(ctx context.Context, callerID int64) error
 }
 
+// Officers says whether an account was added to ROSETTA.
+type Officers interface {
+	Added(ctx context.Context, subject string) (bool, error)
+}
+
+// PoolOfficers reads it from the database.
+type PoolOfficers struct{ Pool *pgxpool.Pool }
+
+// Added says this account was added and has signed in once, which is what links it.
+func (o PoolOfficers) Added(ctx context.Context, subject string) (bool, error) {
+	return people.SubjectAdded(ctx, o.Pool, subject)
+}
+
 // plainWord is the message for a browser's refusal, where the reason's own speaks of
 // translation or of a key.
 func plainWord(r reasons.Reason) string {
@@ -324,6 +339,21 @@ func (s *Server) grammarEntry(next http.Handler) http.Handler {
 		if account == "" || len(account) > maxAccount {
 			s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotSignedIn")
 			s.keepDenial(r, ref, owner.Reference, "Nobody is signed in")
+			return
+		}
+		added := false
+		if s.deps.Officers != nil {
+			var err error
+			if added, err = s.deps.Officers.Added(ctx, account); err != nil {
+				s.deps.Logger.Error("a signed-in account could not be checked")
+				fail := reasons.New(reasons.NoProvider)
+				s.answerText(w, r, rec, fail, plainWord(fail.Reason))
+				return
+			}
+		}
+		if !added {
+			s.answerText(w, r, rec, reasons.New(reasons.NoKey), "grammarNotAdded")
+			s.keepDenial(r, ref, owner.Reference, "The person has not been added")
 			return
 		}
 		rec.Officer = account
