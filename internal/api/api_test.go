@@ -94,11 +94,12 @@ func newBench(t *testing.T) *bench {
 	b.keys.add("rst_off", callers.Holder{KeyID: 3, Prefix: "rst_off", TurnedOff: true, Caller: system("TEST-3", "live", 5)})
 	b.keys.add("rst_retired", callers.Holder{KeyID: 4, Prefix: "rst_retired", Caller: system("TEST-4", "retired", 5)})
 	b.srv = New(Deps{
-		Keys:   b.keys,
-		Logger: slog.New(slog.NewJSONHandler(b.logs, nil)),
-		Now:    func() time.Time { return b.now },
-		Denied: func(_ context.Context, d Denial) error { b.denials = append(b.denials, d); return nil },
-		Usage:  func(_ context.Context, r usage.Record) error { b.uses = append(b.uses, r); return nil },
+		Keys:     b.keys,
+		Officers: everyoneAdded{},
+		Logger:   slog.New(slog.NewJSONHandler(b.logs, nil)),
+		Now:      func() time.Time { return b.now },
+		Denied:   func(_ context.Context, d Denial) error { b.denials = append(b.denials, d); return nil },
+		Usage:    func(_ context.Context, r usage.Record) error { b.uses = append(b.uses, r); return nil },
 	})
 	b.srv.routes.HandleFunc("POST /api/v1/echo", func(w http.ResponseWriter, r *http.Request) {
 		q := requestOf(r)
@@ -420,3 +421,8 @@ func TestARefusedKeyUsesNoLimit(t *testing.T) {
 		}
 	}
 }
+
+// everyoneAdded says every account was added, for tests about something else.
+type everyoneAdded struct{}
+
+func (everyoneAdded) Added(context.Context, string) (bool, error) { return true, nil }

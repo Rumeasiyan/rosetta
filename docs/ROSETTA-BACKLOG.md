@@ -123,7 +123,7 @@ Notes:
 | # | Done | Run | ID | Story | Cites | Pri | Needs |
 |---|---|---|---|---|---|---|---|
 | 29 | [x] | Solo | E-GLO-01 | Entries, keepers' checks, publishing and versions | R-GLO-01, R-GLO-02, R-GLO-05 | Must | 7, 9 |
-| 30 | [x] | Wave 7 | E-GLO-02 | Any officer proposes a term; keepers told; proposer sees the outcome | R-GLO-04 | Must | 29 |
+| 30 | [x] | Wave 7 | E-GLO-02 | Anyone added proposes a term; keepers told; proposer sees the outcome | R-GLO-04 | Must | 29 |
 | 31 | [x] | Wave 7 | E-GLO-03 | Import and export a spreadsheet file | R-GLO-07 | Should | 29 |
 | 32 | [x] | Wave 7 | E-GLO-04 | Terms kept in translation; whole terms answered from the glossary | R-GLO-03, R-TRN-04, R-GAT-02, R-NFR-05 | Must | 29 |
 | 33 | [x] | Wave 7 | E-GLO-05 | No suggestions on a glossary term | R-GRM-04 | Must | 29 |
@@ -161,6 +161,7 @@ Notes:
 | 43 | [x] | Wave 10 | E-CAL-04 | Publish how to call ROSETTA, with a working example | R-CAL-08, R-ADM-07, R-NFR-14 | Must | 38 |
 | 44 | [x] | Wave 11 | E-CAL-05 | Daily flags, TVA refresh, post look-ups and role ends | R-CAL-02, R-CAL-05, R-ADM-06; s2; B 11, B 21 | Must | 39 |
 | 45 | [x] | Wave 11 | E-ADM-06 | Alerts by email to the administrator and owners, from BUMBLEBEE's state | R-ADM-03; B 14 | Must | 41 |
+| 45a | [x] | Solo | E-ADM-07 | The administrator adds people; anyone not added is refused; the proposal limit | R-ADM-08, R-GLO-04 | Must | 45 |
 | 46 | [x] | Wave 11 | E-GAT-02 | Run the shared test set against a source for the gate | R-GAT-01, R-NFR-14 | Must | 40 |
 | 67 | [x] | Solo | E-TRN-04 | A translation as a background run: start, ask, collect, give up | R-TRN-10, R-TRN-11, R-TRN-12, R-TRN-13, R-CAL-07, R-ERR-01, R-ERR-03, R-REC-01, R-ADM-02, R-NFR-08; B 3 | Must | 19, 38, 41, 43 |
 | 47 | [ ] | Solo | E-NFR-01 | Capacity, speed and memory under load | R-NFR-01, R-NFR-02; §5 | Must | 44, 45, 46, 67 |

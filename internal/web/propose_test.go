@@ -50,7 +50,7 @@ func (w *world) unsent() int {
 	return n
 }
 
-// R-GLO-04: any signed-in officer may propose, with no role at all; the keepers for the languages
+// R-GLO-04: anyone added may propose, with no role at all; the keepers for the languages
 // concerned are told through HEDWIG's stand-in, by an opaque reference and in their own language;
 // the proposer sees the outcome on screen.
 func TestAnOfficerProposesKeepersAreToldAndTheOutcomeShows(t *testing.T) {
@@ -141,7 +141,7 @@ func TestOnlyTheKeepersConcernedAreTold(t *testing.T) {
 	n.Send(context.Background(), w.pool)
 	w.control("hedwig", "normal", nil)
 	before := len(w.received("hedwig"))
-	officer, _ := w.holding("officer")
+	officer, _ := w.holding("officer", "reviewer si")
 	f := url.Values{"csrf": {officer.csrf()}, "replaces": {itoa(id)}, "type": {glossary.TypePost}, "text_ta": {"தலைமை எழுத்தர்"}}
 	if p := officer.post("/glossary/propose", f); p.status != 200 || !strings.Contains(p.url, "/glossary/") {
 		t.Fatalf("%d %s", p.status, p.url)
@@ -165,7 +165,7 @@ func TestAProposalOfAPublishedTermLeadsToItsCorrection(t *testing.T) {
 	k := w.keepers()
 	id := k[i18n.EN].propose(glossary.TypePost, "Invented Clerk", "ලිපිකරු", "எழுத்தர்", "")
 	w.publish(id, k)
-	officer, _ := w.holding("officer")
+	officer, _ := w.holding("officer", "reviewer si")
 	p := officer.post("/glossary/propose", url.Values{"csrf": {officer.csrf()}, "type": {glossary.TypeTerm}, "text_en": {"invented clerk"}})
 	if !strings.Contains(p.body, fmt.Sprintf(`name="replaces" value="%d"`, id)) || !strings.Contains(p.body, "எழுத்தர்") || !strings.Contains(p.body, i18n.T(i18n.EN, "glossaryDuplicate")) {
 		t.Fatal(p.body)

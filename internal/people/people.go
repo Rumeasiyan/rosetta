@@ -7,6 +7,8 @@ package people
 import (
 	"context"
 	"errors"
+	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +25,16 @@ type Person struct {
 	Email    string
 	Language string
 	IsNew    bool // first time seen
+}
+
+// Ref names the person in a record: the account ID, or their row until a first sign-in gives one.
+func (p Person) Ref() string { return refOf(p.Subject, p.ID) }
+
+func refOf(subject string, id int64) string {
+	if subject != "" {
+		return subject
+	}
+	return "person-" + strconv.FormatInt(id, 10)
 }
 
 // Querier is what these run through: a pool or a transaction.
@@ -83,6 +95,10 @@ var (
 	ErrBadLanguage       = errors.New("people: this role needs one language, and only this kind does")
 	ErrBadDate           = errors.New("people: the end date is not a date from today on")
 	ErrNoSuchPerson      = errors.New("people: no such person")
+	ErrNotAdded          = errors.New("people: this person has not been added")
+	ErrAlreadyAdded      = errors.New("people: this person has been added already")
+	ErrBadEmail          = errors.New("people: not an email address")
+	ErrHoldsRoles        = errors.New("people: this person still holds a role")
 	ErrAlreadyHeld       = errors.New("people: the person holds this role already")
 	ErrNoSuchGrant       = errors.New("people: no such live role")
 	ErrLastAdministrator = errors.New("people: the last administrator cannot be ended")
@@ -104,6 +120,9 @@ type Grant struct {
 	EndsOn      *time.Time
 	EndedAt     *time.Time
 }
+
+// Ref names the role's holder in a record.
+func (g Grant) Ref() string { return refOf(g.Subject, g.PersonID) }
 
 // Request is a grant as asked for, checked by ParseRequest.
 type Request struct {
@@ -141,7 +160,7 @@ func ParseRequest(role, language, endsOn string, today time.Time) (Request, erro
 	return out, nil
 }
 
-const grantColumns = `g.id, g.person_id, p.mjolnir_subject, p.name, p.email, g.role, COALESCE(g.language, ''), g.post_ref, g.post_flagged_at IS NOT NULL, g.starts_at, g.ends_on, g.ended_at`
+const grantColumns = `g.id, g.person_id, COALESCE(p.mjolnir_subject, ''), p.name, p.email, g.role, COALESCE(g.language, ''), g.post_ref, g.post_flagged_at IS NOT NULL, g.starts_at, g.ends_on, g.ended_at`
 
 func scanGrant(r pgx.CollectableRow) (Grant, error) {
 	var g Grant
@@ -179,35 +198,181 @@ func Today(ctx context.Context, q Querier) (time.Time, error) {
 	return d, err
 }
 
-// FirstAdministrator makes person the first administrator, only when bootstrap
-// names them and no administrator exists. It reports whether it did. bootstrap is
-// their email at MJOLNIR or their account ID: nothing shows the account ID before a
-// first sign-in, so the Office can only be sure of the email.
-func FirstAdministrator(ctx context.Context, tx pgx.Tx, person Person, bootstrap string) (bool, error) {
-	if bootstrap == "" || (person.Subject != bootstrap && !strings.EqualFold(person.Email, bootstrap)) {
+// bootstrapOpen says subject is the one ROSETTA_FIRST_ADMIN names and no live administrator exists.
+// The setting is an account ID and never an email: it lets someone in who was never added.
+func bootstrapOpen(ctx context.Context, tx pgx.Tx, subject, bootstrap string) (bool, error) {
+	if bootstrap == "" || subject != bootstrap {
 		return false, nil
 	}
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
 		return false, err
 	}
 	var exists bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM role_grant g WHERE g.role = $1 AND `+liveSQL+`)`, Administrator).Scan(&exists); err != nil || exists {
-		return false, err
-	}
-	_, err := tx.Exec(ctx, `INSERT INTO role_grant (person_id, role, post_ref) VALUES ($1, $2, $3)`, person.ID, Administrator, PostNotKnown)
-	return err == nil, err
+	err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM role_grant g WHERE g.role = $1 AND `+liveSQL+`)`, Administrator).Scan(&exists)
+	return !exists, err
 }
 
-// GrantRole gives a role to the person who signed in last with this email, and
-// returns them. The role is held by their account: the email only finds it among
-// those who have signed in, since a list of them could outgrow a page (R-NFR-03).
+// Admit decides a sign-in, as MJOLNIR confirmed it. An account already linked is known by its
+// subject alone, whatever its email is now. Otherwise the email, ignoring case, finds someone added
+// and waiting, and the subject is linked to them and kept. Anyone else gets ErrNotAdded with nothing
+// written. It reports whether this person just became the first administrator.
+func Admit(ctx context.Context, tx pgx.Tx, subject, name, email, bootstrap string) (Person, bool, error) {
+	var known int64
+	var added bool
+	err := tx.QueryRow(ctx, `SELECT id, added_at IS NOT NULL FROM person WHERE mjolnir_subject = $1`, subject).Scan(&known, &added)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return Person{}, false, err
+	}
+	isKnown := err == nil
+	var waiting int64
+	var by *int64
+	hasWaiting := false
+	if !added {
+		err := tx.QueryRow(ctx, `SELECT id, added_by FROM person WHERE mjolnir_subject IS NULL AND added_at IS NOT NULL
+			AND email <> '' AND lower(email) = lower($1) FOR UPDATE`, strings.TrimSpace(email)).Scan(&waiting, &by)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return Person{}, false, err
+		}
+		hasWaiting = err == nil
+	}
+	open, err := bootstrapOpen(ctx, tx, subject, bootstrap)
+	if err != nil {
+		return Person{}, false, err
+	}
+	var p Person
+	switch {
+	case added:
+		p, err = Upsert(ctx, tx, subject, name, email)
+	case hasWaiting && !isKnown:
+		p = Person{ID: waiting, Subject: subject, Name: name, Email: email, IsNew: true}
+		err = tx.QueryRow(ctx, `UPDATE person SET mjolnir_subject = $2, name = $3, email = $4, first_seen_at = now(), last_seen_at = now()
+			WHERE id = $1 RETURNING screen_language`, waiting, subject, name, email).Scan(&p.Language)
+	case hasWaiting:
+		// Signed in before being added, and with another email then: the two are one person.
+		if _, err := tx.Exec(ctx, `UPDATE role_grant SET person_id = $2 WHERE person_id = $1`, waiting, known); err != nil {
+			return p, false, err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM person WHERE id = $1`, waiting); err != nil {
+			return p, false, err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE person SET added_at = now(), added_by = $2 WHERE id = $1`, known, by); err != nil {
+			return p, false, err
+		}
+		p, err = Upsert(ctx, tx, subject, name, email)
+	case open:
+		if p, err = Upsert(ctx, tx, subject, name, email); err == nil {
+			_, err = tx.Exec(ctx, `UPDATE person SET added_at = now() WHERE id = $1`, p.ID)
+		}
+	default:
+		return Person{}, false, ErrNotAdded
+	}
+	if err != nil || !open {
+		return p, false, err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO role_grant (person_id, role, post_ref) VALUES ($1, $2, $3)`, p.ID, Administrator, PostNotKnown)
+	return p, err == nil, err
+}
+
+// Add adds a person by email, before any sign-in: their first confirmed sign-in links the account.
+// Someone who signed in before is added as the account they already have.
+func Add(ctx context.Context, tx pgx.Tx, email string, by int64) (Person, error) {
+	email = strings.TrimSpace(email)
+	if a, err := mail.ParseAddress(email); err != nil || a.Address != email {
+		return Person{}, ErrBadEmail
+	}
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
+		return Person{}, err
+	}
+	var already bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM person WHERE lower(email) = lower($1) AND added_at IS NOT NULL)`, email).Scan(&already); err != nil {
+		return Person{}, err
+	}
+	if already {
+		return Person{}, ErrAlreadyAdded
+	}
+	p := Person{Email: email}
+	err := tx.QueryRow(ctx, `UPDATE person SET added_at = now(), added_by = $2 WHERE id = (
+			SELECT id FROM person WHERE lower(email) = lower($1) AND mjolnir_subject IS NOT NULL ORDER BY last_seen_at DESC LIMIT 1)
+		RETURNING id, mjolnir_subject, name, email, screen_language`, email, by).Scan(&p.ID, &p.Subject, &p.Name, &p.Email, &p.Language)
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return p, err
+	}
+	err = tx.QueryRow(ctx, `INSERT INTO person (email, added_at, added_by) VALUES ($1, now(), $2) RETURNING id, screen_language`, email, by).Scan(&p.ID, &p.Language)
+	return p, err
+}
+
+// Remove takes a person off the added list, and their next request is refused. Someone holding a
+// live role keeps their place until the role ends, so nobody loses a role unseen.
+func Remove(ctx context.Context, tx pgx.Tx, id int64) (Person, error) {
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
+		return Person{}, err
+	}
+	var holds bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM role_grant g WHERE g.person_id = $1 AND `+liveSQL+`)`, id).Scan(&holds); err != nil {
+		return Person{}, err
+	}
+	if holds {
+		return Person{}, ErrHoldsRoles
+	}
+	p := Person{ID: id}
+	err := tx.QueryRow(ctx, `UPDATE person SET added_at = NULL, added_by = NULL WHERE id = $1 AND added_at IS NOT NULL
+		RETURNING COALESCE(mjolnir_subject, ''), email`, id).Scan(&p.Subject, &p.Email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return p, ErrNoSuchPerson
+	}
+	return p, err
+}
+
+// IsAdded says this person may still use ROSETTA, read on every request so removing takes effect
+// at once.
+func IsAdded(ctx context.Context, q Querier, id int64) (bool, error) {
+	var added bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM person WHERE id = $1 AND added_at IS NOT NULL)`, id).Scan(&added)
+	return added, err
+}
+
+// SubjectAdded says the same of an account ID, for a call that names only that.
+func SubjectAdded(ctx context.Context, q Querier, subject string) (bool, error) {
+	var added bool
+	err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM person WHERE mjolnir_subject = $1 AND added_at IS NOT NULL)`, subject).Scan(&added)
+	return added, err
+}
+
+// Added is one person on the added list.
+type Added struct {
+	ID      int64
+	Name    string
+	Email   string
+	Waiting bool // not signed in yet
+	AddedAt time.Time
+}
+
+// AddedLimit is the most the people screen lists (R-NFR-03).
+const AddedLimit = 500
+
+// AllAdded is the added list, for the administrator's screen.
+func AllAdded(ctx context.Context, q Querier) ([]Added, error) {
+	rows, err := q.Query(ctx, `SELECT id, name, email, mjolnir_subject IS NULL, added_at FROM person WHERE added_at IS NOT NULL
+		ORDER BY lower(email), id LIMIT $1`, AddedLimit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Added, error) {
+		var a Added
+		err := r.Scan(&a.ID, &a.Name, &a.Email, &a.Waiting, &a.AddedAt)
+		return a, err
+	})
+}
+
+// GrantRole gives a role to the person added with this email, and returns them. The role is held
+// by their account, or by their row until a first sign-in links one.
 func GrantRole(ctx context.Context, tx pgx.Tx, email string, by int64, req Request) (Person, error) {
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
 		return Person{}, err
 	}
 	var p Person
-	err := tx.QueryRow(ctx, `SELECT id, mjolnir_subject, name, email FROM person WHERE lower(email) = lower($1) AND email <> ''
-		ORDER BY last_seen_at DESC LIMIT 1`, strings.TrimSpace(email)).Scan(&p.ID, &p.Subject, &p.Name, &p.Email)
+	err := tx.QueryRow(ctx, `SELECT id, COALESCE(mjolnir_subject, ''), name, email FROM person WHERE lower(email) = lower($1) AND email <> ''
+		AND added_at IS NOT NULL ORDER BY last_seen_at DESC LIMIT 1`, strings.TrimSpace(email)).Scan(&p.ID, &p.Subject, &p.Name, &p.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNoSuchPerson
 	}
@@ -278,7 +443,7 @@ func SetPost(ctx context.Context, tx pgx.Tx, grantID int64, post string, flagged
 
 // EndForPost ends a role at once because the person no longer holds its post (R-ADM-06). ROSETTA
 // ended it, so ended_by stays empty. Unlike a person's own click this may end the last administrator:
-// the bootstrap setting then works again, and R-ADM-06 makes no exception.
+// the bootstrap setting, an account ID, then works again, and R-ADM-06 makes no exception.
 func EndForPost(ctx context.Context, tx pgx.Tx, grantID int64) error {
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", int64(lockRoles)); err != nil {
 		return err
@@ -308,7 +473,8 @@ type PersonToLookUp struct {
 
 // HoldingRoles is everyone holding a live role, each once, for the daily pass.
 func HoldingRoles(ctx context.Context, q Querier) ([]PersonToLookUp, error) {
-	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, p.mjolnir_subject, p.email FROM role_grant g JOIN person p ON p.id = g.person_id WHERE `+liveSQL+` ORDER BY p.id`)
+	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, p.mjolnir_subject, p.email FROM role_grant g JOIN person p ON p.id = g.person_id
+		WHERE p.mjolnir_subject IS NOT NULL AND `+liveSQL+` ORDER BY p.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +487,7 @@ func HoldingRoles(ctx context.Context, q Querier) ([]PersonToLookUp, error) {
 
 // FlaggedPeople is who is flagged now: their post is still not known after BIFROST answered.
 func FlaggedPeople(ctx context.Context, q Querier) ([]PersonToLookUp, error) {
-	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, p.mjolnir_subject, p.email FROM role_grant g JOIN person p ON p.id = g.person_id
+	rows, err := q.Query(ctx, `SELECT DISTINCT p.id, COALESCE(p.mjolnir_subject, ''), p.email FROM role_grant g JOIN person p ON p.id = g.person_id
 		WHERE g.post_flagged_at IS NOT NULL AND `+liveSQL+` ORDER BY p.id`)
 	if err != nil {
 		return nil, err

@@ -11,6 +11,7 @@ import (
 	"github.com/Rumeasiyan/rosetta/internal/glossary"
 	"github.com/Rumeasiyan/rosetta/internal/i18n"
 	"github.com/Rumeasiyan/rosetta/internal/people"
+	"github.com/Rumeasiyan/rosetta/internal/settings"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -19,7 +20,7 @@ import (
 func (a *App) mountGlossary(mux *http.ServeMux) {
 	mux.Handle("GET /glossary", a.signedIn(a.only(hasAnyRole, a.glossaryList)))
 	mux.Handle("GET /glossary/waiting", a.signedIn(a.only(mayKeep, a.glossaryWaiting)))
-	// Any signed-in officer may propose a term, and sees what became of it (R-GLO-04).
+	// Anyone added may propose a term, and sees what became of it (R-GLO-04).
 	mux.Handle("GET /glossary/propose", a.signedIn(a.glossaryProposeForm))
 	mux.Handle("POST /glossary/propose", a.signedIn(a.post(a.glossaryPropose)))
 	mux.Handle("GET /glossary/mine", a.signedIn(a.glossaryMine))
@@ -59,6 +60,7 @@ func glossaryRefusal(err error) (string, bool) {
 		err  error
 		word string
 	}{
+		{glossary.ErrTooManyProposals, "glossaryTooMany"},
 		{glossary.ErrBadType, "glossaryBadType"},
 		{glossary.ErrBadText, "glossaryBadText"},
 		{glossary.ErrBadNote, "glossaryBadNote"},
@@ -168,6 +170,11 @@ type glossaryFormData struct {
 func (a *App) glossaryProposeForm(w http.ResponseWriter, r *http.Request) {
 	d := glossaryFormData{Types: glossary.Types}
 	if raw := r.URL.Query().Get("corrects"); raw != "" {
+		// This shows a term, and a term's page needs a role (R-ADM-01).
+		if !hasAnyRole(fromCtx(r)) {
+			a.deny(w, r, "Role does not allow this", "notAllowed")
+			return
+		}
 		id, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
 			a.notFound(w, r)
@@ -211,6 +218,10 @@ func (a *App) glossaryPropose(w http.ResponseWriter, r *http.Request) {
 		proposal.Texts[l] = f.Get("text_" + string(l))
 	}
 	if raw := f.Get("replaces"); raw != "" {
+		if !hasAnyRole(c) {
+			a.deny(w, r, "Role does not allow this", "notAllowed")
+			return
+		}
 		id, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
 			a.notFound(w, r)
@@ -221,7 +232,13 @@ func (a *App) glossaryPropose(w http.ResponseWriter, r *http.Request) {
 	var id int64
 	err := a.inTx(r, func(tx pgx.Tx, now time.Time) error {
 		var concerned []i18n.Lang
-		var err error
+		today, err := glossary.ProposedToday(ctx, tx, c.sess.personID)
+		if err != nil {
+			return err
+		}
+		if today >= a.settings.Get(ctx).Of(settings.ProposalsPerDay) {
+			return glossary.ErrTooManyProposals
+		}
 		if id, concerned, err = glossary.Propose(ctx, tx, proposal); err != nil {
 			return err
 		}
@@ -243,7 +260,11 @@ func (a *App) glossaryPropose(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, glossary.ErrNoSuchEntry):
 		a.notFound(w, r)
 	case errors.As(err, &duplicate):
-		// The term is there already: the way on is to correct that entry.
+		// The term is there already: the way on is to correct that entry, for those who may see it.
+		if !hasAnyRole(fromCtx(r)) {
+			back(w, r, "/glossary/propose", word, "bad")
+			return
+		}
 		http.Redirect(w, r, "/glossary/propose?corrects="+strconv.FormatInt(duplicate.Entry, 10)+"&m="+word+"&tone=bad", http.StatusSeeOther)
 	case refused:
 		back(w, r, "/glossary/propose", word, "bad")

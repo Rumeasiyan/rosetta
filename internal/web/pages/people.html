@@ -17,6 +17,23 @@
     </tr>{{end}}</tbody>
   </table></div>{{else}}<p>{{t .Lang "nobodyHolds"}}</p>{{end}}
 
+  <h2 class="fat section">{{t .Lang "addedTitle"}}</h2>
+  <p class="soft">{{t .Lang "addNote"}}</p>
+  <form class="fields" method="post" action="/people/add">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label for="add-email">{{t .Lang "personEmail"}}</label>
+    <input id="add-email" name="email" type="email" autocomplete="off" required>
+    <button class="pill solid" type="submit">{{t .Lang "addPerson"}}</button>
+  </form>
+  {{if .Data.Added}}<div class="stack"><table>
+    <thead><tr><th scope="col">{{t .Lang "person"}}</th><th scope="col">{{t .Lang "from"}}</th><th scope="col"><span class="hidden-label">{{t .Lang "removePerson"}}</span></th></tr></thead>
+    <tbody>{{range .Data.Added}}<tr>
+      <td>{{if .Name}}<strong>{{.Name}}</strong><br>{{end}}<span class="soft">{{.Email}}</span>{{if .Waiting}}<br><span class="soft">{{t $.Lang "addedWaiting"}}</span>{{end}}</td>
+      <td><span class="stack-label">{{t $.Lang "from"}}: </span>{{when .AddedAt}}</td>
+      <td><form method="post" action="/people/added/{{.ID}}/remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="pill" type="submit">{{t $.Lang "removePerson"}}<span class="hidden-label">: {{.Email}}</span></button></form></td>
+    </tr>{{end}}</tbody>
+  </table></div>{{end}}
+
   <h2 class="fat section">{{t .Lang "grantTitle"}}</h2>
   <p class="soft">{{t .Lang "grantNote"}}</p>
   <form class="fields" method="post" action="/people/grant">

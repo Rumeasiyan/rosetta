@@ -20,9 +20,12 @@ import (
 const (
 	KindProposal = "glossary proposal"
 	KindImport   = "glossary import"
+	// KindPersonAdded tells someone they were added. Its alert's subject is their row in person.
+	KindPersonAdded = "person added"
 
-	noticeProposal = "glossary_proposal"
-	noticeImport   = "glossary_import"
+	noticeProposal    = "glossary_proposal"
+	noticeImport      = "glossary_import"
+	noticePersonAdded = "rosetta_person_added"
 )
 
 // sendWait is the longest one pass of sending may take after a person's change.
@@ -40,6 +43,12 @@ func RaiseProposal(ctx context.Context, tx pgx.Tx, entry int64) error {
 // RaiseImport writes one notice for a whole import, rather than one for each row.
 func RaiseImport(ctx context.Context, tx pgx.Tx, imp int64) error {
 	_, err := tx.Exec(ctx, `INSERT INTO alert (kind, glossary_import_id) VALUES ($1, $2)`, KindImport, imp)
+	return err
+}
+
+// RaisePersonAdded writes the notice telling someone they were added.
+func RaisePersonAdded(ctx context.Context, tx pgx.Tx, person int64) error {
+	_, err := tx.Exec(ctx, `INSERT INTO alert (kind, subject) VALUES ($1, $2)`, KindPersonAdded, strconv.FormatInt(person, 10))
 	return err
 }
 
@@ -111,8 +120,8 @@ func (n *Notifier) Send(ctx context.Context, q Querier) (int, error) {
 	if n.Sender == nil {
 		return 0, nil
 	}
-	rows, err := q.Query(ctx, `SELECT id, kind, glossary_entry_id, glossary_import_id FROM alert
-		WHERE sent_at IS NULL AND kind IN ($1, $2) AND raised_at > now() - make_interval(days => $3) ORDER BY id`, KindProposal, KindImport, keptDays)
+	rows, err := q.Query(ctx, `SELECT id, kind, glossary_entry_id, glossary_import_id, subject FROM alert
+		WHERE sent_at IS NULL AND kind IN ($1, $2, $3) AND raised_at > now() - make_interval(days => $4) ORDER BY id`, KindProposal, KindImport, KindPersonAdded, keptDays)
 	if err != nil {
 		return 0, err
 	}
@@ -121,10 +130,11 @@ func (n *Notifier) Send(ctx context.Context, q Querier) (int, error) {
 		kind  string
 		entry *int64
 		imp   *int64
+		about *string
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (due, error) {
 		var d due
-		err := r.Scan(&d.id, &d.kind, &d.entry, &d.imp)
+		err := r.Scan(&d.id, &d.kind, &d.entry, &d.imp, &d.about)
 		return d, err
 	})
 	if err != nil {
@@ -132,7 +142,7 @@ func (n *Notifier) Send(ctx context.Context, q Querier) (int, error) {
 	}
 	sent := 0
 	for _, d := range list {
-		notice, err := n.build(ctx, q, d.kind, d.id, d.entry, d.imp)
+		notice, err := n.build(ctx, q, d.kind, d.id, d.entry, d.imp, d.about)
 		if err != nil {
 			return sent, err
 		}
@@ -163,9 +173,16 @@ func (n *Notifier) Send(ctx context.Context, q Querier) (int, error) {
 }
 
 // build is the notice for one alert: who to tell, in their own language, and where to look.
-func (n *Notifier) build(ctx context.Context, q Querier, kind string, alert int64, entry, imp *int64) (hedwig.Notice, error) {
+func (n *Notifier) build(ctx context.Context, q Querier, kind string, alert int64, entry, imp *int64, about *string) (hedwig.Notice, error) {
 	out := hedwig.Notice{RequestKey: "rosetta-alert-" + strconv.FormatInt(alert, 10), Details: map[string]string{}}
 	langs := i18n.Langs
+	if kind == KindPersonAdded {
+		out.Type = noticePersonAdded
+		out.Details["link"] = strings.TrimRight(n.PublicURL, "/")
+		var err error
+		out.People, err = addedPerson(ctx, q, about)
+		return out, err
+	}
 	switch {
 	case kind == KindProposal && entry != nil:
 		e, err := Get(ctx, q, *entry)
@@ -192,6 +209,26 @@ func (n *Notifier) build(ctx context.Context, q Querier, kind string, alert int6
 	var err error
 	out.People, err = keepersFor(ctx, q, langs)
 	return out, err
+}
+
+// addedPerson is who a person added notice goes to: nobody if they have since been removed.
+func addedPerson(ctx context.Context, q Querier, about *string) ([]hedwig.Person, error) {
+	if about == nil {
+		return nil, nil
+	}
+	id, err := strconv.ParseInt(*about, 10, 64)
+	if err != nil {
+		return nil, nil
+	}
+	rows, err := q.Query(ctx, `SELECT email, screen_language FROM person WHERE id = $1 AND added_at IS NOT NULL AND email <> ''`, id)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (hedwig.Person, error) {
+		p := hedwig.Person{Ref: "rosetta-person-" + *about}
+		err := r.Scan(&p.Email, &p.Language)
+		return p, err
+	})
 }
 
 // keepersFor is the live keepers for these languages, each once. An opaque reference names each to

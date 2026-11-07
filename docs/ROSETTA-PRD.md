@@ -1,7 +1,7 @@
 # ROSETTA
 
 The translation and grammar service of the Eastern Province, Sri Lanka: the one way every provincial system translates and checks text in Sinhala, Tamil and English, with one shared glossary.
-Version 1.11, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
+Version 1.12, frozen. Owner: the Office of the Chief Secretary, Eastern Province. Address: rosetta.epc.lk.
 
 ## 1. Overview
 
@@ -34,7 +34,7 @@ Values marked "(default: ...)" are settings the Office can change.
 | The Office of the Chief Secretary | Owns ROSETTA and its data. **Administrator**: registers calling systems and issues their keys, sets the source order and the language gate, changes settings, names glossary keepers and memory reviewers, grants those roles |
 | Officers fluent in Sinhala, Tamil or English, named by the Office | **Glossary keeper** for one language: approves, corrects and replaces terms in that language (R-GLO). **Memory reviewer** for one language: rechecks and removes memory entries (R-MEM-04, R-MEM-05) |
 | Holder of the post TVA names as a calling system's owner | **System owner** for their own systems: sees their usage and errors, issues and turns off their system's keys, sends test requests, receives alerts about their systems |
-| Officers using a calling system | Translate letters and check their English through that system, and approve translations there under its own rules; any officer may propose a glossary term (R-GLO-04) |
+| Officers using a calling system | Translate letters and check their English through that system, and approve translations there under its own rules; anyone added may propose a glossary term (R-GLO-04) |
 | Calling systems (the letter editor first) | Call ROSETTA with their key; never call BUMBLEBEE or a model directly. Each decides what it sends, marks its sensitivity, keeps its own approval record, and answers for what it issues |
 | Volunteers and maintainers | Research and test models that may become providers, and run the shared test set for the gate; run the shared server; never see real text |
 
@@ -111,7 +111,7 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 | R-GLO-01 | There is one shared glossary for the province. Each entry holds the same term in Sinhala, Tamil and English, its type (post, institution, place, term, or "keep as written" such as system names and reference formats), a note, and the keeper who checked each language. |
 | R-GLO-02 | An entry is published only when all three languages are checked by their keepers. A term with only two checked is held. Entries are never deleted, only replaced; a replaced entry keeps its history. |
 | R-GLO-03 | Every glossary term found in a text appears in the translation as its published translation. ROSETTA protects the terms before sending the text and checks them in the answer; a term the source changed or dropped is put back, and if it cannot be placed the passage flags it for the reader. "Keep as written" entries are never translated. |
-| R-GLO-04 | Any signed-in officer may propose a new or corrected term on the screens. The keepers for the languages concerned are told, and the proposer sees the outcome. |
+| R-GLO-04 | Anyone added (R-ADM-08) may propose a new term on the screens, up to 20 a day each (default: 20). Holders of a role may also propose a correction, as it shows the term. The keepers for the languages concerned are told, and the proposer sees the outcome. |
 | R-GLO-05 | The glossary has one version number, which goes up by one with every published change. Every translation records the version it used, and any past version can be read on the screens, so a letter can be checked against the glossary it was written with. |
 | R-GLO-06 | A published change removes cached pieces that hold the changed term (R-TRN-08) and marks memory entries that hold it for recheck (R-MEM-04). |
 | R-GLO-07 | The administrator can import entries from a spreadsheet file of up to 5,000 rows (default: 5,000) and export the glossary as one. Imported entries wait as proposals for the keepers (R-GLO-02). |
@@ -156,13 +156,14 @@ Every role is held by a personal account signed in through MJOLNIR, the provinci
 
 | ID | Requirement |
 |---|---|
-| R-ADM-01 | Every screen is reached through MJOLNIR sign-in and the CERBERUS check, then ROSETTA's own roles (R-ADM-06). Any signed-in officer may propose a glossary term (R-GLO-04); every other screen needs a role. Calling systems never use the screens. |
+| R-ADM-01 | Every screen is reached through MJOLNIR sign-in and the CERBERUS check, then ROSETTA's own roles (R-ADM-06). Anyone added (R-ADM-08) may propose a glossary term (R-GLO-04); every other screen needs a role. Calling systems never use the screens. |
 | R-ADM-02 | A status screen shows BUMBLEBEE up or down, each source's state and resume time, and today's requests, refusals and failures by reason, and the background runs waiting and working, as counts. |
 | R-ADM-03 | The administrator is alerted by email, from the state BUMBLEBEE publishes, when BUMBLEBEE stops answering, when a source is paused or resumes, when every source for a direction or for grammar is unavailable, when failures for one system pass 20 percent in an hour (default: 20 percent), and when a system, language or person is flagged (R-CAL-02, R-CAL-05, R-ADM-06). A system owner gets the alerts about their own systems. BUMBLEBEE's state, a source's state and a direction's state each change at most once an hour for this, so a flapping one cannot flood; what is true is told after the hour. |
 | R-ADM-04 | A system owner or the administrator can send a test request with invented text from the screens and see the full answer, including sources and fallback. |
 | R-ADM-05 | Every change to a setting, source order, gate or key is kept as history with who made it and when, and takes effect within 60 seconds with no change in any calling system. |
 | R-ADM-06 | The administrator grants and ends the roles of administrator, glossary keeper and memory reviewer (each for one language). System owner comes from TVA's file, not a grant (R-CAL-02). Each role has an end date or none; ending a role takes effect at once. ROSETTA looks up one person's post at a time from SCROLL, through BIFROST under ROSETTA's own sharing agreement: at each sign-in and in a daily pass over live roles. A role ends only if the person was found earlier and is now not found or at another post. A person never found keeps the role, with the post recorded as "not known", and is flagged to the administrator (R-ADM-03), since their office may not have entered them yet. A failed look-up ends nothing. |
 | R-ADM-07 | Changes to how systems call ROSETTA only add to what exists. A change that would break a caller runs beside the old way for at least 6 months (default: 6 months), and every system owner is told. |
+| R-ADM-08 | ROSETTA adds its own people. The administrator adds a person by email, and they are told through HEDWIG to sign in through MJOLNIR. Their first confirmed sign-in links their MJOLNIR account, matching the email ignoring case; from then on the account alone identifies them. Anyone not added is refused at sign-in, however good their MJOLNIR account, with no session and no person record, and the grammar check refuses them too; an officer must sign in to ROSETTA once before it can link them. Removing a person takes effect at once, after any live role has ended. |
 
 ## 4. Non-functional requirements
 
@@ -218,7 +219,7 @@ Everything but a background run, held only in process memory (R-TRN-13), is kept
 
 | Entity | Fields |
 |---|---|
-| `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; `name, email`: text, as MJOLNIR sent them at the last sign-in; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC) |
+| `person` | `mjolnir_subject`: text, unique; the person's MJOLNIR account ID; empty until their first confirmed sign-in links it, then kept (R-ADM-08); `name, email`: text, as MJOLNIR sent them at the last sign-in; before it, the email they were added by; `screen_language`: si, ta or en; chosen on the screens and remembered (R-NFR-05); `first_seen_at, last_seen_at`: time (UTC); `added_at, added_by`: time (UTC); person; empty for anyone not added, who is refused (R-ADM-08) |
 | `role_grant` | `role`: administrator, glossary keeper or memory reviewer (R-ADM-06); never system owner; `language`: si, ta or en; glossary keeper and memory reviewer only; `post_ref`: text; post and office from SCROLL, or not known; role ends when no longer held; `starts_at, ends_on`: time (UTC); date or empty for no end date; `ended_at, ended_by`: time (UTC); person; ending takes effect at once |
 | `setting` | `value`: text; every "(default: ...)" value in the PRD; `updated_at`: time (UTC); takes effect within 60 seconds (R-ADM-05) |
 | `change_history` | `subject`: setting, source order or source switch (R-ADM-05); `subject_ref`: text; the setting name, or the operation and direction; `old_value, new_value`: text; never text sent by a caller; `changed_at`: time (UTC) |

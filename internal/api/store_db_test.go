@@ -108,7 +108,7 @@ func TestABrowserCallCountedInTheDatabase(t *testing.T) {
 	if _, err := pool.Exec(ctx, `INSERT INTO caller_origin (caller_id, origin) VALUES ($1, 'https://writedocument.epc.test')`, id); err != nil {
 		t.Fatal(err)
 	}
-	srv := api.New(api.Deps{Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}})
+	srv := api.New(api.Deps{Keys: api.PoolKeys{Pool: pool}, Origins: api.PoolOrigins{Pool: pool}, Officers: officersAdded{}})
 	mux := http.NewServeMux()
 	srv.Mount(mux)
 	send := func(origin string) *httptest.ResponseRecorder {

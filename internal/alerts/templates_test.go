@@ -11,7 +11,7 @@ import (
 // Every notice ROSETTA sends has its template in deploy/hedwig, under its own name with hyphens: HEDWIG refuses
 // a type with no template, so a kind added without one would never reach anybody.
 func TestEveryNoticeHasItsTemplate(t *testing.T) {
-	want := map[string]bool{"glossary_proposal": true, "glossary_import": true}
+	want := map[string]bool{"glossary_proposal": true, "glossary_import": true, "rosetta_person_added": true}
 	for _, kind := range Kinds {
 		if templates[kind] == "" {
 			t.Fatalf("%s has no notice type", kind)

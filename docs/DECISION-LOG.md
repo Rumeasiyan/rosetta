@@ -2,6 +2,14 @@
 
 Build decisions the PRD and backlog do not hold. Newest first.
 
+## Each system adds its own people
+
+The owner ruled that each system adds its own people, and anyone not added is refused even with a good MJOLNIR account. This replaces "any signed-in officer may propose". A person is added by email on `/people`, which makes a row in `person` with no subject, so a role can be granted before a first sign-in; the first sign-in whose email matches, ignoring case, links the subject, and from then on the subject alone decides. MJOLNIR gives no token to an unconfirmed address (its D-025), so ROSETTA does not read `email_verified`. A refusal writes no person row and starts no session: the token is revoked and a denial goes to the audit record under the account ID, not the email.
+
+The migration adds everyone holding a live role and every system owner in TVA's file, so existing grants stay; a person who merely signed in before keeps their row, for the records, and is refused. A system owner TVA names later is added like anyone else, as the ruling has no exception. `ROSETTA_FIRST_ADMIN` takes an account ID only now, and only works while no live administrator exists, or an email would let in someone never added. Removal was not asked for, but a list with no way off it would keep a mistake for ever: it needs live roles ended first and takes effect on the next request.
+
+The grammar check takes only CERBERUS's account ID, with no email to link by, so an officer added but not yet signed in to ROSETTA is refused there until they sign in once. The added notice goes through the `alert` table as keepers' notices do, so a send that fails is retried by the catch-up job. Proposals stop at `proposals_per_day` for each person, default 20, counted from the entries themselves; imports do not count. Showing a term through `/glossary/propose?corrects=` now needs a role, as the term's own page does.
+
 ## A person signed in at MJOLNIR flows straight through
 
 The owner asked that someone already signed in need not press "sign in through MJOLNIR". `/signin` now passes on to `/signin/start` on a full page visit, with a plain start: `prompt=none` always answers `login_required`, as MJOLNIR's `docs/SESSION-INTERFACE.md` says, so the routine path sends neither `prompt` nor `max_age`. The page stays, and shows in three cases. A short cookie holding no identity, `rosetta_signin_hold`, is set at sign-out, so a way back cannot start a sign-in by itself while MJOLNIR's own page is unfinished. It is set on a failed return, as someone declining MJOLNIR's privacy notice comes back with an error and would otherwise go round for ever. It is set on the first CERBERUS mismatch, so a second one stops at the page rather than going round. A failed start answers with the page too. The cookie is never cleared, only runs out: it stops nothing but the automatic start, and the button always works.

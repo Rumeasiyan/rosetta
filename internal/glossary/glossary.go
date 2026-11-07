@@ -558,6 +558,17 @@ func Like(s string) string {
 	return "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s) + "%"
 }
 
+// ErrTooManyProposals says this person has sent the most proposals allowed in a day.
+var ErrTooManyProposals = errors.New("glossary: too many proposals in a day")
+
+// ProposedToday counts what this person proposed in the last day. An import is not counted.
+func ProposedToday(ctx context.Context, q Querier, person int64) (int, error) {
+	var n int
+	err := q.QueryRow(ctx, `SELECT count(*) FROM glossary_entry WHERE proposed_by = $1 AND glossary_import_id IS NULL
+		AND proposed_at > now() - interval '1 day'`, person).Scan(&n)
+	return n, err
+}
+
 // PageLimit is the most entries one page shows (R-NFR-03): finding by text narrows a longer list.
 const PageLimit = 100
 
