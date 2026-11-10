@@ -1,63 +1,32 @@
+# One quick job on every push and pull request: format, lint, vet, build and the tests that need
+# no database. The full suite runs locally before pushing, and on GitHub only for a version tag or
+# by hand (release.yml).
 name: checks
 
 on:
   pull_request:
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "docs/diagrams/*.py"
   push:
     branches: [main]
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "docs/diagrams/*.py"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  markdown:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v16
-        with:
-          globs: |
-            **/*.md
-            !design-lab/**
-
-  python:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: "check"
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: "format --check"
-
-  go:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: gofmt
-        run: |
-          files=$(find . -name '*.go' -not -path './vendor/*')
-          if [ -z "$files" ]; then echo "no Go files"; exit 0; fi
-          out=$(gofmt -l $files); if [ -n "$out" ]; then echo "$out"; exit 1; fi
-      - name: the Go the image ships, from the Dockerfile
-        id: go-version
-        run: |
-          version=$(sed -n 's/^FROM golang:\([0-9.]*\).*/\1/p' Dockerfile)
-          if [ -z "$version" ]; then echo "No Go version in the Dockerfile"; exit 1; fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ steps.go-version.outputs.version }}
-      - name: go vet
-        run: go vet ./...
-      - name: start the database, as dev/compose.yaml gives it
-        run: docker compose -f dev/compose.yaml up -d --wait postgres pgbouncer
-      - name: tests, with the database
-        env:
-          ROSETTA_TEST_DATABASE_URL: postgres://rosetta:rosetta@localhost:53432/rosetta
-        run: go test -p 1 -count=1 ./...
-
-  file-names:
+  quick:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,3 +40,33 @@ jobs:
         run: |
           bad=$(git ls-files | grep -E '^design-lab/inspiration/|^dev/keys/|\.key$|\.pem$' || true)
           if [ -n "$bad" ]; then echo "These must not be committed:"; echo "$bad"; exit 1; fi
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !design-lab/**
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "check"
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check"
+      - name: gofmt
+        run: |
+          out=$(gofmt -l $(find . -name '*.go' -not -path './vendor/*')); if [ -n "$out" ]; then echo "$out"; exit 1; fi
+      - name: the Go the image ships, from the Dockerfile
+        id: go-version
+        run: |
+          version=$(sed -n 's/^FROM golang:\([0-9.]*\).*/\1/p' Dockerfile)
+          if [ -z "$version" ]; then echo "No Go version in the Dockerfile"; exit 1; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # Caches the module and build caches, keyed on go.sum.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.version }}
+          cache: true
+      - run: go vet ./...
+      - run: go build ./...
+      # No ROSETTA_TEST_DATABASE_URL: every database test skips itself.
+      - name: tests that need no database
+        run: go test -count=1 ./...

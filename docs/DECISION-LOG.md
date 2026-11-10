@@ -466,3 +466,7 @@ An officer working in the editor may never have opened rosetta.epc.lk, so holds 
 ## The stand-in listens on 53190
 
 Port 53090 was held on the Docker side of the development machine with no container showing it, which left the stand-in running with no network. Docker's first error scrolled past while the container still reported healthy, so a Compose run that answers 502 at sign-in points here first.
+
+## GitHub runs the quick checks; the full suite runs at release
+
+By the owner's ruling, to cut GitHub Actions minutes. A push or pull request runs one quick job, `checks`: file names, keys, Markdown, Python, gofmt, vet, build and the tests that need no database, which skip themselves. A change to documentation only runs nothing. The full suite with the database runs locally before every push, and on GitHub only in `release`, on a version tag before the image is built, or started by hand. A newer run on the same branch cancels the older one, and Go's module and build caches and Docker's layers are kept between runs.
