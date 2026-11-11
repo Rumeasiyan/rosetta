@@ -1,6 +1,6 @@
 # The local stand-ins, for dev/compose.yaml only. Never pushed; the service's own
 # image (../Dockerfile) builds ./cmd/rosetta alone.
-FROM golang:1.27.3-alpine AS build
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 COPY go.mod go.sum ./

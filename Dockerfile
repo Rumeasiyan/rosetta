@@ -3,7 +3,7 @@
 # (allspark apps/_template). Runs as a non-root user on a read-only root file
 # system; it writes nothing to disk (logs go to stderr).
 
-FROM golang:1.27.3-alpine AS build
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 COPY go.mod go.sum ./
