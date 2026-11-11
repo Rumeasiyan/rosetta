@@ -1,6 +1,6 @@
 module github.com/Rumeasiyan/rosetta
 
-go 1.27.1
+go 1.27.4
 
 require (
 	github.com/Rumeasiyan/paradox/sign v0.2.0
